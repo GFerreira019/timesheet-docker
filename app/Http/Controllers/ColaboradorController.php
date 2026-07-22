@@ -1,0 +1,266 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use Illuminate\Http\Request;
+use App\Models\Colaborador;
+
+class ColaboradorController extends Controller
+{
+    public function index(Request $request)
+    {
+        $query = Colaborador::with(['setorRelacionamento', 'setoresVinculados:id']);
+
+        if ($request->filled('nome')) {
+            $query->where('nome_completo', 'like', '%' . $request->nome . '%');
+        }
+        if ($request->filled('cargo')) {
+            $query->where('cargo', $request->cargo);
+        }
+        if ($request->filled('setor_id')) {
+            $query->where('setor_id', $request->setor_id);
+        }
+        if ($request->filled('nivel_acesso')) {
+            $query->where('nivel_acesso', $request->nivel_acesso);
+        }
+        if ($request->filled('cidade_trabalho')) {
+            $query->where('cidade_trabalho', $request->cidade_trabalho);
+        }
+        if ($request->filled('status')) {
+            if ($request->status === 'ativo') {
+                $query->where(function ($q) {
+                    $q->whereNull('data_demissao')->orWhere('data_demissao', '');
+                });
+            } elseif ($request->status === 'inativo') {
+                $query->whereNotNull('data_demissao')->where('data_demissao', '!=', '');
+            }
+        }
+
+        // 1º Ordena por Status (Ativos primeiro)
+        $query->orderByRaw("CASE WHEN data_demissao IS NULL OR data_demissao = '' THEN 0 ELSE 1 END ASC");
+
+        // 2º Ordena alfabeticamente
+        $query->orderBy('nome_completo', 'asc');
+
+        $colaboradores = $query->paginate(25)->withQueryString();
+        
+        $cargos = Colaborador::whereNotNull('cargo')->distinct()->pluck('cargo');
+        $setores = \App\Models\Setor::orderBy('nome_completo')->get();
+        $niveis_acesso = Colaborador::whereNotNull('nivel_acesso')->distinct()->pluck('nivel_acesso');
+        $cidades = Colaborador::select('cidade_moradia')
+            ->union(Colaborador::select('cidade_trabalho'))
+            ->whereNotNull('cidade_moradia')
+            ->distinct()
+            ->pluck('cidade_moradia');
+        $cidades_trabalho = Colaborador::whereNotNull('cidade_trabalho')->distinct()->pluck('cidade_trabalho');
+
+        return view('colaboradores.index', compact('colaboradores', 'cargos', 'setores', 'cidades', 'cidades_trabalho', 'niveis_acesso'));
+    }
+
+    public function update(Request $request, $id)
+    {
+        $validated = $request->validate([
+            'nome_completo' => 'sometimes|nullable|string|max:255',
+            'nivel_acesso' => 'sometimes|nullable|in:OPERACIONAL,GESTOR,ADMIN,GERENCIAL,SAC',
+            'telefone' => 'sometimes|nullable|string|max:20',
+            'cargo' => 'sometimes|nullable|string|max:255',
+            'setor_id' => 'sometimes|nullable|exists:setores,id',
+            'setores_vinculados' => 'sometimes|nullable|array',
+            'setores_vinculados.*' => 'exists:setores,id',
+            'cidade_moradia' => 'sometimes|nullable|string|max:255',
+            'cidade_trabalho' => 'sometimes|nullable|string|max:255',
+            'uf_moradia' => 'sometimes|nullable|string|max:2',
+            'uf_trabalho' => 'sometimes|nullable|string|max:2',
+            'data_demissao' => 'sometimes|nullable|date',
+            'data_vigencia' => 'required|date'
+        ]);
+
+        $colaborador = Colaborador::findOrFail($id);
+        
+        $dados = $validated;
+        
+        // Remove a vigência e setores vinculados para processar separadamente
+        $dataVigencia = $dados['data_vigencia'];
+        unset($dados['data_vigencia']);
+
+        $setoresVinculados = $request->input('setores_vinculados', []);
+        unset($dados['setores_vinculados']);
+
+        // Concatena a UF na Cidade de Moradia
+        if (!empty($dados['cidade_moradia']) && !empty($dados['uf_moradia'])) {
+            $dados['cidade_moradia'] = $dados['cidade_moradia'] . ' - ' . $dados['uf_moradia'];
+        }
+
+        // Concatena a UF na Cidade de Trabalho
+        if (!empty($dados['cidade_trabalho']) && !empty($dados['uf_trabalho'])) {
+            $dados['cidade_trabalho'] = $dados['cidade_trabalho'] . ' - ' . $dados['uf_trabalho'];
+        }
+
+        // Remove os campos auxiliares de UF para não dar erro de coluna inexistente no SQL
+        unset($dados['uf_moradia'], $dados['uf_trabalho'], $dados['uf']);
+
+        // Sanitização global: aplicar uppercase e ASCII em todos os textos, exceto datas
+        foreach ($dados as $key => $value) {
+            if (is_string($value) && !in_array($key, ['data_demissao'])) {
+                $dados[$key] = \Illuminate\Support\Str::upper(\Illuminate\Support\Str::ascii($value));
+            }
+        }
+
+        $colaborador->fill($dados);
+        $colaborador->dataVigenciaVirtual = $dataVigencia; // Atualiza a data_vigencia (virtual) no momento do save
+        $colaborador->save(); // Isso disparará o ColaboradorObserver automaticamente
+
+        // Sincroniza os setores vinculados (limpa se o array for vazio, ex: mudou para OPERACIONAL)
+        $colaborador->setoresVinculados()->sync($setoresVinculados);
+
+        if ($request->wantsJson()) {
+            return response()->json(['success' => true, 'message' => 'Colaborador atualizado com sucesso.']);
+        }
+
+        return back()->with('success', 'Ficha atualizada com sucesso!');
+    }
+
+    public function historico($id)
+    {
+        $colaborador = Colaborador::with(['historicos' => function($query) {
+            $query->orderBy('created_at', 'desc')->with('usuarioAlteracao:id,name');
+        }])->findOrFail($id);
+
+        $historicosFormatados = $colaborador->historicos->map(function ($hist) {
+            $camposAlterados = is_array($hist->campos_alterados) ? $hist->campos_alterados : json_decode($hist->campos_alterados, true) ?? [];
+            $dadosAnteriores = is_array($hist->dados_anteriores) ? $hist->dados_anteriores : json_decode($hist->dados_anteriores, true) ?? [];
+
+            if (isset($camposAlterados['setor_id'])) {
+                $novoId = $camposAlterados['setor_id'];
+                unset($camposAlterados['setor_id']);
+                $camposAlterados['Setor'] = $novoId ? \App\Models\Setor::find($novoId)->nome ?? $novoId : '(vazio)';
+                
+                if (isset($dadosAnteriores['setor_id'])) {
+                    $antigoId = $dadosAnteriores['setor_id'];
+                    unset($dadosAnteriores['setor_id']);
+                    $dadosAnteriores['Setor'] = $antigoId ? \App\Models\Setor::find($antigoId)->nome ?? $antigoId : '(vazio)';
+                }
+            }
+
+            if (isset($camposAlterados['uf'])) {
+                $novoValor = \Illuminate\Support\Str::upper($camposAlterados['uf']);
+                unset($camposAlterados['uf']);
+                $camposAlterados['UF'] = $novoValor;
+                
+                if (isset($dadosAnteriores['uf'])) {
+                    unset($dadosAnteriores['uf']);
+                    $dadosAnteriores['UF'] = \Illuminate\Support\Str::upper($dadosAnteriores['uf']);
+                }
+            }
+
+            $hist->campos_alterados = $camposAlterados;
+            $hist->dados_anteriores = $dadosAnteriores;
+            
+            return $hist;
+        });
+
+        return response()->json($historicosFormatados);
+    }
+
+    public function buscarCidades(Request $request)
+    {
+        try {
+            $busca = $request->query('q');
+
+            // Puxa todos os municípios do IBGE e guarda em Cache por 24 horas
+            $municipios = \Illuminate\Support\Facades\Cache::remember('ibge_municipios', 86400, function () {
+                $response = \Illuminate\Support\Facades\Http::timeout(15)
+                    ->get('https://servicodados.ibge.gov.br/api/v1/localidades/municipios');
+                
+                if ($response->successful()) {
+                    return collect($response->json())->map(function ($item) {
+                        return [
+                            'nome' => \Illuminate\Support\Str::upper(\Illuminate\Support\Str::ascii($item['nome'])),
+                            // A estrutura do IBGE aninha a UF dentro de microrregião > mesorregião
+                            'uf' => $item['microrregiao']['mesorregiao']['UF']['sigla'] ?? ''
+                        ];
+                    })->toArray();
+                }
+                return [];
+            });
+
+            if (empty($municipios)) {
+                return response()->json(['error' => 'Falha ao carregar base do IBGE'], 500);
+            }
+
+            // Filtra os resultados ignorando acentos e maiúsculas (ex: "sao paulo" encontra "São Paulo")
+            if (!empty($busca)) {
+                $buscaSlug = \Illuminate\Support\Str::slug($busca);
+                $municipios = array_filter($municipios, function($m) use ($buscaSlug) {
+                    return \Illuminate\Support\Str::contains(\Illuminate\Support\Str::slug($m['nome']), $buscaSlug);
+                });
+            }
+
+            // Retorna apenas os 15 primeiros resultados formatados
+            return response()->json(array_values(array_slice($municipios, 0, 15)));
+        } catch (\Exception $e) {
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
+    }
+
+    public function buscarNomesAoVivo(Request $request)
+    {
+        $busca = $request->query('q');
+        if (empty($busca)) return response()->json([]);
+        
+        $colaboradores = Colaborador::where('nome_completo', 'LIKE', "%{$busca}%")
+                            ->limit(10)
+                            ->get(['id', 'nome_completo', 'cargo']);
+                            
+        return response()->json($colaboradores);
+    }
+
+    public function store(Request $request)
+    {
+        $validated = $request->validate([
+            'nome_completo' => 'required|string|max:255',
+            'nivel_acesso' => 'required|in:OPERACIONAL,GESTOR,ADMIN,GERENCIAL,SAC',
+            'id_colaborador' => 'required|string|max:255|unique:produtividade_colaborador,id_colaborador',
+            'telefone' => 'nullable|string|max:20',
+            'cargo' => 'required|string|max:255',
+            'setor_id' => 'required|exists:setores,id',
+            'setores_vinculados' => 'nullable|array',
+            'setores_vinculados.*' => 'exists:setores,id',
+            'cidade_moradia' => 'nullable|string|max:255',
+            'cidade_trabalho' => 'nullable|string|max:255',
+            'data_admissao' => 'required|date',
+            'uf_moradia' => 'nullable|string|max:2',
+            'uf_trabalho' => 'nullable|string|max:2',
+        ]);
+
+        $dados = $validated;
+
+        $setoresVinculados = $request->input('setores_vinculados', []);
+        unset($dados['setores_vinculados']);
+
+        // Concatena a UF na Cidade de Moradia
+        if (!empty($dados['cidade_moradia']) && !empty($dados['uf_moradia'])) {
+            $dados['cidade_moradia'] = $dados['cidade_moradia'] . ' - ' . $dados['uf_moradia'];
+        }
+
+        // Concatena a UF na Cidade de Trabalho
+        if (!empty($dados['cidade_trabalho']) && !empty($dados['uf_trabalho'])) {
+            $dados['cidade_trabalho'] = $dados['cidade_trabalho'] . ' - ' . $dados['uf_trabalho'];
+        }
+
+        // Remove os campos auxiliares
+        unset($dados['uf_moradia'], $dados['uf_trabalho'], $dados['uf']);
+
+        foreach ($dados as $key => $value) {
+            if (is_string($value) && !in_array($key, ['data_admissao', 'data_demissao', 'data_vigencia'])) {
+                $dados[$key] = \Illuminate\Support\Str::upper(\Illuminate\Support\Str::ascii($value));
+            }
+        }
+
+        $colaborador = Colaborador::create($dados);
+
+        $colaborador->setoresVinculados()->sync($setoresVinculados);
+
+        return back()->with('success', 'Colaborador cadastrado com sucesso!');
+    }
+}

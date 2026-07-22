@@ -1,0 +1,50 @@
+# Arquivos de sistema Mac
+.DS_Store
+
+# Arquivos de cache e IDE
+.phpactor.json
+.phpunit.result.cache
+/.fleet
+/.idea
+/.nova
+/.phpunit.cache
+/.vscode
+/.zed
+/auth.json
+/storage/pail
+/Homestead.json
+/Homestead.yaml
+/Thumbs.db
+
+# Dependências do Laravel e Node
+/vendor
+/node_modules
+/public/build
+/public/hot
+/public/storage
+
+# Variaveis de ambiente e chaves
+*.env
+.env.*
+.env
+.env.backup
+.env.production
+!.env.example
+/storage/*.key
+
+# Banco de Dados Local
+/timesheet.db
+/database/timesheet.db
+database/database.sqlite
+database/database.sqlite-journal
+
+# Logs gerais e do whatsapp
+*.log
+storage/logs/
+storage/logs/whatsapp/
+storage/logs/whatsapp_node.log
+
+# ZAP-SERVER
+/zap-server/node_modules
+/zap-server/package-lock.json
+/zap-server/tokens/

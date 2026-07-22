@@ -1,0 +1,13 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer utilities {
+    .theme-text-primary {
+        color: #ffffffff;
+    }
+
+    .theme-text-secondary {
+        color: #94a3b8;
+    }
+}
