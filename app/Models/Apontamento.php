@@ -59,8 +59,8 @@ class Apontamento extends Model
 
     /** @var array<string, string> */
     public const LOCAL_CHOICES = [
-        'INT' => 'Dentro da obra',
-        'EXT' => 'Fora da obra',
+        'EXTERNO' => 'Dentro da obra (em campo)',
+        'INTERNO' => 'Fora da obra (na base)',
     ];
 
     /** @var array<string, string> */

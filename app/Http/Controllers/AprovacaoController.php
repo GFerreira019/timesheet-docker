@@ -259,7 +259,7 @@ class AprovacaoController extends Controller
         $localOld = $dadosAntigos['local_execucao'] ?? '';
         $localNew = $ap->local_execucao;
         if ($localOld !== $localNew) {
-            $mapa = ['INT' => 'DENTRO DA OBRA', 'EXT' => 'FORA DA OBRA'];
+            $mapa = ['EXTERNO' => 'DENTRO DA OBRA', 'INTERNO' => 'FORA DA OBRA'];
             $diff[] = ['campo' => 'Local', 'antes' => $mapa[$localOld] ?? $localOld, 'depois' => $mapa[$localNew] ?? $localNew, 'icon' => 'map'];
         }
         // 4. Projeto

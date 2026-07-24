@@ -118,7 +118,7 @@ class HistoricoController extends Controller
 
         foreach ($apontamentos as $item) {
             // Local Ref (equivalente ao bloco de formatação do Django)
-            if ($item->local_execucao === 'INT') {
+            if ($item->local_execucao === 'EXTERNO') {
                 $localTipoDisplay = 'DENTRO DA OBRA';
                 if ($item->projeto) {
                     $cod      = $item->projeto->codigo ?? '';
@@ -129,12 +129,13 @@ class HistoricoController extends Controller
                     $localRef = 'Obra/Cliente não informado';
                 }
             } else {
-                $localTipoDisplay = 'FORA DO SETOR';
-                $localRef = $item->centroCusto?->nome ?? 'Atividade Externa';
+                $localTipoDisplay = 'FORA DA OBRA';
                 if ($item->projeto) {
-                    $localRef .= " ({$item->projeto->codigo} - {$item->projeto->nome})";
+                    $localRef = " {$item->projeto->codigo} - {$item->projeto->nome} ({$item->centroCusto?->nome})";
                 } elseif ($item->codigoCliente) {
-                    $localRef .= " ({$item->codigoCliente->codigo} - {$item->codigoCliente->nome})";
+                    $localRef = " {$item->codigoCliente->codigo} - {$item->codigoCliente->nome} ({$item->centroCusto?->nome})";
+                } else {
+                    $localRef = " {$item->centroCusto?->nome}";
                 }
             }
 

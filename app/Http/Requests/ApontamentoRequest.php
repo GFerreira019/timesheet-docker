@@ -5,8 +5,12 @@ namespace App\Http\Requests;
 use App\Helpers\AcessoHelper;
 use App\Models\Apontamento;
 use App\Models\Colaborador;
+use App\Models\CentroCusto;
+use App\Models\SolidesPonto;
 use Carbon\Carbon;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Validator;
 
 /**
@@ -61,7 +65,7 @@ class ApontamentoRequest extends FormRequest
             // Campos obrigatórios base
             'colaborador_id'     => ['required', 'integer', 'exists:produtividade_colaborador,id'],
             'data_apontamento'   => ['required', 'date'],
-            'local_execucao'     => ['required', 'in:INT,EXT'],
+            'local_execucao'     => ['required', 'in:EXTERNO,INTERNO'],
             'hora_inicio'        => ['required', 'date_format:H:i'],
 
             // hora_termino é nullable no modo START (cronômetro)
@@ -174,6 +178,13 @@ class ApontamentoRequest extends FormRequest
                 // ==============================================================
                 if ($horaTermino) {
                     $this->validarConflitosHorario($validator, (int) $colaboradorId, $dataApontamento, $horaInicio, $horaTermino);
+                }
+
+                // ==============================================================
+                // 3.1 CONFLITO COM INTERVALO DE ALMOÇO DA SÓLIDES
+                // ==============================================================
+                if ($horaTermino) {
+                    $this->validarIntervalSolides($validator, (int) $colaboradorId, $dataApontamento, $horaInicio, $horaTermino);
                 }
             }
 
@@ -320,14 +331,14 @@ class ApontamentoRequest extends FormRequest
                     ? 'Conflito de Horário (Mesmo dia)' 
                     : 'Conflito Interjornada (Dia Anterior)';
 
-                if ($registro->local_execucao === 'INT') {
+                if ($registro->local_execucao === 'EXTERNO') {
                     $referencia = $registro->projeto
                         ? (string) $registro->projeto
                         : ($registro->codigoCliente ? (string) $registro->codigoCliente : 'Obra/Cliente');
                 } else {
                     $referencia = $registro->centroCusto
                         ? (string) $registro->centroCusto
-                        : 'Local Externo';
+                        : 'Atividade Interna';
                 }
 
                 session()->flash('conflito_details', [
@@ -345,11 +356,134 @@ class ApontamentoRequest extends FormRequest
     }
 
     /**
+     * Valida se o horário do apontamento conflita com o intervalo de almoço
+     * registrado na Sólides para o colaborador no mesmo dia.
+     *
+     * Estratégia:
+     *  - Consulta a tabela local `solides_pontos` (já sincronizada via SolidesService)
+     *    com um Cache::remember de 15 minutos para não reprocessar a query a cada request.
+     *  - Se o colaborador não tiver `solides_id`, ignora silenciosamente.
+     *  - O intervalo de almoço é identificado como o GAP entre o fim da 1ª batida
+     *    e o início da 2ª batida do dia (entrada/saída/retorno/saída).
+     *  - Fórmula de sobreposição: (apont_inicio < intervalo_fim) && (apont_fim > intervalo_inicio)
+     */
+    private function validarIntervalSolides(
+        Validator $validator,
+        int $colaboradorId,
+        string $dataApontamento,
+        string $horaInicio,
+        string $horaTermino
+    ): void {
+        // 1. Carrega o colaborador e verifica se possui integração com a Sólides
+        $colaborador = \App\Models\Colaborador::find($colaboradorId);
+
+        if (!$colaborador || empty($colaborador->solides_id)) {
+            // Sem solides_id → validação não se aplica, ignora silenciosamente
+            return;
+        }
+
+        $solidesId = $colaborador->solides_id;
+
+        // Normaliza a data para Y-m-d
+        try {
+            $dataFmt = Carbon::parse($dataApontamento)->format('Y-m-d');
+        } catch (\Throwable) {
+            return;
+        }
+
+        // 2. Camada de Cache (TTL: 15 minutos)
+        //    Chave única por colaborador + data → evita N queries por request
+        $cacheKey = "solides_pontos_{$solidesId}_{$dataFmt}";
+
+        /** @var \Illuminate\Support\Collection $batidasDoDia */
+        $batidasDoDia = Cache::remember($cacheKey, now()->addMinutes(15), function () use ($colaboradorId, $dataFmt) {
+            try {
+                // Consulta o banco local sincronizado (mais rápido e resiliente que chamar a API em tempo real)
+                return \App\Models\SolidesPonto::where('colaborador_id', $colaboradorId)
+                    ->whereDate('data', $dataFmt)
+                    ->whereNotNull('hora_entrada')
+                    ->orderBy('hora_entrada')
+                    ->get(['hora_entrada', 'hora_saida']);
+            } catch (\Exception $e) {
+                Log::warning("validarIntervalSolides: Falha ao consultar batidas da Sólides para colaborador {$colaboradorId} em {$dataFmt}. Validação ignorada. Erro: {$e->getMessage()}");
+                return collect(); // Falha silenciosa → não bloqueia o apontamento
+            }
+        });
+
+        // 3. Monta os horários do apontamento para comparação (feito 1x)
+        try {
+            $apInicio  = Carbon::createFromFormat('Y-m-d H:i', "{$dataFmt} " . substr($horaInicio, 0, 5));
+            $apTermino = Carbon::createFromFormat('Y-m-d H:i', "{$dataFmt} " . substr($horaTermino, 0, 5));
+            
+            if ($apTermino->lt($apInicio)) {
+                $apTermino->addDay(); // Overnight
+            }
+        } catch (\Throwable) {
+            return;
+        }
+
+        // 4. Detecta os intervalos (gaps) entre turnos
+        //    O intervalo de descanso é o tempo ENTRE a hora_saida de um turno
+        //    e a hora_entrada do turno seguinte.
+        if ($batidasDoDia->count() < 2) {
+            return; // Sem dados suficientes para detectar intervalo
+        }
+
+        for ($i = 0; $i < $batidasDoDia->count() - 1; $i++) {
+            $turnoAtual   = $batidasDoDia->get($i);
+            $proximoTurno = $batidasDoDia->get($i + 1);
+
+            // Blindagem contra turnos abertos (onde o colaborador ainda não bateu a saída)
+            if (empty($turnoAtual->hora_saida) || empty($proximoTurno->hora_entrada)) {
+                continue; // Dados incompletos neste gap, pula para o próximo
+            }
+
+            try {
+                $inicioIntervaloObj = Carbon::createFromFormat('Y-m-d H:i', "{$dataFmt} " . substr($turnoAtual->hora_saida, 0, 5));
+                $fimIntervaloObj    = Carbon::createFromFormat('Y-m-d H:i', "{$dataFmt} " . substr($proximoTurno->hora_entrada, 0, 5));
+            } catch (\Throwable) {
+                continue; // Falha no parse deste gap, pula
+            }
+
+            // Sanidade: o intervalo deve ser positivo
+            if (!$fimIntervaloObj->gt($inicioIntervaloObj)) {
+                continue;
+            }
+
+            $inicioFmt      = $inicioIntervaloObj->format('H:i');
+            $fimFmt         = $fimIntervaloObj->format('H:i');
+            $apontInicioFmt = $apInicio->format('H:i');
+            $apontFimFmt    = $apTermino->format('H:i');
+
+            Log::info("Validando Sólides - Apontamento: {$apontInicioFmt} às {$apontFimFmt} | Intervalo Banco: {$inicioFmt} às {$fimFmt}");
+
+            // 5. Fórmula Universal de Sobreposição: (A_ini < B_fim) && (A_fim > B_ini)
+            if ($apInicio->lt($fimIntervaloObj) && $apTermino->gt($inicioIntervaloObj)) {
+                session()->flash('conflito_details', [
+                    'tipo'        => 'Conflito de Intervalo (Sólides)',
+                    'colaborador' => $colaborador->nome_completo ?? $colaborador->nome ?? "ID {$colaboradorId}",
+                    'referencia'  => "Intervalo registrado na Sólides",
+                    'data'        => Carbon::parse($dataFmt)->format('d/m/Y'),
+                    'inicio'      => $inicioFmt,
+                    'termino'     => $fimFmt,
+                ]);
+
+                $validator->errors()->add(
+                    'hora_inicio',
+                    "Apontamento bloqueado: O horário conflita com o seu intervalo de almoço registrado na Sólides das {$inicioFmt} às {$fimFmt}."
+                );
+
+                break; // Bloqueou em um gap, interrompe o loop
+            }
+        }
+    }
+
+    /**
      * Valida regras de local de execução e contexto.
      *
      * Equivalente ao bloco 4 do clean() do Django:
-     *   INT → projeto OU codigo_cliente (não ambos, não nenhum); centro_custo = null
-     *   EXT → centro_custo obrigatório; se permite_alocacao → projeto/cliente obrigatório
+     *   EXTERNO → colaborador em campo; projeto OU codigo_cliente obrigatório; centro_custo = null
+     *   INTERNO → colaborador na base; centro_custo obrigatório; se permite_alocacao → projeto/cliente obrigatório
      */
     private function validarLocalContexto(Validator $validator, array $data): void
     {
@@ -358,16 +492,16 @@ class ApontamentoRequest extends FormRequest
         $codClienteId = $data['codigo_cliente_id'] ?? null;
         $ccId         = $data['centro_custo_id']   ?? null;
 
-        if ($local === 'INT') {
+        if ($local === 'EXTERNO') {
             if ($projetoId && $codClienteId) {
                 $validator->errors()->add('projeto_id', 'Selecione apenas a Obra ou o Cliente, não ambos.');
             }
             if (!$projetoId && !$codClienteId) {
                 $validator->errors()->add('projeto_id', 'Informe a Obra Específica ou o Código do Cliente.');
             }
-            // centro_custo não se aplica para INT — será limpo no controller
+            // centro_custo não se aplica para EXTERNO — será limpo no controller
 
-        } elseif ($local === 'EXT') {
+        } elseif ($local === 'INTERNO') {
             if (!$ccId) {
                 $validator->errors()->add('centro_custo_id', 'Selecione o Setor / Justificativa (Custo).');
             }
@@ -537,11 +671,13 @@ class ApontamentoRequest extends FormRequest
         }
 
         // Limpa campos de local contrários ao local_execucao selecionado
-        if (($data['local_execucao'] ?? '') === 'INT') {
+        if (($data['local_execucao'] ?? '') === 'EXTERNO') {
+            // Em campo (Dentro da Obra): limpa centro_custo, mantém projeto/cliente
             $data['centro_custo_id'] = null;
         }
 
-        if (($data['local_execucao'] ?? '') === 'EXT') {
+        if (($data['local_execucao'] ?? '') === 'INTERNO') {
+            // Na base (Fora da Obra): limpa projeto/cliente se CC não permite alocação
             $ccId = $data['centro_custo_id'] ?? null;
             if ($ccId) {
                 $cc = \App\Models\CentroCusto::find($ccId);

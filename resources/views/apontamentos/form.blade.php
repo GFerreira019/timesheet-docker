@@ -191,7 +191,11 @@
                 </div>
             </div>
             
+            @if ($conflito['tipo'] == 'Conflito de Intervalo (Sólides)')
+            <p class="text-sm text-red-300/80 italic mb-6">Este apontamento conflita com o intervalo de almoço. Para prosseguir, ajuste os horários para que não haja sobreposição.</p>
+            @else
             <p class="text-sm text-red-300/80 italic mb-6">Ajuste os horários. O sistema não permite registrar horas sobrepostas para a mesma pessoa.</p>
+            @endif
             
             <div class="flex justify-end">
                 <button type="button" onclick="document.getElementById('modal-conflito').remove()" class="px-5 py-2.5 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-lg border border-slate-700 transition-colors">
@@ -199,7 +203,6 @@
                 </button>
             </div>
         </div>
-    </div>
     </div>
     @endif
 
@@ -301,17 +304,19 @@
             </div>
         </div>
     </div>
-    {{-- Erros de validação globais --}}
-    @if($errors->any())
-    <div class="mb-5 px-4 py-3 bg-red-500/10 border border-red-500/30 text-red-400 rounded-xl text-sm">
-        <p class="font-bold mb-1">Corrija os erros abaixo:</p>
-        <ul class="list-disc list-inside space-y-1">
-            @foreach($errors->all() as $error)
-            <li>{{ $error }}</li>
-            @endforeach
-        </ul>
+    {{-- Container Estático de Erros (Previne quebra de DOM Morphing) --}}
+    <div id="validation-errors-container">
+        @if($errors->any())
+        <div class="mb-5 px-4 py-3 bg-red-500/10 border border-red-500/30 text-red-400 rounded-xl text-sm">
+            <p class="font-bold mb-1">Corrija os erros abaixo:</p>
+            <ul class="list-disc list-inside space-y-1">
+                @foreach($errors->all() as $error)
+                <li>{{ $error }}</li>
+                @endforeach
+            </ul>
+        </div>
+        @endif
     </div>
-    @endif
 
     <form method="POST" action="{{ $is_editing ? route('apontamentos.update', $apontamento_id) : route('apontamentos.store') }}" 
           class="space-y-6" id="apontamentoForm">
@@ -399,8 +404,8 @@
                     <label class="form-label text-white font-bold">Local de Trabalho *</label>
                     <select id="select-local-trabalho" name="local_execucao" class="form-input" required>
                         <option value="">Selecione...</option>
-                        <option value="INT" {{ old('local_execucao', $initial_values['local_execucao'] ?? '') == 'INT' ? 'selected' : '' }}>Dentro da Obra</option>
-                        <option value="EXT" {{ old('local_execucao', $initial_values['local_execucao'] ?? '') == 'EXT' ? 'selected' : '' }}>Fora da Obra</option>
+                        <option value="EXTERNO" {{ old('local_execucao', $initial_values['local_execucao'] ?? '') == 'EXTERNO' ? 'selected' : '' }}>Dentro da Obra</option>
+                        <option value="INTERNO" {{ old('local_execucao', $initial_values['local_execucao'] ?? '') == 'INTERNO' ? 'selected' : '' }}>Fora da Obra</option>
                     </select>
                 </div>
 
@@ -445,9 +450,9 @@
         </div>
 
         {{-- ================================================================ --}}
-        {{-- BLOCO 2: Dados da Obra (local = INT) --}}
+        {{-- BLOCO 2: Dados da Obra (local = EXTERNO — colaborador em campo) --}}
         {{-- ================================================================ --}}
-        <div id="container-obra" class="{{ old('local_execucao', $initial_values['local_execucao'] ?? '') == 'INT' ? '' : 'hidden' }} bg-slate-900 rounded-xl border border-slate-800 p-6 shadow-lg relative overflow-hidden">
+        <div id="container-obra" class="{{ old('local_execucao', $initial_values['local_execucao'] ?? '') == 'EXTERNO' ? '' : 'hidden' }} bg-slate-900 rounded-xl border border-slate-800 p-6 shadow-lg relative overflow-hidden">
             <div class="absolute top-0 left-0 w-1.5 h-full bg-emerald-500"></div>
             <h3 class="text-emerald-400 font-bold mb-6 text-lg uppercase tracking-wider">Dados da Obra</h3>
 
@@ -495,9 +500,9 @@
         </div>
 
         {{-- ================================================================ --}}
-        {{-- BLOCO 3: Fora do Setor (local = EXT) --}}
+        {{-- BLOCO 3: Fora da Obra (local = INTERNO — colaborador na base) --}}
         {{-- ================================================================ --}}
-        <div id="container-fora" class="{{ old('local_execucao', $initial_values['local_execucao'] ?? '') == 'EXT' ? '' : 'hidden' }} bg-slate-900 rounded-xl border border-slate-800 p-6 shadow-lg relative overflow-hidden">
+        <div id="container-fora" class="{{ old('local_execucao', $initial_values['local_execucao'] ?? '') == 'INTERNO' ? '' : 'hidden' }} bg-slate-900 rounded-xl border border-slate-800 p-6 shadow-lg relative overflow-hidden">
             <div class="absolute top-0 left-0 w-1.5 h-full bg-orange-500"></div>
             <h3 class="text-orange-400 font-bold mb-6 text-lg uppercase tracking-wider">Fora da Obra</h3>
 
@@ -837,13 +842,13 @@ $('#select-local-trabalho').on('change', function() {
     const fora = document.getElementById('container-fora');
     const comm = document.getElementById('common-fields-block');
     
-    obra.classList.toggle('hidden', val !== 'INT');
-    fora.classList.toggle('hidden', val !== 'EXT');
+    obra.classList.toggle('hidden', val !== 'EXTERNO');
+    fora.classList.toggle('hidden', val !== 'INTERNO');
     comm.classList.toggle('hidden', !val);
     
-    if (val === 'INT' && inputsWrapper && insertionPointObra) {
+    if (val === 'EXTERNO' && inputsWrapper && insertionPointObra) {
         insertionPointObra.parentNode.insertBefore(inputsWrapper, insertionPointObra);
-    } else if (val === 'EXT') {
+    } else if (val === 'INTERNO') {
         $('#id_centro_custo').trigger('change');
     }
 });
@@ -852,10 +857,10 @@ if ($('#select-local-trabalho').val()) {
 }
 
 // ========================================================================
-// Projeto opcional ao selecionar CC com permite_alocacao = true (EXT)
+// Projeto opcional ao selecionar CC com permite_alocacao = true (INTERNO)
 // ========================================================================
 $('#id_centro_custo').on('change', function() {
-    if ($('#select-local-trabalho').val() !== 'EXT') return;
+    if ($('#select-local-trabalho').val() !== 'INTERNO') return;
     
     const selectedOption = $(this).find('option:selected');
     const permiteAlocacao = selectedOption.data('permite-alocacao') === true || selectedOption.data('permite-alocacao') === 'true';
@@ -1449,7 +1454,7 @@ document.getElementById('btn-pre-save')?.addEventListener('click', function(e) {
     if(!data.inicio) errors.push("Hora de Início é obrigatória.");
     if(!data.fim) errors.push("Hora de Término é obrigatória.");
 
-    if(data.local === 'INT') {
+    if(data.local === 'EXTERNO') {
         if (!data.obra_id && !data.cliente_id) errors.push("Selecione o Código da Obra OU o Código do Cliente.");
         if (data.obra_id && data.cliente_id) errors.push("Selecione APENAS UM (Obra ou Cliente), não ambos.");
     } else {
@@ -1489,7 +1494,7 @@ document.getElementById('btn-pre-save')?.addEventListener('click', function(e) {
         const displayData = data.data_pt.split('-').reverse().join('/'); // Exibição limpa em pt-BR
         let contextInfo = "";
         
-        if(data.local === 'INT') {
+        if(data.local === 'EXTERNO') {
             if(data.obra_id) contextInfo = `<span class="text-indigo-300 font-bold">Obra:</span> ${data.obra}`;
             else if(data.cliente_id) contextInfo = `<span class="text-blue-300 font-bold">Cliente Geral:</span> ${data.cliente_txt}`;
         } else {
@@ -1678,7 +1683,7 @@ if (selectLocalTrabalho) {
         const containerRateio = document.getElementById('container-rateio');
         if (containerRateio) {
             const inputs = containerRateio.querySelectorAll('input, select, textarea');
-            if (this.value === 'EXT') {
+            if (this.value === 'INTERNO') {
                 containerRateio.classList.remove('hidden');
                 inputs.forEach(input => input.disabled = false);
             } else {

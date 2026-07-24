@@ -225,7 +225,7 @@
             </p>
             <p class="text-xs md:text-sm text-white break-words">
                 <span class="text-blue-400 font-bold">
-                    {{ $apontamento->local_execucao === 'INT' ? 'DENTRO DA OBRA' : 'FORA DA OBRA' }}
+                    {{ $apontamento->local_execucao === 'EXTERNO' ? 'DENTRO DA OBRA' : 'FORA DA OBRA' }}
                 </span>
                 <span class="text-slate-600 mx-1 md:mx-2">|</span>
                 <span class="text-slate-300">

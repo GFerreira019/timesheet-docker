@@ -14,6 +14,8 @@ use App\Http\Controllers\WhatsappController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\NotificacaoController;
 use App\Http\Controllers\Api\CalendarioApiController;
+use App\Livewire\Gerencial\Dashboard;
+use App\Livewire\Gerencial\LancamentosAvancado;
 
 /*
 |--------------------------------------------------------------------------
@@ -31,6 +33,11 @@ Route::middleware('auth')->group(function () {
     Route::get('/', [HomeController::class, 'redirect'])->name('home');
     Route::get('/menu', [HomeController::class, 'index'])->name('home.menu');
     Route::get('/painel', [DashboardController::class, 'index'])->name('painel');
+    
+    // Novas rotas Livewire Migradas
+    Route::get('/dashboard-gerencial', Dashboard::class)->name('dashboard.gerencial');
+    Route::get('/lancamentos-avancado', LancamentosAvancado::class)->name('lancamentos.avancado');
+
     Route::get('/configuracoes', [HomeController::class, 'configuracoes'])->name('configuracoes');
     Route::post('/configuracoes/testar-feriados-api', [\App\Http\Controllers\ConfiguracaoController::class, 'testarFeriadosApi'])->name('configuracoes.testar_feriados_api');
 

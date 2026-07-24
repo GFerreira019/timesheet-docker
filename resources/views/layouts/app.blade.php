@@ -120,8 +120,8 @@
     </div>
 </div>
 
-{{-- Alpine.js para interatividade (dropdowns, modais) --}}
-<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+{{-- Alpine.js é injetado automaticamente pelo Livewire 3 --}}
+@livewireStyles
 
 {{-- Auto-dismiss flash messages --}}
 <script>
@@ -131,6 +131,7 @@
     }, 6000);
 </script>
 
+@livewireScripts
 @stack('scripts')
 @include('components.btn-suporte')
 </body>

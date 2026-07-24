@@ -68,7 +68,7 @@ class DashboardApiController extends Controller
 
             // Label do projeto/setor para o gráfico (equivalente ao Django)
             $nomeProj = 'Outros';
-            if ($a->local_execucao === 'INT') {
+            if ($a->local_execucao === 'EXTERNO') {
                 if ($a->projeto) {
                     $nomeProj = $a->projeto->nome;
                 } elseif ($a->codigoCliente) {
@@ -146,12 +146,12 @@ class DashboardApiController extends Controller
         $dadosSaida = [];
 
         foreach ($queryset as $item) {
-            // Tipo e local (equivalente ao bloco if item.local_execucao == 'INT' do Django)
+            // Tipo e local (equivalente ao bloco if item.local_execucao == 'EXTERNO' do Django)
             $localNome     = '';
             $codigoObra    = null;
             $codigoCliente = null;
 
-            if ($item->local_execucao === 'INT') {
+            if ($item->local_execucao === 'EXTERNO') {
                 $tipoStr = 'OBRA';
                 if ($item->projeto) {
                     $localNome  = $item->projeto->nome;
@@ -162,7 +162,7 @@ class DashboardApiController extends Controller
                 }
             } else {
                 $tipoStr   = 'FORA DO SETOR';
-                $localNome = $item->centroCusto?->nome ?? 'Atividade Externa';
+                $localNome = $item->centroCusto?->nome ?? 'Atividade Interna';
                 if ($item->projeto) {
                     $codigoObra = $item->projeto->codigo;
                 } elseif ($item->codigoCliente) {
