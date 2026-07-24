@@ -146,6 +146,10 @@
         @endif
         
         <div class="flex justify-end gap-4">
+            <button type="button" onclick="openTimelineModal()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 px-4 rounded-lg flex items-center justify-center gap-2 transition shadow-lg shadow-emerald-900/20 text-sm whitespace-nowrap">
+                <i class="fas fa-clock"></i>
+                <span class="hidden sm:inline">Comparativo Diário</span>
+            </button>
             <a href="{{ route('historico.index') }}" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 px-4 rounded-lg flex items-center justify-center gap-2 transition shadow-lg shadow-indigo-900/20 text-sm whitespace-nowrap">
                 <i class="fas fa-list"></i>
                 <span class="hidden sm:inline">Histórico</span>
@@ -196,8 +200,107 @@
             </div>
         </div>
     </div>
+    </div>
     @endif
 
+    {{-- Modal Comparativo Diário --}}
+    <div id="modal-timeline" class="fixed inset-0 z-[9999] hidden flex items-center justify-center bg-slate-950/80 backdrop-blur-sm animate-fadeIn">
+        <div class="relative w-full max-w-6xl mx-4 max-h-[90vh] overflow-y-auto bg-[#0d1321] border border-slate-700 rounded-2xl shadow-2xl p-2 md:p-6">
+            <button type="button" onclick="closeTimelineModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white z-50">
+                <i class="fas fa-times text-2xl"></i>
+            </button>
+            
+            <div class="w-full overflow-x-auto bg-[#0d1321] p-4 md:p-8 rounded-xl my-2">
+                <div class="mb-8 md:mb-16 border-l-4 border-emerald-500 pl-4 sticky left-0">
+                    <h2 class="text-2xl font-bold text-white">Comparativo Diário</h2>
+                    <div class="flex gap-4 mt-2 text-sm">
+                        <span class="flex items-center gap-1 text-emerald-400"><i class="fas fa-circle text-[8px]"></i> Sólides</span>
+                        <span class="flex items-center gap-1 text-blue-400"><i class="fas fa-circle text-[8px]"></i> Timesheet</span>
+                    </div>
+                </div>
+
+                <div class="mt-8 relative min-w-[800px] py-24 flex items-center px-4">
+                    {{-- Linha e Seta --}}
+                    <div class="absolute left-0 right-10 top-1/2 h-1 bg-slate-300 -translate-y-1/2 z-0"></div>
+                    <div class="absolute right-6 top-1/2 -translate-y-1/2 w-0 h-0 border-t-[10px] border-t-transparent border-l-[16px] border-l-emerald-500 border-b-[10px] border-b-transparent z-10"></div>
+
+                    {{-- LOOP ENTRA AQUI --}}
+                    <div class="w-full flex justify-between relative z-10">
+                    @if(isset($timeline_data) && count($timeline_data) > 0)
+                        @foreach($timeline_data as $item)
+                            @php
+                                $has_ts = count($item['timesheet_data']) > 0;
+                            @endphp
+                            
+                            <div class="relative z-10 flex items-center shrink-0 {{ !$has_ts ? 'w-32 justify-center' : 'mx-2' }}">
+                                
+                                {{-- BOLINHA INICIAL (Nó âncora) --}}
+                                @if($item['is_solides'])
+                                    <div class="relative flex flex-col items-center z-10">
+                                        <div class="absolute bottom-full mb-4 flex flex-col items-center w-40">
+                                            <span class="text-emerald-400 font-bold text-xl tracking-wider">{{ $item['hora'] }}</span>
+                                            <span class="text-slate-200 text-sm font-medium mt-1">{{ $item['solides_data']['titulo'] }}</span>
+                                            <span class="text-slate-400 text-xs text-center leading-tight mt-1">{{ $item['solides_data']['subtitulo'] }}</span>
+                                            <div class="h-10 w-px border-l border-dashed border-slate-400 mt-3"></div>
+                                        </div>
+                                        <div class="w-4 h-4 bg-slate-300 rounded-full border-[3px] border-slate-950 shadow-[0_0_0_3px_#34d399] z-20 relative"></div>
+                                    </div>
+                                @else
+                                    <div class="relative flex flex-col items-center z-30">
+                                        {{-- Bolinha com contraste (miolo cinza, borda escura, sombra azul) para não sumir na barra --}}
+                                        <div class="w-4 h-4 bg-slate-300 rounded-full border-[3px] border-slate-950 shadow-[0_0_0_3px_#3b82f6] z-20 relative"></div>
+                                        
+                                        <div class="absolute top-full mt-4 flex flex-col items-center">
+                                            <span class="text-[#3b82f6] font-bold text-xl tracking-wider">{{ $item['hora'] }}</span>
+                                        </div>
+                                    </div>
+                                @endif
+
+                                {{-- BARRA TIMESHEET (Se houver) --}}
+                                @if($has_ts)
+                                    @foreach($item['timesheet_data'] as $ts)
+                                        @php
+                                            $is_connected_next = false;
+                                            if (isset($timeline_data[$loop->parent->index + 1])) {
+                                                $next = $timeline_data[$loop->parent->index + 1];
+                                                if ($next['hora'] == $ts['hora_fim']) {
+                                                    $is_connected_next = true;
+                                                }
+                                            }
+                                        @endphp
+                                        
+                                        {{-- Linha Grossa Central --}}
+                                        <div class="relative h-5 bg-[#3b82f6] flex items-center justify-center min-w-[100px] px-3 -mx-3 z-0">
+                                            <span class="relative z-10 text-white text-xs font-bold tracking-widest truncate pl-6">{{ $ts['codigo'] ?? 'S/ COD' }}</span>
+                                            
+                                            @if($is_connected_next)
+                                                <div class="absolute top-0 left-[50%] w-[200px] h-full bg-[#3b82f6]"></div>
+                                            @endif
+                                        </div>
+                                        
+                                        {{-- Bolinha Final (Só se NÃO conectar) --}}
+                                        @if(!$is_connected_next)
+                                            <div class="relative flex flex-col items-center z-20">
+                                                <div class="w-4 h-4 bg-[#3b82f6] rounded-full border-[3px] border-[#3b82f6] shadow-[0_0_0_2px_#3b82f6]"></div>
+                                                <div class="absolute top-full mt-4 flex flex-col items-center">
+                                                    <span class="text-[#3b82f6] font-bold text-xl tracking-wider">{{ $ts['hora_fim'] }}</span>
+                                                </div>
+                                            </div>
+                                        @endif
+                                    @endforeach
+                                @endif
+                                
+                            </div>
+                        @endforeach
+                    @else
+                        <p class="text-slate-400 text-sm bg-[#0d1321] px-4 py-2 relative z-20">Nenhum dado encontrado para hoje.</p>
+                    @endif
+                    </div>
+                    {{-- FIM DO LOOP --}}
+                </div>
+            </div>
+        </div>
+    </div>
     {{-- Erros de validação globais --}}
     @if($errors->any())
     <div class="mb-5 px-4 py-3 bg-red-500/10 border border-red-500/30 text-red-400 rounded-xl text-sm">
@@ -1586,6 +1689,48 @@ if (selectLocalTrabalho) {
     });
     // Disparar no carregamento inicial para estado inicial correto
     selectLocalTrabalho.dispatchEvent(new Event('change'));
+}
+
+// ========================================================================
+// Funções do Modal de Timeline
+// ========================================================================
+function openTimelineModal() {
+    document.getElementById('modal-timeline').classList.remove('hidden');
+    
+    // Lógica para forçar Landscape no Mobile
+    if (window.innerWidth <= 768) {
+        try {
+            // Navegadores mobile geralmente exigem Fullscreen para permitir o bloqueio de orientação
+            let elem = document.documentElement;
+            if (elem.requestFullscreen) {
+                elem.requestFullscreen().then(() => {
+                    if (screen.orientation && screen.orientation.lock) {
+                        screen.orientation.lock('landscape').catch(err => console.log("Rotação bloqueada pelo navegador:", err));
+                    }
+                }).catch(err => console.log("Erro ao entrar em fullscreen:", err));
+            } else if (elem.webkitRequestFullscreen) { /* Safari */
+                elem.webkitRequestFullscreen();
+                if (screen.orientation && screen.orientation.lock) {
+                    screen.orientation.lock('landscape');
+                }
+            }
+        } catch (e) {
+            console.log("Screen Orientation API não suportada neste navegador.");
+        }
+    }
+}
+
+function closeTimelineModal() {
+    document.getElementById('modal-timeline').classList.add('hidden');
+    
+    // Lógica para fechar Fullscreen e destravar orientação
+    if (document.fullscreenElement) {
+        document.exitFullscreen().then(() => {
+            if (screen.orientation && screen.orientation.unlock) {
+                screen.orientation.unlock();
+            }
+        }).catch(err => console.log(err));
+    }
 }
 </script>
 @endpush

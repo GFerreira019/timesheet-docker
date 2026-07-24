@@ -74,20 +74,35 @@ class ConfiguracaoController extends Controller
     public function testarSolidesApi()
     {
         try {
-            $token = env('SOLIDES_API_KEY');
+            $token = env('SOLIDES_API_TOKEN');
             if (!$token) {
-                return response()->json(['success' => false, 'message' => 'Chave SOLIDES_API_KEY não configurada no .env.']);
+                return response()->json(['success' => false, 'message' => 'Chave SOLIDES_API_TOKEN não configurada no .env.']);
             }
 
             $response = \Illuminate\Support\Facades\Http::timeout(10)
-                ->withToken($token)
-                ->get("https://api.solides.com.br/v1/departamentos");
+                // Trocamos withToken por withHeaders para forçar o "Basic "
+                ->withHeaders([
+                    'Authorization' => 'Basic ' . $token
+                ])
+                ->get("https://api.tangerino.com.br/api/punch/realtime/enabled");
 
             if ($response->successful()) {
-                return response()->json(['success' => true, 'message' => 'Conexão estabelecida com sucesso. Token válido.']);
+                $isRealtimeEnabled = $response->json(); 
+                return response()->json([
+                    'success' => true, 
+                    'message' => 'Conexão estabelecida com sucesso. Token válido.',
+                    'realtime_habilitado' => $isRealtimeEnabled
+                ]);
             }
             
-            return response()->json(['success' => false, 'message' => 'Erro ' . $response->status() . ': Falha na autenticação ou indisponibilidade.']);
+            $erroDetalhado = $response->json() ?? $response->body();
+
+            return response()->json([
+                'success' => false, 
+                'message' => 'Erro ' . $response->status() . ' na API do Tangerino.',
+                'detalhes' => $erroDetalhado
+            ]);
+
         } catch (\Exception $e) {
             return response()->json(['success' => false, 'message' => 'Falha de comunicação: ' . $e->getMessage()]);
         }

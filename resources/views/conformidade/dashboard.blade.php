@@ -81,6 +81,12 @@
 
     <div class="h-8 w-px bg-slate-700/50 mx-1 hidden lg:block"></div>
 
+    {{-- Sincronizar Sólides --}}
+    <button type="button" id="btn-sync-solides" onclick="sincronizarSolides()" class="bg-blue-600 hover:bg-blue-500 text-white font-bold px-3 sm:px-4 rounded-lg flex items-center justify-center gap-2 shadow-lg shadow-blue-900/20 transition-all text-sm h-[42px]">
+        <i class="fas fa-sync-alt" id="icon-sync-solides"></i>
+        <span class="hidden sm:inline" id="text-sync-solides">Sincronizar</span>
+    </button>
+
     {{-- Aviso Manual --}}
     <button type="button" onclick="document.getElementById('modal-aviso-manual').classList.remove('hidden')" class="bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold px-3 sm:px-4 rounded-lg flex items-center justify-center gap-2 border border-slate-700 transition-all text-sm h-[42px]">
         <i class="fas fa-envelope text-indigo-400"></i>
@@ -169,8 +175,15 @@
                             <p class="font-bold text-white text-sm truncate">{{ $item['nome'] }}</p>
                             <p class="text-[10px] text-slate-400 uppercase tracking-wider mt-0.5">{{ $item['cargo'] }}</p>
                         </div>
-                        <div class="flex-shrink-0">
-                            <span class="inline-flex bg-slate-900/50 text-slate-500 font-mono font-bold text-xs px-2 py-1 rounded border border-slate-700/50">00:00</span>
+                        <div class="flex-shrink-0 text-right">
+                            @if(isset($item['pendente_solides']) && $item['pendente_solides'])
+                                <span class="inline-flex bg-yellow-500/10 text-yellow-500 font-bold text-[10px] px-2 py-1 rounded border border-yellow-500/20"><i class="fas fa-exclamation-triangle mr-1"></i> Pendente Sólides</span>
+                            @else
+                                <span class="inline-flex bg-slate-900/50 text-slate-500 font-mono font-bold text-xs px-2 py-1 rounded border border-slate-700/50">00:00</span>
+                                @if(isset($item['total_horas_solides']) && $item['total_horas_solides'] !== '00:00')
+                                <span class="block text-[9px] text-yellow-500 font-mono mt-1 font-bold">Sólides: {{ $item['total_horas_solides'] }}</span>
+                                @endif
+                            @endif
                         </div>
                     </div>
                 </div>
@@ -212,19 +225,34 @@
                             <p class="font-bold text-white text-sm truncate">{{ $item['nome'] }}</p>
                             <p class="text-[10px] text-slate-400 uppercase tracking-wider mt-0.5">{{ $item['cargo'] ?? 'Colaborador' }}</p>
                         </div>
-                        <div class="flex-shrink-0">
-                            <span class="inline-flex bg-yellow-500/10 text-yellow-500 font-mono font-bold text-xs px-2 py-1 rounded border border-yellow-500/20">{{ $item['total_str'] }}</span>
+                    </div>
+                    
+                    <div class="flex flex-col gap-1 mt-2 text-xs">
+                        <div class="flex justify-between text-slate-400">
+                            <span>Sólides:</span>
+                            <span class="font-mono text-white">{{ $item['total_horas_solides'] }}</span>
+                        </div>
+                        <div class="flex justify-between text-slate-400">
+                            <span>Timesheet:</span>
+                            <span class="font-mono text-white">{{ $item['total_horas_timesheet'] }}</span>
                         </div>
                     </div>
                     
                     <div class="flex justify-between items-center text-xs mt-3 pt-3 border-t border-slate-700/50">
-                        <span class="text-slate-500 flex items-center gap-1"><i class="fas fa-list-ul"></i> {{ $item['qtd_registros'] ?? '0' }} reg.</span>
-                        
-                        {{-- Badge de Erro/Perigo do .md (Vermelho) --}}
-                        <span class="inline-flex items-center gap-1 bg-red-500/10 text-red-400 border border-red-500/20 font-mono font-bold px-2 py-0.5 rounded text-[11px]">
-                            <i class="fas fa-clock text-[9px]"></i>
-                            Faltam {{ $item['saldo_negativo'] ?? '' }}
-                        </span>
+                        @if(isset($item['pendente_solides']) && $item['pendente_solides'])
+                            <span class="inline-flex items-center gap-1 bg-yellow-500/10 text-yellow-500 border border-yellow-500/20 font-bold px-2 py-0.5 rounded text-[11px] w-full justify-center">
+                                <i class="fas fa-exclamation-triangle text-[9px]"></i>
+                                Pendente vínculo Sólides
+                            </span>
+                        @else
+                            <span class="text-slate-500 flex items-center gap-1"><i class="fas fa-list-ul"></i> {{ $item['qtd_apontamentos'] ?? '0' }} apont.</span>
+                            
+                            {{-- Badge de Erro/Perigo do .md (Vermelho) --}}
+                            <span class="inline-flex items-center gap-1 bg-red-500/10 text-red-400 border border-red-500/20 font-mono font-bold px-2 py-0.5 rounded text-[11px]">
+                                <i class="fas fa-clock text-[9px]"></i>
+                                {{ $item['saldo_horas'] }}
+                            </span>
+                        @endif
                     </div>
                 </div>
                 @empty
@@ -255,17 +283,15 @@
                     <div class="min-w-0 pr-2">
                         <p class="font-bold text-white text-sm truncate">{{ $item['nome'] }}</p>
                         <p class="text-[10px] text-slate-400 uppercase tracking-wider mt-0.5">
-                            <i class="fas fa-list-ul mr-1 text-[9px]"></i> {{ $item['qtd_registros'] ?? '0' }} reg.
+                            <i class="fas fa-list-ul mr-1 text-[9px]"></i> {{ $item['qtd_apontamentos'] ?? '0' }} apont.
                         </p>
                     </div>
-                    <div class="flex-shrink-0 text-right">
-                        <span class="inline-flex bg-green-500/10 text-green-400 font-mono font-bold text-xs px-2 py-1 rounded border border-green-500/20">{{ $item['total_str'] }}</span>
+                    <div class="flex flex-col items-end flex-shrink-0 text-right">
+                        <span class="inline-flex bg-green-500/10 text-green-400 font-mono font-bold text-xs px-2 py-1 rounded border border-green-500/20">{{ $item['total_horas_timesheet'] }}</span>
                         
-                        @if(isset($item['saldo_positivo']) && $item['saldo_positivo'] !== '')
-                        <span class="block text-[9px] text-indigo-400 font-mono mt-1 font-bold">
-                            <i class="fas fa-plus text-[8px]"></i> {{ $item['saldo_positivo'] }} Extra
+                        <span class="block text-[9px] text-slate-400 font-mono mt-1">
+                            Sólides: {{ $item['total_horas_solides'] }}
                         </span>
-                        @endif
                     </div>
                 </div>
                 @empty
@@ -478,6 +504,52 @@
 <x-modal-calendario id="calendarioModal" titulo="Verificar Registros" dataRefStr="{{ $data_ref }}" :mostrar-legenda="true" />
 
 <script>
+    function sincronizarSolides() {
+        const btn = document.getElementById('btn-sync-solides');
+        const icon = document.getElementById('icon-sync-solides');
+        const text = document.getElementById('text-sync-solides');
+
+        btn.disabled = true;
+        btn.classList.add('opacity-50', 'cursor-not-allowed');
+        icon.classList.remove('fa-sync-alt');
+        icon.classList.add('fa-spinner', 'fa-spin');
+        text.innerText = "Sincronizando...";
+
+        fetch('{{ route("conformidade.sincronizar_solides") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+            }
+        })
+        .then(response => {
+            if(!response.ok) throw new Error('Erro na requisição');
+            return response.json();
+        })
+        .then(data => {
+            if(typeof Swal !== 'undefined') {
+                Swal.fire('Sucesso!', 'Sincronização concluída com sucesso!', 'success').then(() => window.location.reload());
+            } else {
+                alert("Sincronização concluída com sucesso!");
+                window.location.reload();
+            }
+        })
+        .catch(error => {
+            console.error(error);
+            if(typeof Swal !== 'undefined') {
+                Swal.fire('Erro!', 'Ocorreu um erro ao sincronizar.', 'error');
+            } else {
+                alert("Ocorreu um erro ao sincronizar.");
+            }
+            
+            btn.disabled = false;
+            btn.classList.remove('opacity-50', 'cursor-not-allowed');
+            icon.classList.remove('fa-spinner', 'fa-spin');
+            icon.classList.add('fa-sync-alt');
+            text.innerText = "Sincronizar";
+        });
+    }
+
 document.addEventListener('DOMContentLoaded', function() {
     const statusContainer = document.getElementById('wpp-status-container');
     const statusIcon = document.getElementById('wpp-status-icon');

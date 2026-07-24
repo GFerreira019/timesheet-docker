@@ -70,29 +70,50 @@ class ConformidadeController extends Controller
         $listaAusente    = [];
 
         foreach ($colaboradores as $colab) {
-            // Soma horas do dia (apenas registros válidos)
-            $apontamentos = Apontamento::where('colaborador_id', $colab->id)
-                ->whereDate('data_apontamento', $dataRef)
-                ->where('status_aprovacao', '!=', 'REJEITADO')
-                ->get();
+            $pendenteSolides = empty($colab->solides_id);
+            $totalSegundosSolides = 0;
+            $qtdRegistrosSolides  = 0;
 
-            $totalSegundos = 0;
-            $qtdRegistros  = 0;
-
-            foreach ($apontamentos as $apt) {
-                if (!$apt->hora_inicio || !$apt->hora_termino) {
-                    continue;
+            if (!$pendenteSolides) {
+                // Cálculo Real do Saldo usando SolidesPonto
+                $pontosSolides = \App\Models\SolidesPonto::where('colaborador_id', $colab->id)
+                    ->whereDate('data', $dataRef)
+                    ->get();
+                
+                foreach ($pontosSolides as $ps) {
+                    if ($ps->hora_entrada && $ps->hora_saida) {
+                        $entrada = Carbon::parse($ps->hora_entrada);
+                        $saida = Carbon::parse($ps->hora_saida);
+                        // Tratar virada de noite (se saída for menor que entrada)
+                        if ($saida->lt($entrada)) {
+                            $saida->addDay();
+                        }
+                        $totalSegundosSolides += $entrada->diffInSeconds($saida);
+                        $qtdRegistrosSolides++;
+                    }
                 }
-                $ini = Carbon::parse("2000-01-01 {$apt->hora_inicio}");
-                $fim = Carbon::parse("2000-01-01 {$apt->hora_termino}");
-                if ($fim->lt($ini)) {
-                    $fim->addDay();
-                }
-                $totalSegundos += $ini->diffInSeconds($fim);
-                $qtdRegistros++;
             }
 
-            // Dados de ponto (equivalente ao mapa_escalas.get(colab.id, {}).get(data_ref))
+            // Cálculo Real do Saldo usando Timesheet (Apontamentos)
+            $apontamentos = \App\Models\Apontamento::where('colaborador_id', $colab->id)
+                ->whereDate('data_apontamento', $dataRef)
+                ->get();
+                
+            $totalSegundosTimesheet = 0;
+            $qtdApontamentos = 0;
+            foreach ($apontamentos as $ap) {
+                if ($ap->hora_inicio && $ap->hora_termino) {
+                    $inicio = Carbon::parse($ap->hora_inicio);
+                    $fim = Carbon::parse($ap->hora_termino);
+                    if ($fim->lt($inicio)) {
+                        $fim->addDay();
+                    }
+                    $totalSegundosTimesheet += $inicio->diffInSeconds($fim);
+                    $qtdApontamentos++;
+                }
+            }
+
+            // Dados de ponto (escala teórica do mês)
             $dadosPonto = $mapaEscalas[$colab->id][$dataRef] ?? null;
 
             if (!$dadosPonto) {
@@ -112,39 +133,54 @@ class ConformidadeController extends Controller
                 $tolerancia   = $dadosPonto['tolerancia_segundos'] ?? 600;
             }
 
-            // Pula dias de folga sem apontamentos (equivalente ao Django: continue)
-            if ($metaSegundos === 0 && $totalSegundos === 0) {
+            // Pula dias de folga sem apontamentos e sem Sólides
+            if ($metaSegundos === 0 && $totalSegundosSolides === 0 && $totalSegundosTimesheet === 0) {
                 continue;
             }
 
-            $horas    = (int) ($totalSegundos / 3600);
-            $minutos  = (int) (($totalSegundos % 3600) / 60);
-            $tempoStr = sprintf('%02d:%02d', $horas, $minutos);
+            $horasSolides = (int) ($totalSegundosSolides / 3600);
+            $minSolides   = (int) (($totalSegundosSolides % 3600) / 60);
+            $totalHorasSolides = sprintf('%02d:%02d', $horasSolides, $minSolides);
+
+            $horasTimesheet = (int) ($totalSegundosTimesheet / 3600);
+            $minTimesheet   = (int) (($totalSegundosTimesheet % 3600) / 60);
+            $totalHorasTimesheet = sprintf('%02d:%02d', $horasTimesheet, $minTimesheet);
+
+            $diff = $totalSegundosSolides - $totalSegundosTimesheet;
+            $saldoHorasStr = '00:00';
+            
+            if ($diff > 0) {
+                $hDef = (int) ($diff / 3600);
+                $mDef = (int) (($diff % 3600) / 60);
+                $saldoHorasStr = sprintf('Faltam %02d:%02d', $hDef, $mDef);
+            } elseif ($diff < 0) {
+                $absDiff = abs($diff);
+                $hSup = (int) ($absDiff / 3600);
+                $mSup = (int) (($absDiff % 3600) / 60);
+                $saldoHorasStr = sprintf('Extra %02d:%02d', $hSup, $mSup);
+            }
 
             $dadosColab = [
-                'nome'          => $colab->nome_completo,
-                'cargo'         => $colab->cargo,
-                'total_str'     => $tempoStr,
-                'qtd_registros' => $qtdRegistros,
+                'nome'                 => $colab->nome_completo,
+                'cargo'                => $colab->cargo,
+                'qtd_registros'        => $qtdRegistrosSolides,
+                'qtd_apontamentos'     => $qtdApontamentos,
+                'total_horas_solides'  => $totalHorasSolides,
+                'total_horas_timesheet'=> $totalHorasTimesheet,
+                'saldo_horas'          => $saldoHorasStr,
+                'pendente_solides'     => $pendenteSolides,
             ];
 
-            // Distribui nas listas (equivalente ao bloco 5 do Django)
-            if ($totalSegundos === 0) {
+            // Classificação
+            if ($qtdApontamentos === 0) {
+                // Não enviou timesheet
                 $listaAusente[] = $dadosColab;
-            } elseif ($totalSegundos >= ($metaSegundos - $tolerancia)) {
-                if ($totalSegundos > $metaSegundos) {
-                    $superavit             = $totalSegundos - $metaSegundos;
-                    $hSup                  = (int) ($superavit / 3600);
-                    $mSup                  = (int) (($superavit % 3600) / 60);
-                    $dadosColab['saldo_positivo'] = sprintf('+%02d:%02d', $hSup, $mSup);
-                }
-                $listaOk[] = $dadosColab;
+            } elseif (abs($diff) > $tolerancia) {
+                // Tem diferença fora da tolerância (Divergente)
+                $listaIncompleto[] = $dadosColab;
             } else {
-                $deficit              = $metaSegundos - $totalSegundos;
-                $hDef                 = (int) ($deficit / 3600);
-                $mDef                 = (int) (($deficit % 3600) / 60);
-                $dadosColab['saldo_negativo'] = sprintf('-%02d:%02d', $hDef, $mDef);
-                $listaIncompleto[]    = $dadosColab;
+                // Tudo ok
+                $listaOk[] = $dadosColab;
             }
         }
 
@@ -362,6 +398,33 @@ class ConformidadeController extends Controller
         }
 
         return redirect()->route('conformidade.dashboard');
+    }
+
+    /**
+     * Sincroniza pontos dos últimos 7 dias na Sólides
+     *
+     * POST /conformidade/sincronizar-solides
+     */
+    public function sincronizarSolides(Request $request): \Illuminate\Http\JsonResponse
+    {
+        $colaboradores = Colaborador::ativos()
+            ->whereIn('nivel_acesso', ['OPERACIONAL', 'GESTOR', 'SAC'])
+            ->whereHas('setorRelacionamento', fn($q) => $q->where('ativo', true))
+            ->whereNotNull('solides_id')
+            ->get();
+
+        $dataInicio = now()->subDays(7)->format('Y-m-d');
+        $dataFim = now()->format('Y-m-d');
+
+        foreach ($colaboradores as $colab) {
+            try {
+                \App\Services\SolidesService::buscarEspelhoPonto($colab->id, $dataInicio, $dataFim);
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::error("Erro na sinc. Sólides (7 dias) para Colaborador {$colab->id}: " . $e->getMessage());
+            }
+        }
+
+        return response()->json(['message' => 'Sincronização de 7 dias finalizada com sucesso!']);
     }
 
     /**

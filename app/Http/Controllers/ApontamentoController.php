@@ -100,6 +100,7 @@ class ApontamentoController extends Controller
             'apontamento_id'           => null,
             'tipo_acao_inicial'        => 'MANUAL',
             'initial_values'           => $initialData,
+            'timeline_data'            => $this->getTimelineData($colab),
             'atividade_em_andamento'   => $atividadeEmAndamento,
             'hora_inicio_em_andamento' => $atividadeEmAndamento ? substr($apontamentoAtivo->hora_inicio, 0, 5) : null,
             'pode_ratear'              => AcessoHelper::podeFazerRateio($user),
@@ -231,6 +232,7 @@ class ApontamentoController extends Controller
             'apontamento'              => $apontamento,
             'tipo_acao_inicial'        => 'MANUAL',
             'initial_values'           => $initialData,
+            'timeline_data'            => $this->getTimelineData($apontamento->colaborador),
             'atividade_em_andamento'   => false,
             'hora_inicio_em_andamento' => null,
             'pode_ratear'              => AcessoHelper::podeFazerRateio($user),
@@ -839,5 +841,106 @@ class ApontamentoController extends Controller
 
         // GESTOR / COORDENADOR / OPERACIONAL sem ser administrativo
         return Colaborador::where('id', $colab->id)->get();
+    }
+
+    /**
+     * Retorna os dados da timeline mesclados (Solides mock + Timesheet reais de hoje)
+     */
+    private function getTimelineData(?Colaborador $colab): array
+    {
+        if (!$colab) {
+            return [];
+        }
+
+        $timeline = [];
+        $hojeCarbon = Carbon::today();
+        $hoje = $hojeCarbon->format('Y-m-d');
+
+        // Sincronização Silenciosa JIT (Limita chamadas à API da Sólides a cada 15 min)
+        $dataHoje = now()->format('Y-m-d');
+        $cacheKey = "sync_solides_{$colab->id}_{$dataHoje}";
+
+        // Verifica se o colaborador tem o ID do Sólides configurado ANTES de entrar no cache
+        if (!empty($colab->solides_id)) {
+            \Illuminate\Support\Facades\Cache::remember($cacheKey, now()->addMinutes(15), function () use ($colab, $dataHoje, $cacheKey) {
+                try {
+                    // Chama o método estático correto passando o ID local (que o Service espera)
+                    \App\Services\SolidesService::buscarEspelhoPonto($colab->id, $dataHoje, $dataHoje);
+                    return true;
+                } catch (\Exception $e) {
+                    \Illuminate\Support\Facades\Log::error("Erro JIT Solides [ID: {$colab->id}]: " . $e->getMessage() . " na linha " . $e->getLine());
+                    \Illuminate\Support\Facades\Cache::forget($cacheKey); // Força esquecer em caso de erro
+                    return false;
+                }
+            });
+        }
+
+        // 1. Fetch Solides Data
+        $pontosSolides = \App\Models\SolidesPonto::where('colaborador_id', $colab->id)
+            ->whereDate('data', $hoje)
+            ->orderBy('hora_entrada')
+            ->get();
+
+        foreach ($pontosSolides as $ps) {
+            if ($ps->hora_entrada) {
+                $timeline[] = [
+                    'hora' => Carbon::parse($ps->hora_entrada)->format('H:i'),
+                    'tipo' => 'solides',
+                    'titulo' => 'Entrada',
+                    'subtitulo' => 'Sólides'
+                ];
+            }
+            if ($ps->hora_saida) {
+                $timeline[] = [
+                    'hora' => Carbon::parse($ps->hora_saida)->format('H:i'),
+                    'tipo' => 'solides',
+                    'titulo' => 'Saída',
+                    'subtitulo' => 'Sólides'
+                ];
+            }
+        }
+
+        // 2. Fetch Timesheet Data for today
+        $apontamentosHoje = Apontamento::with(['projeto', 'codigoCliente'])
+            ->where('colaborador_id', $colab->id)
+            ->whereDate('data_apontamento', $hoje)
+            ->whereNotNull('hora_inicio')
+            ->orderBy('hora_inicio')
+            ->get();
+
+        foreach ($apontamentosHoje as $ap) {
+            $horaInicio = substr($ap->hora_inicio, 0, 5);
+            $horaTermino = $ap->hora_termino ? substr($ap->hora_termino, 0, 5) : '--:--';
+            
+            $codigo = 'S/ COD';
+            if ($ap->projeto) {
+                $codigo = $ap->projeto->nome;
+            } elseif ($ap->codigoCliente) {
+                $codigo = $ap->codigoCliente->nome;
+            }
+
+            $timeline[] = [
+                'tipo' => 'timesheet',
+                'hora' => $horaInicio,
+                'hora_fim' => $horaTermino,
+                'codigo' => $codigo,
+            ];
+        }
+
+        // 3. Agrupar por horário idêntico
+        $timeline_collection = collect($timeline);
+        $grouped_timeline = $timeline_collection->groupBy('hora')->map(function ($items, $hora) {
+            $hasSolides = $items->where('tipo', 'solides')->first();
+            $timesheetItems = $items->where('tipo', 'timesheet')->all();
+            
+            return [
+                'hora' => $hora,
+                'is_solides' => $hasSolides ? true : false,
+                'solides_data' => $hasSolides,
+                'timesheet_data' => $timesheetItems,
+            ];
+        })->sortBy('hora')->values()->toArray();
+
+        return $grouped_timeline;
     }
 }

@@ -305,13 +305,13 @@
             </a>
 
             {{-- Card: Dashboard --}}
-            <a href="/api/dashboard" target="_blank" class="module-card relative theme-bg-card rounded-xl border border-slate-700 p-4 lg:p-6 hover:border-blue-500/50 transition group">
+            <a href="{{ route('dashboard.index') }}" class="module-card relative theme-bg-card rounded-xl border border-slate-700 p-4 lg:p-6 hover:border-blue-500/50 transition group">
                 <div class="relative z-10">
                     <div class="module-icon w-12 h-12 lg:w-14 lg:h-14 bg-blue-500/20 rounded-xl flex items-center justify-center mb-3 lg:mb-4 transition">
                         <i class="fas fa-chart-pie text-blue-500 text-xl lg:text-2xl"></i>
                     </div>
                     <h3 class="text-base lg:text-lg font-bold mb-1 lg:mb-2 theme-text-primary">Dashboard</h3>
-                    <p class="text-xs lg:text-sm theme-text-secondary mb-3 lg:mb-4 line-clamp-2">Painel JSON estático para consumo rápido de KPIs de uso.</p>
+                    <p class="text-xs lg:text-sm theme-text-secondary mb-3 lg:mb-4 line-clamp-2">Visão geral interativa com ranking de colaboradores e KPIs.</p>
                     
                     <div class="flex items-center text-blue-500 group-hover:opacity-80 transition">
                         <span class="text-xs lg:text-sm font-medium">Acessar</span>

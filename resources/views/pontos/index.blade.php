@@ -50,33 +50,44 @@
     <div class="bg-slate-800 border border-slate-700/50 rounded-xl p-5 shadow-lg mb-8">
         <form action="{{ route('pontos.index') }}" method="GET" class="flex flex-col sm:flex-row gap-4 items-end">
             
+            <!-- SELECT COLABORADOR -->
             <div class="w-full sm:w-1/2">
                 <label class="block text-xs font-semibold text-slate-400 uppercase tracking-widest mb-1.5">Colaborador</label>
                 <div class="relative">
-                    <select name="colaborador_id" required class="w-full bg-slate-900 border border-slate-600 rounded-lg p-2.5 text-white text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none appearance-none cursor-pointer">
-                        <option value="">Selecione um colaborador...</option>
-                        @foreach($colaboradores as $colaborador)
-                            <option value="{{ $colaborador->id }}" {{ $colaboradorId == $colaborador->id ? 'selected' : '' }}>
-                                {{ $colaborador->nome_completo }}
-                            </option>
-                        @endforeach
-                    </select>
-                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-400">
-                        <i class="fas fa-chevron-down text-xs"></i>
-                    </div>
+                    @php
+                        $opcoesColabs = [];
+                        foreach($colaboradores as $colaborador) {
+                            $opcoesColabs[$colaborador->id] = $colaborador->nome_completo;
+                        }
+                    @endphp
+                    <x-select2 
+                        id="select-colaborador" 
+                        name="colaborador_id" 
+                        placeholder="Selecione um colaborador..." 
+                        :options="$opcoesColabs" 
+                        :selected="$colaboradorId ?? request('colaborador_id', old('colaborador_id'))" 
+                        required
+                    />
                 </div>
             </div>
 
+            <!-- INPUT MÊS/ANO -->
             <div class="w-full sm:w-1/4">
                 <label class="block text-xs font-semibold text-slate-400 uppercase tracking-widest mb-1.5">Mês/Ano</label>
                 <input type="month" name="mes_ano" value="{{ $mesAno ?? date('Y-m') }}" required 
-                       class="w-full bg-slate-900 border border-slate-600 rounded-lg p-2.5 text-white text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none uppercase">
+                    class="w-full h-10 bg-slate-900 border border-slate-600 rounded-lg px-3 text-white text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none uppercase">
             </div>
 
-            <div class="w-full sm:w-auto">
-                <button type="submit" class="w-full sm:w-auto px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-bold rounded-lg transition shadow-lg shadow-indigo-900/30 flex items-center justify-center gap-2">
+            <!-- BOTÕES -->
+            <div class="w-full sm:w-auto flex flex-col sm:flex-row gap-2">
+                <button type="submit" class="w-full sm:w-auto h-10 px-5 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-bold rounded-lg transition shadow-lg shadow-indigo-900/30 flex items-center justify-center gap-2 whitespace-nowrap">
                     <i class="fas fa-search"></i>
                     Buscar Ponto
+                </button>
+                
+                <button type="button" id="btn-sync-todos" onclick="sincronizarTodos()" class="w-full sm:w-auto h-10 px-5 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-bold rounded-lg transition shadow-lg shadow-blue-900/30 flex items-center justify-center gap-2 whitespace-nowrap">
+                    <i class="fas fa-sync-alt" id="icon-sync-todos"></i>
+                    <span id="text-sync-todos">Sincronizar Todos</span>
                 </button>
             </div>
         </form>
@@ -84,64 +95,83 @@
 
     {{-- ESPELHO DE PONTO (Grid Inferior) --}}
     @if(isset($pontos))
+        @php
+            $colabSelecionado = $colaboradores->firstWhere('id', $colaboradorId);
+        @endphp
         <div class="bg-slate-800 border border-slate-700/50 rounded-xl shadow-lg overflow-hidden">
             <div class="p-5 border-b border-slate-700/50 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                     <h2 class="text-base font-bold text-white flex items-center gap-2">
                         <i class="fas fa-user fa-fw text-indigo-400"></i>
-                        <span>{{ $pontos['colaborador_nome'] ?? 'Colaborador Desconhecido' }}</span>
+                        <span>{{ $colabSelecionado->nome_completo ?? 'Colaborador Desconhecido' }}</span>
                     </h2>
                     <p class="text-xs text-slate-400 mt-1 flex items-center gap-3">
                         <i class="fas fa-id-badge fa-fw text-slate-400"></i>
-                        <span>{{ $pontos['colaborador_cargo'] ?? '-' }}</span>
+                        <span>{{ $colabSelecionado->cargo ?? '-' }}</span>
                     </p>
                 </div>
             </div>
             
             <div class="overflow-x-auto">
                 <table class="w-full text-sm text-center min-w-[900px]">
-                    <thead class="bg-slate-900/50 text-[10px] uppercase tracking-wider text-slate-400 border-b border-slate-700/50">
+                    <thead class="bg-slate-900/50 text-[12px] uppercase tracking-wider text-slate-400 border-b border-slate-700/50">
                         <tr>
-                            <th class="px-3 py-3 font-semibold text-left">Data</th>
-                            <th class="px-3 py-3 font-semibold text-blue-400">Previstas</th>
-                            <th class="px-3 py-3 font-semibold text-indigo-400">Trabalhadas</th>
-                            <th class="px-3 py-3 font-semibold text-green-400">Abonadas</th>
-                            <th class="px-2 py-3 font-semibold border-l border-slate-700/50">T1 - Início</th>
-                            <th class="px-2 py-3 font-semibold">T1 - Fim</th>
-                            <th class="px-2 py-3 font-semibold border-l border-slate-700/50">T2 - Início</th>
-                            <th class="px-2 py-3 font-semibold">T2 - Fim</th>
-                            <th class="px-2 py-3 font-semibold border-l border-slate-700/50">T3 - Início</th>
-                            <th class="px-2 py-3 font-semibold">T3 - Fim</th>
-                            <th class="px-2 py-3 font-semibold border-l border-slate-700/50">T4 - Início</th>
-                            <th class="px-2 py-3 font-semibold">T4 - Fim</th>
+                            <th class="px-3 py-3 font-semibold">Data</th>
+                            <th class="px-3 py-3 font-semibold">Turno 1</th>
+                            <th class="px-3 py-3 font-semibold">Turno 2</th>
+                            <th class="px-3 py-3 font-semibold">Turno 3</th>
+                            <th class="px-3 py-3 font-semibold">Turno 4</th>
+                            <th class="px-3 py-3 font-semibold">Saldo do Dia</th>
                         </tr>
                     </thead>
                     <tbody class="text-xs">
-                        @forelse($pontos['registros'] ?? [] as $ponto)
+                        @forelse($pontos as $diaPonto)
                             <tr class="table-row-alt border-b border-slate-700/30 hover:bg-slate-700/20 transition group">
-                                <td class="px-3 py-2 text-left">
+                                <td class="px-3 py-2 text-center">
                                     <p class="font-bold text-slate-200">
-                                        {{ \Carbon\Carbon::parse($ponto['data'])->format('d/m/Y') }}
+                                        {{ $diaPonto['data']->format('d/m/Y') }}
                                     </p>
                                     <p class="text-[9px] text-slate-500 uppercase">
-                                        {{ \Carbon\Carbon::parse($ponto['data'])->translatedFormat('l') }}
+                                        {{ $diaPonto['data']->translatedFormat('l') }}
                                     </p>
                                 </td>
-                                <td class="px-3 py-2 text-blue-300">{{ $ponto['previstas'] ?? '-' }}</td>
-                                <td class="px-3 py-2 text-indigo-300 font-bold">{{ $ponto['trabalhadas'] ?? '-' }}</td>
-                                <td class="px-3 py-2 text-green-300">{{ $ponto['abonadas'] ?? '-' }}</td>
                                 
-                                <td class="px-2 py-2 text-slate-400 border-l border-slate-700/30">{{ $ponto['t1_inicio'] ?? '-' }}</td>
-                                <td class="px-2 py-2 text-slate-400">{{ $ponto['t1_fim'] ?? '-' }}</td>
+                                @for($i = 0; $i < 4; $i++)
+                                    <td class="px-3 py-2 text-indigo-300 font-bold border-l border-slate-700/30">
+                                        @if(isset($diaPonto['turnos'][$i]))
+                                            @php
+                                                $turno = $diaPonto['turnos'][$i];
+                                                $entrada = $turno->hora_entrada ? \Carbon\Carbon::parse($turno->hora_entrada)->format('H:i') : '--:--';
+                                                $saida = $turno->hora_saida ? \Carbon\Carbon::parse($turno->hora_saida)->format('H:i') : '--:--';
+                                                
+                                                // Lógica do Ícone de Status
+                                                $statusClass = 'text-slate-500';
+                                                $statusIcon = 'fas fa-info-circle';
+                                                
+                                                if (in_array(strtoupper($turno->status), ['APPROVED', 'NORMAL', 'APROVADO'])) {
+                                                    $statusClass = 'text-green-500';
+                                                    $statusIcon = 'fas fa-check-circle';
+                                                } elseif (in_array(strtoupper($turno->status), ['PENDING', 'AJUSTADO', 'PENDENTE'])) {
+                                                    $statusClass = 'text-yellow-500';
+                                                    $statusIcon = 'fas fa-exclamation-triangle';
+                                                } elseif (empty($turno->hora_saida)) {
+                                                    $statusClass = 'text-red-500';
+                                                    $statusIcon = 'fas fa-exclamation-circle';
+                                                }
+                                            @endphp
+                                            <div class="flex items-center justify-center gap-2">
+                                                <span>{{ $entrada }} - {{ $saida }}</span>
+                                                <i class="{{ $statusIcon }} {{ $statusClass }}" title="Status: {{ $turno->status }}"></i>
+                                            </div>
+                                        @else
+                                            <span class="text-slate-500 font-normal">-</span>
+                                        @endif
+                                    </td>
+                                @endfor
                                 
-                                <td class="px-2 py-2 text-slate-400 border-l border-slate-700/30">{{ $ponto['t2_inicio'] ?? '-' }}</td>
-                                <td class="px-2 py-2 text-slate-400">{{ $ponto['t2_fim'] ?? '-' }}</td>
-                                
-                                <td class="px-2 py-2 text-slate-400 border-l border-slate-700/30">{{ $ponto['t3_inicio'] ?? '-' }}</td>
-                                <td class="px-2 py-2 text-slate-400">{{ $ponto['t3_fim'] ?? '-' }}</td>
-                                
-                                <td class="px-2 py-2 text-slate-400 border-l border-slate-700/30">{{ $ponto['t4_inicio'] ?? '-' }}</td>
-                                <td class="px-2 py-2 text-slate-400">{{ $ponto['t4_fim'] ?? '-' }}</td>
+                                <td class="px-3 py-2 text-emerald-400 font-bold text-sm border-l border-slate-700/30">
+                                    {{ $diaPonto['saldo_dia'] }}
+                                </td>
                             </tr>
                         @empty
                             <tr>
@@ -160,3 +190,53 @@
     @endif
 </div>
 @endsection
+
+@push('scripts')
+<script>
+    function sincronizarTodos() {
+        const btn = document.getElementById('btn-sync-todos');
+        const icon = document.getElementById('icon-sync-todos');
+        const text = document.getElementById('text-sync-todos');
+        const mesAno = document.querySelector('input[name="mes_ano"]').value;
+
+        // Desabilita o botão e mostra o spinner
+        btn.disabled = true;
+        btn.classList.add('opacity-50', 'cursor-not-allowed');
+        icon.classList.remove('fa-sync-alt');
+        icon.classList.add('fa-spinner', 'fa-spin');
+        text.innerText = "Sincronizando...";
+
+        fetch('{{ route("pontos.sincronizar_todos") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+            },
+            body: JSON.stringify({ mes_ano: mesAno })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if(data.success) {
+                alert(data.message);
+                window.location.reload();
+            } else {
+                alert('Erro: ' + data.message);
+                resetBtn();
+            }
+        })
+        .catch(error => {
+            console.error('Erro:', error);
+            alert('Ocorreu um erro ao conectar com o servidor. A operação pode ter levado muito tempo (timeout) ou falhou.');
+            resetBtn();
+        });
+
+        function resetBtn() {
+            btn.disabled = false;
+            btn.classList.remove('opacity-50', 'cursor-not-allowed');
+            icon.classList.remove('fa-spinner', 'fa-spin');
+            icon.classList.add('fa-sync-alt');
+            text.innerText = "Sincronizar Todos";
+        }
+    }
+</script>
+@endpush

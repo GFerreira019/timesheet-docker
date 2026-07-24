@@ -70,6 +70,7 @@ Route::middleware('auth')->group(function () {
 
     // Espelho de Ponto (Sólides)
     Route::get('/pontos', [PontoController::class, 'index'])->name('pontos.index');
+    Route::post('/pontos/sincronizar-todos', [PontoController::class, 'sincronizarTodos'])->name('pontos.sincronizar_todos');
 
     // Aprovações (apenas Gestores, Admins e Gerenciais)
     Route::prefix('aprovacoes')->name('aprovacoes.')->middleware('acesso:gestor,gerencial')->group(function () {
@@ -92,12 +93,20 @@ Route::middleware('auth')->group(function () {
             Route::delete('/{id}', [\App\Http\Controllers\FeriadoController::class, 'deletar'])->name('deletar');
         });
 
+        // Módulo de Conformidade
         Route::prefix('conformidade')->name('conformidade.')->group(function () {
             Route::get('/', [ConformidadeController::class, 'dashboard'])->name('dashboard');
             Route::post('/notificar-pendencias', [ConformidadeController::class, 'notificarPendencias'])->name('notificar_pendencias');
             Route::post('/enviar-aviso', [ConformidadeController::class, 'enviarAvisoPersonalizado'])->name('enviar_aviso');
+            Route::post('/sincronizar-solides', [ConformidadeController::class, 'sincronizarSolides'])->name('sincronizar_solides');
         });
 
+        // Módulo de Dashboard
+        Route::prefix('dashboard')->name('dashboard.')->group(function () {
+            Route::get('/', [DashboardController::class, 'dashboard'])->name('index');
+        });
+
+        //Rotas de API de Feriados
         Route::get('/colaboradores/api/cidades', [\App\Http\Controllers\ColaboradorController::class, 'buscarCidades'])->name('api.cidades');
         Route::get('/colaboradores/api/buscar-nomes', [\App\Http\Controllers\ColaboradorController::class, 'buscarNomesAoVivo'])->name('api.buscar-nomes');
 

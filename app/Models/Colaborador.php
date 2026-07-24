@@ -42,6 +42,7 @@ class Colaborador extends Model
 
     protected $fillable = [
         'id_colaborador',
+        'solides_id',
         'nome_completo',
         'nivel_acesso',
         'cargo',
@@ -186,6 +187,14 @@ class Colaborador extends Model
     public function apontamentos(): HasMany
     {
         return $this->hasMany(Apontamento::class, 'colaborador_id');
+    }
+
+    /**
+     * Pontos importados da Sólides (Espelho de Ponto).
+     */
+    public function pontosSolides(): HasMany
+    {
+        return $this->hasMany(SolidesPonto::class, 'colaborador_id');
     }
 
     /**
