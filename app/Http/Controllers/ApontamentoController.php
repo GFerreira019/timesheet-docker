@@ -105,6 +105,7 @@ class ApontamentoController extends Controller
             'hora_inicio_em_andamento' => $atividadeEmAndamento ? substr($apontamentoAtivo->hora_inicio, 0, 5) : null,
             'pode_ratear'              => AcessoHelper::podeFazerRateio($user),
             'is_owner'                 => AcessoHelper::isOwner($user),
+            'pode_lancar_terceiros'    => AcessoHelper::podeLancarPorTerceiros($user),
             'colaboradores'            => $this->getColaboradoresPermitidos($user),
             'projetos'                 => Projeto::where('ativo', true)->orderBy('nome')->get(),
             'clientes'                 => CodigoCliente::where('ativo', true)->orderBy('nome')->get(),
@@ -176,11 +177,10 @@ class ApontamentoController extends Controller
             return redirect()->route('historico.index');
         }
 
-        // Trava rigorosa: GERENCIAL e SAC não podem editar apontamentos de terceiros,
-        // mesmo que eles mesmos tenham registrado. Só podem editar se forem o colaborador alvo.
-        $nivelAcesso = $user->colaborador ? strtoupper($user->colaborador->nivel_acesso) : 'OPERACIONAL';
-        if (in_array($nivelAcesso, ['GERENCIAL', 'SAC'])) {
-            if ($apontamento->colaborador_id !== $user->colaborador->id) {
+        // Trava rigorosa: Apenas ADMIN pode editar apontamentos de terceiros.
+        // GERENCIAL, SAC, COORDENADOR e OPERACIONAL só podem editar a si mesmos.
+        if (!AcessoHelper::isAdmin($user)) {
+            if (!$user->colaborador || $apontamento->colaborador_id !== $user->colaborador->id) {
                 session()->flash('error', 'Acesso Negado: Você só pode editar apontamentos em que você seja o colaborador.');
                 return redirect()->route('historico.index');
             }
@@ -279,9 +279,8 @@ class ApontamentoController extends Controller
             return redirect()->route('historico.index');
         }
 
-        $nivelAcesso = $user->colaborador ? strtoupper($user->colaborador->nivel_acesso) : 'OPERACIONAL';
-        if (in_array($nivelAcesso, ['GERENCIAL', 'SAC'])) {
-            if ($apontamento->colaborador_id !== $user->colaborador->id) {
+        if (!AcessoHelper::isAdmin($user)) {
+            if (!$user->colaborador || $apontamento->colaborador_id !== $user->colaborador->id) {
                 session()->flash('error', 'Acesso Negado: Você só pode editar apontamentos em que você seja o colaborador.');
                 return redirect()->route('historico.index');
             }
@@ -394,9 +393,8 @@ class ApontamentoController extends Controller
         $apontamento = Apontamento::findOrFail($id);
         $user        = auth()->user();
         
-        $nivelAcesso = $user->colaborador ? strtoupper($user->colaborador->nivel_acesso) : 'OPERACIONAL';
-        if (in_array($nivelAcesso, ['GERENCIAL', 'SAC'])) {
-            if ($apontamento->colaborador_id !== $user->colaborador->id) {
+        if (AcessoHelper::isAcessoExpandido($user) && !AcessoHelper::isOwner($user)) {
+            if (!$user->colaborador || $apontamento->colaborador_id !== $user->colaborador->id) {
                 session()->flash('error', 'Acesso Negado: Você só pode excluir apontamentos em que você seja o colaborador.');
                 return redirect()->route('historico.index');
             }
@@ -446,8 +444,7 @@ class ApontamentoController extends Controller
             return redirect()->route('historico.index');
         }
 
-        $nivelAcesso = $colab ? strtoupper($colab->nivel_acesso) : 'OPERACIONAL';
-        if (in_array($nivelAcesso, ['GERENCIAL', 'SAC'])) {
+        if (AcessoHelper::isAcessoExpandido($user) && !AcessoHelper::isOwner($user)) {
             if (!$isColaborador) {
                 session()->flash('error', 'Acesso Negado: Você só pode solicitar ajuste em apontamentos em que você seja o colaborador.');
                 return redirect()->route('historico.index');
@@ -791,7 +788,7 @@ class ApontamentoController extends Controller
      */
     private function getColaboradoresPermitidos($user, $apontamento = null)
     {
-        if (AcessoHelper::isOwner($user)) {
+        if (AcessoHelper::isAdmin($user)) {
             return Colaborador::where(function($q) use ($apontamento) {
                 $q->ativos()->whereHas('setorRelacionamento', fn($s) => $s->where('ativo', true));
                 if ($apontamento && $apontamento->colaborador_id) {
@@ -825,11 +822,14 @@ class ApontamentoController extends Controller
             return Colaborador::whereRaw('0=1')->get();
         }
 
-        // GERENCIAL ou SAC: pode selecionar de si mesmo e dos setores vinculados
-        if (in_array($colab->nivel_acesso, ['GERENCIAL', 'SAC'])) {
+        // GERENCIAL ou SAC: verificação direta via Spatie Laravel Permission (model_has_roles)
+        if (AcessoHelper::isAcessoExpandido($user)) {
             $setoresVinculados = $colab->setoresVinculados()->pluck('setores.id');
-            return Colaborador::where(function ($q) use ($setoresVinculados, $colab) {
-                $q->whereIn('setor_id', $setoresVinculados)
+            $setoresGerenciados = $colab->setoresGerenciados()->pluck('setores.id');
+            $setoresPermitidos = $setoresVinculados->merge($setoresGerenciados)->unique();
+
+            return Colaborador::where(function ($q) use ($setoresPermitidos, $colab) {
+                $q->whereIn('setor_id', $setoresPermitidos)
                   ->orWhere('id', $colab->id);
             })->where(function($q) use ($apontamento) {
                 $q->ativos()->whereHas('setorRelacionamento', fn($s) => $s->where('ativo', true));
@@ -839,7 +839,7 @@ class ApontamentoController extends Controller
             })->distinct()->orderBy('nome_completo')->get();
         }
 
-        // GESTOR / COORDENADOR / OPERACIONAL sem ser administrativo
+        // COORDENADOR / OPERACIONAL (sem permissão de acesso expandido)
         return Colaborador::where('id', $colab->id)->get();
     }
 

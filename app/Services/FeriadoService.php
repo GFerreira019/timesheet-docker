@@ -79,13 +79,25 @@ class FeriadoService
      */
     public static function getCidadesAlvo(): \Illuminate\Support\Collection
     {
-        return Colaborador::select('cidade', 'uf')
-            ->whereNotNull('cidade')
-            ->where('cidade', '!=', '')
-            ->whereNotNull('uf')
-            ->where('uf', '!=', '')
+        $cidadesTrabalho = Colaborador::select('cidade_trabalho')
+            ->whereNotNull('cidade_trabalho')
+            ->where('cidade_trabalho', '!=', '')
             ->distinct()
             ->get();
+
+        return $cidadesTrabalho->map(function ($item) {
+            $partes = explode('-', $item->cidade_trabalho);
+            $cidade = isset($partes[0]) ? trim($partes[0]) : null;
+            $uf = isset($partes[1]) ? trim($partes[1]) : null;
+
+            if ($cidade && $uf) {
+                return (object) [
+                    'cidade' => $cidade,
+                    'uf' => strtoupper($uf)
+                ];
+            }
+            return null;
+        })->filter()->values();
     }
 
     // -------------------------------------------------------------------------
@@ -121,21 +133,23 @@ class FeriadoService
         }
 
         // Passo 2: Fetch na API
-        $response = Http::withToken($token)
+        $response = Http::acceptJson()
+            ->withToken($token)
             ->get("https://feriadosapi.com/api/v1/feriados/nacionais?ano={$ano}");
 
         if ($response->status() === 401) {
             throw new \Exception("Erro 401: Token da FeriadosAPI inválido ou não autorizado.");
         }
 
-        if (!$response->successful()) {
-            throw new \Exception("Erro na API: " . $response->body());
+        $bodyStr = trim($response->body());
+        if (!$response->successful() || stripos($bodyStr, '<!DOCTYPE') === 0 || stripos($bodyStr, '<html') === 0) {
+            throw new \Exception("A API de feriados nacionais retornou erro ou formato inválido (HTML). Verifique o status e a URL da API.");
         }
 
         $feriadosApi = $response->json('feriados');
 
         if (!isset($feriadosApi) || !is_array($feriadosApi)) {
-            throw new \Exception("Estrutura do JSON inesperada. Resposta: " . substr($response->body(), 0, 200));
+            throw new \Exception("Estrutura do JSON inesperada nos feriados nacionais.");
         }
 
         // Passo 3: Loop Duplo — distribui cada feriado para cada cidade
@@ -182,24 +196,27 @@ class FeriadoService
             $sigla = strtoupper($uf); // Forçando Maiúsculas
             
             // Faz a requisição para a API estadual
-            $responseEstadual = \Illuminate\Support\Facades\Http::withToken($token)
+            $responseEstadual = \Illuminate\Support\Facades\Http::acceptJson()
+                ->withToken($token)
                 ->get("https://feriadosapi.com/api/v1/feriados/estado/{$sigla}?ano={$ano}");
                 
-            // 1. Força o erro se a requisição HTTP falhar (404, 401, 403, etc)
-            if (!$responseEstadual->successful()) {
-                throw new \Exception("Erro na API Estadual para a UF {$sigla}. Status: " . $responseEstadual->status() . " | Resposta: " . $responseEstadual->body());
+            $bodyStr = trim($responseEstadual->body());
+            
+            // 1. Força o erro se a requisição HTTP falhar ou se for HTML
+            if (!$responseEstadual->successful() || stripos($bodyStr, '<!DOCTYPE') === 0 || stripos($bodyStr, '<html') === 0) {
+                throw new \Exception("A API de feriados estaduais ({$sigla}) retornou erro ou formato HTML inválido.");
             }
 
             $feriadosEstaduais = $responseEstadual->json('feriados');
 
             // 2. Força o erro se a chave 'feriados' não existir no JSON
             if ($feriadosEstaduais === null) {
-                throw new \Exception("A chave 'feriados' não foi encontrada no JSON Estadual de {$sigla}. Resposta real: " . $responseEstadual->body());
+                throw new \Exception("A chave 'feriados' não foi encontrada no JSON Estadual de {$sigla}.");
             }
             
             // 3. Força o erro se vier vazio (pode indicar que o plano da API não cobre)
             if (empty($feriadosEstaduais)) {
-                throw new \Exception("A API retornou sucesso para {$sigla}, mas a lista de feriados veio vazia. Resposta: " . $responseEstadual->body());
+                throw new \Exception("A API retornou sucesso para {$sigla}, mas a lista de feriados veio vazia.");
             }
 
             foreach ($feriadosEstaduais as $feriadoJson) {
@@ -368,15 +385,27 @@ class FeriadoService
         try {
             $ufNorm = strtoupper(trim($uf));
 
-            $response = Http::withToken($token)
+            $response = Http::acceptJson()
+                ->withToken($token)
                 ->timeout(15)
                 ->get("https://feriadosapi.com/api/v1/feriados/municipais", [
                     'ano'    => $ano,
                     'cidade' => trim($cidade),
                     'uf'     => $ufNorm,
                 ]);
+                
+            $bodyStr = trim($response->body());
 
-            if (!$response->successful()) {
+            // 1. Verifica se a requisição deu erro ou é um HTML perdido (Parking page)
+            if ($response->failed() || stripos($bodyStr, '<!DOCTYPE') === 0 || stripos($bodyStr, '<html') === 0) {
+                \Illuminate\Support\Facades\Log::error("A API retornou erro ou um formato HTML inválido para {$cidade}.");
+                return false;
+            }
+
+            // 2. Verifica se o conteúdo retornado é realmente um JSON válido e não um HTML perdido
+            $contentType = $response->header('Content-Type');
+            if (!str_contains($contentType ?? '', 'application/json')) {
+                \Illuminate\Support\Facades\Log::error("A API retornou um formato inválido (não-JSON) para {$cidade}. Verifique a URL do endpoint.");
                 return false;
             }
 

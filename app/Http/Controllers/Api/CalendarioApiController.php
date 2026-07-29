@@ -62,9 +62,8 @@ class CalendarioApiController extends Controller
         // 1. LÓGICA DO OWNER — Visão global da empresa
         // Mesmo critério do ConformidadeController: superuser OU admin
         // =====================================================================
-        $isAdmin = $user->is_superuser
-            || strtoupper($user->colaborador?->nivel_acesso) === 'ADMIN'
-            || \App\Helpers\AcessoHelper::isOwner($user);
+        // MIGRADO: substituiu (is_superuser || nivel_acesso === 'ADMIN' || isOwner()) por isAdmin()
+        $isAdmin = \App\Helpers\AcessoHelper::isAdmin($user);
 
         if ($isAdmin) {
             // Dias com alertas ALERTA notificados
@@ -81,10 +80,9 @@ class CalendarioApiController extends Controller
                 ->whereBetween('data_apontamento', [$startDate, $endDate])
                 ->get();
 
-            // Base de Colaboradores Esperados
+            // Base de Colaboradores Esperados (todos os perfis com escala de trabalho)
             $todosColaboradores = Colaborador::ativos()
                 ->whereHas('setorRelacionamento', fn($q) => $q->where('ativo', true))
-                ->whereIn('nivel_acesso', ['OPERACIONAL', 'GESTOR', 'SAC'])
                 ->get();
             $totalEsperado = $todosColaboradores->count();
 

@@ -21,8 +21,10 @@ class ProjetoController extends Controller
 
         $projetos = $query->paginate(15);
 
-        // Buscar apenas colaboradores com nível de acesso GESTOR, ADMIN ou GERENCIAL
-        $possiveisGestores = Colaborador::ativos()->whereIn('nivel_acesso', ['GESTOR', 'ADMIN', 'GERENCIAL'])
+        // Buscar apenas colaboradores com perfil de gestão via Spatie
+        $possiveisGestores = Colaborador::ativos()->whereHas('user.roles', function($q) {
+                                            $q->whereIn('name', ['COORDENADOR', 'ADMIN', 'GERENCIAL']);
+                                        })
                                         ->orderBy('nome_completo')
                                         ->get();
 

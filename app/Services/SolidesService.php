@@ -27,8 +27,9 @@ class SolidesService
             while ($hasMore) {
                 // Parâmetros da query string base
                 $queryParams = [
-                    'page' => $page,
-                    'size' => $size,
+                    'page'       => $page,
+                    'size'       => $size,
+                    'adjustment' => 'true',
                 ];
 
                 // Adiciona parâmetros opcionais se informados
@@ -109,6 +110,35 @@ class SolidesService
                         $horaSaida = $dtOut->format('H:i:s');
                     }
 
+                    // 2.5 Lidar com Ajustes/Abonos
+                    $isAjustado = false;
+                    $justificativa = null;
+                    $horasAbonadas = null;
+                    $diaTrabalhado = true;
+
+                    if (isset($item['adjust']) && $item['adjust'] === true && isset($item['adjustmentReasonRecord'])) {
+                        $isAjustado = true;
+                        $justificativa = $item['adjustmentReason']['description'] ?? null;
+                        
+                        if (isset($item['fullDayAdjustment']) && $item['fullDayAdjustment'] === true) {
+                            $diaTrabalhado = false;
+                        }
+
+                        $startDate = $item['adjustmentReasonRecord']['startDate'] ?? null;
+                        $endDate = $item['adjustmentReasonRecord']['endDate'] ?? null;
+
+                        if ($startDate && $endDate) {
+                            try {
+                                $startCarbon = Carbon::parse($startDate);
+                                $endCarbon = Carbon::parse($endDate);
+                                // $endCarbon->floatDiffInHours($startCarbon) traz as horas decimais (ex: 8.5)
+                                $horasAbonadas = round($startCarbon->floatDiffInHours($endCarbon), 2);
+                            } catch (\Exception $e) {
+                                Log::warning("Falha ao calcular horas abonadas no SolidesService para registro {$solidesPontoId}: " . $e->getMessage());
+                            }
+                        }
+                    }
+
                     // 3. Upsert no Banco (Evitar Duplicidade)
                     SolidesPonto::updateOrCreate(
                         ['solides_ponto_id' => $solidesPontoId],
@@ -118,6 +148,10 @@ class SolidesService
                             'hora_entrada'   => $horaEntrada,
                             'hora_saida'     => $horaSaida,
                             'status'         => $item['status'] ?? null,
+                            'is_ajustado'    => $isAjustado,
+                            'justificativa'  => $justificativa,
+                            'horas_abonadas' => $horasAbonadas,
+                            'dia_trabalhado' => $diaTrabalhado,
                         ]
                     );
                 }

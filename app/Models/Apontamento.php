@@ -288,21 +288,30 @@ class Apontamento extends Model
     // -------------------------------------------------------------------------
 
     /**
-     * Scope para Row-Level Security baseado em vínculos diretos (Data-Driven)
-     * Abandona-se a dependência estrita de roles Spatie para a visão de Gestor/Administrativo.
+     * Scope de Row-Level Security baseado em vínculos de dados e perfil de acesso.
+     *
+     * MIGRADO: A leitura de nivel_acesso foi substituída pelos helpers do User,
+     * que por sua vez consultam as roles do Spatie/laravel-permission.
+     *
+     *   nivel_acesso == 'ADMIN'    → substituído por: $user->isAdmin()
+     *   nivel_acesso == 'GESTOR'   → substituído por: $user->isGerente()
+     *   in_array(['GERENCIAL','SAC']) → substituído por: $user->isAcessoExpandido()
      */
     public function scopeVisibilidadePermitida($query, $user)
     {
         $colaborador = $user->colaborador;
-        $nivel = $colaborador ? $colaborador->nivel_acesso : 'OPERACIONAL';
 
-        // 1. ADMIN
-        if ($nivel === 'ADMIN' || (method_exists($user, 'isOwner') && $user->isOwner())) {
+        // 1. OWNER / ADMIN — visão global sem filtro
+        if ($user->isOwner() || $user->isAdmin()) {
             return $query;
         }
 
-        // 2. GESTOR
-        if ($nivel === 'GESTOR') {
+        // 2. COORDENADOR — visão restrita aos projetos e clientes vinculados (tabelas pivô) + os próprios
+        if ($user->isCoordenador()) {
+            if (!$colaborador) {
+                return $query->whereRaw('0=1');
+            }
+
             $projetosIds = $colaborador->projetosGerenciados()->pluck('produtividade_projeto.id')->toArray();
             $clientesIds = $colaborador->clientesGerenciados()->pluck('produtividade_codigocliente.id')->toArray();
 
@@ -311,20 +320,24 @@ class Apontamento extends Model
                 $q->where('registrado_por_id', $user->id)
                   ->orWhere('colaborador_id', $colaborador->id);
 
-                // Acesso aos apontamentos das obras/clientes gerenciados
+                // Acesso aos apontamentos dos projetos e clientes gerenciados
                 if (!empty($projetosIds)) {
                     $q->orWhereIn('projeto_id', $projetosIds);
                 }
                 if (!empty($clientesIds)) {
-                    $q->orWhereHas('projeto', function($subQ) use ($clientesIds) {
+                    $q->orWhereHas('projeto', function ($subQ) use ($clientesIds) {
                         $subQ->whereIn('codigo_cliente_id', $clientesIds);
                     });
                 }
             });
         }
 
-        // 3. GERENCIAL / SAC
-        if (in_array($nivel, ['GERENCIAL', 'SAC'])) {
+        // 3. GERENCIAL / SAC — visão dos setores vinculados (tabela pivô) + os próprios
+        if ($user->isAcessoExpandido()) {
+            if (!$colaborador) {
+                return $query->whereRaw('0=1');
+            }
+
             $setoresVinculadosIds = $colaborador->setoresVinculados()->pluck('setores.id')->toArray();
 
             return $query->where(function ($q) use ($user, $colaborador, $setoresVinculadosIds) {
@@ -332,21 +345,24 @@ class Apontamento extends Model
                 $q->where('registrado_por_id', $user->id)
                   ->orWhere('colaborador_id', $colaborador->id);
 
-                // Acesso aos apontamentos dos colaboradores dos setores vinculados
+                // Acesso aos apontamentos dos colaboradores que pertencem aos setores vinculados
                 if (!empty($setoresVinculadosIds)) {
-                    $q->orWhereHas('colaborador', function($subQ) use ($setoresVinculadosIds) {
+                    $q->orWhereHas('colaborador', function ($subQ) use ($setoresVinculadosIds) {
                         $subQ->whereIn('setor_id', $setoresVinculadosIds);
                     });
                 }
             });
         }
 
-        // 4. OPERACIONAL
-        return $query->where(function ($q) use ($user, $colaborador) {
-            $q->where('registrado_por_id', $user->id);
-            if ($colaborador) {
-                $q->orWhere('colaborador_id', $colaborador->id);
-            }
-        });
+        // 4. OPERACIONAL — visão estrita apenas dos seus próprios apontamentos
+        if ($colaborador) {
+            return $query->where(function ($q) use ($user, $colaborador) {
+                $q->where('registrado_por_id', $user->id)
+                  ->orWhere('colaborador_id', $colaborador->id);
+            });
+        }
+
+        // Fallback de segurança
+        return $query->whereRaw('0=1');
     }
 }

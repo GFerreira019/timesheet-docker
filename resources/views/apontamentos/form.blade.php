@@ -332,10 +332,8 @@
         {{-- ================================================================ --}}
         {{-- BLOCO 1: Identificação --}}
         {{-- ================================================================ --}}
-        @php
-            $colaboradorLogado = auth()->user()->colaborador;
-            $nivelAcesso = $colaboradorLogado ? strtoupper($colaboradorLogado->nivel_acesso) : 'OPERACIONAL';
-        @endphp
+        {{-- MIGRADO: a variável $is_owner já é passada pelo controller (AcessoHelper::isOwner) --}}
+        {{-- O campo de colaborador é editável para gestores, bloqueado para operacionais --}}
         
         <div class="bg-slate-900 rounded-xl border border-slate-800 p-6 shadow-lg relative overflow-hidden">
 
@@ -348,8 +346,10 @@
             <h3 class="text-indigo-400 font-bold mb-6 text-lg uppercase tracking-wider">Identificação</h3>
 
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
-                @if($nivelAcesso === 'OPERACIONAL')
-                    <!-- Visão Estática para Operacional -->
+                {{-- Campo bloqueado para Operacional; aberto para Gestores e superiores --}}
+                @php $colabLogado = auth()->user()->colaborador; @endphp
+                @if(!$pode_lancar_terceiros)
+                    <!-- Visão Estática para perfis sem acesso expandido -->
                     <div class="sm:col-span-2">
                         <label class="block text-sm font-medium text-white font-bold mb-2">Colaborador <span class="text-red-400">*</span></label>
                         
@@ -357,14 +357,14 @@
                         <div class="w-full px-4 py-2.5 bg-slate-800/80 border border-slate-700 rounded-lg text-slate-200 cursor-not-allowed flex items-center">
                             <i class="fas fa-user-lock mr-3 text-slate-400"></i>
                             <div class="flex flex-col">
-                                <span class="font-semibold text-sm">{{ $colaboradorLogado->nome_completo ?? auth()->user()->name }}</span>
-                                <span class="text-[10px] text-slate-300 uppercase">{{ $colaboradorLogado->cargo ?? 'Cargo não definido' }}</span>
+                                <span class="font-semibold text-sm">{{ $colabLogado->nome_completo ?? auth()->user()->name }}</span>
+                                <span class="text-[10px] text-slate-300 uppercase">{{ $colabLogado->cargo ?? 'Cargo não definido' }}</span>
                             </div>
                         </div>
                         
                         <!-- Inputs ocultos para enviar os dados corretamente ao Controller -->
-                        <input type="hidden" id="id_colaborador" name="colaborador_id" value="{{ $colaboradorLogado->id ?? '' }}" data-nome="{{ $colaboradorLogado->nome_completo ?? auth()->user()->name }}">
-                        <input type="hidden" id="id_cargo_colaborador" name="cargo_colaborador" value="{{ $colaboradorLogado->cargo ?? '' }}">
+                        <input type="hidden" id="id_colaborador" name="colaborador_id" value="{{ $colabLogado->id ?? '' }}" data-nome="{{ $colabLogado->nome_completo ?? auth()->user()->name }}">
+                        <input type="hidden" id="id_cargo_colaborador" name="cargo_colaborador" value="{{ $colabLogado->cargo ?? '' }}">
                     </div>
                 @else
                     {{-- Colaborador --}}

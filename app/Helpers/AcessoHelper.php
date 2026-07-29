@@ -73,54 +73,100 @@ class AcessoHelper
 
     /**
      * Verifica se o usuário pertence a um grupo (role).
-     * Equivalente a: check_group(user, group_name)
-     * Usa spatie/laravel-permission via $user->hasRole().
+     * Usa estritamente spatie/laravel-permission.
      */
     public static function checkGroup(string $groupName, ?User $user = null): bool
     {
         $u = self::resolveUser($user);
-        return $u?->checkGroup($groupName) ?? false;
+        return $u?->hasRole($groupName) ?? false;
     }
 
     /**
      * Verifica se é Gerente/Gestor.
-     * Equivalente a: is_gerente(user) → check_group('GESTOR') or is_owner()
      */
     public static function isGerente(?User $user = null): bool
     {
         $u = self::resolveUser($user);
-        return $u?->isGerente() ?? false;
+        return $u?->hasRole('GESTOR') ?? false;
     }
 
     /**
      * Verifica se é Administrativo.
-     * Equivalente a: is_administrativo(user) → check_group('ADMINISTRATIVO') or is_owner()
      */
     public static function isAdministrativo(?User $user = null): bool
     {
         $u = self::resolveUser($user);
-        return $u?->isAdministrativo() ?? false;
+        return $u?->hasRole('ADMINISTRATIVO') ?? false;
     }
 
     /**
      * Verifica se é Coordenador.
-     * Equivalente a: is_coordenador(user) → check_group('COORDENADOR') or is_owner()
      */
     public static function isCoordenador(?User $user = null): bool
     {
         $u = self::resolveUser($user);
-        return $u?->isCoordenador() ?? false;
+        return $u?->hasRole('COORDENADOR') ?? false;
     }
 
     /**
      * Verifica se pode fazer rateio de obras.
-     * Equivalente a: pode_fazer_rateio(user)
-     * → is_coordenador() or is_administrativo() or is_owner()
      */
     public static function podeFazerRateio(?User $user = null): bool
     {
+        return self::isCoordenador($user) || self::isAdministrativo($user) || self::isOwner($user);
+    }
+
+    /**
+     * Verifica se o usuário tem perfil GERENCIAL.
+     */
+    public static function isGerencial(?User $user = null): bool
+    {
         $u = self::resolveUser($user);
-        return $u?->podeFazerRateio() ?? false;
+        return $u?->hasRole('GERENCIAL') ?? false;
+    }
+
+    /**
+     * Verifica se o usuário tem perfil SAC.
+     */
+    public static function isSac(?User $user = null): bool
+    {
+        $u = self::resolveUser($user);
+        return $u?->hasRole('SAC') ?? false;
+    }
+
+    /**
+     * Verifica se o usuário é Administrador.
+     */
+    public static function isAdmin(?User $user = null): bool
+    {
+        $u = self::resolveUser($user);
+        return $u?->hasRole('ADMIN') || self::isOwner($user);
+    }
+
+    /**
+     * Verifica se o usuário tem acesso expandido de setor (GERENCIAL ou SAC).
+     */
+    public static function isAcessoExpandido(?User $user = null): bool
+    {
+        $u = self::resolveUser($user);
+        return $u?->hasAnyRole(['GERENCIAL', 'SAC']) ?? false;
+    }
+
+    /**
+     * Verifica se o usuário é estritamente Operacional (trabalhador padrão sem cargos extras).
+     */
+    public static function isOperacional(?User $user = null): bool
+    {
+        return !self::isAdmin($user) && !self::isGerente($user) && !self::isAdministrativo($user) 
+            && !self::isAcessoExpandido($user) && !self::isCoordenador($user) && !self::isOwner($user);
+    }
+
+    /**
+     * Verifica se o usuário tem permissão para lançar apontamentos em nome de terceiros.
+     */
+    public static function podeLancarPorTerceiros(?User $user = null): bool
+    {
+        return self::isAdmin($user) || self::isAcessoExpandido($user);
     }
 
     /**

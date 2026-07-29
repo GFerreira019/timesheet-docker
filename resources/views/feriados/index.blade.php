@@ -140,8 +140,8 @@ select option {
                                 <i class="fas fa-check text-green-400 text-xs"></i>
                             </div>
                             <div>
-                                <p class="text-sm font-semibold text-slate-200">{{ $local->cidade }}</p>
-                                <p class="text-[11px] text-slate-500">{{ $local->uf }} — Feriados municipais mapeados</p>
+                                <p class="text-sm font-semibold text-slate-200">{{ $local['cidade'] }}</p>
+                                <p class="text-[11px] text-slate-500">{{ $local['uf'] }} — Feriados municipais mapeados</p>
                             </div>
                             <span class="ml-auto text-[10px] bg-green-500/10 text-green-400 border border-green-500/20 px-2 py-0.5 rounded-full opacity-0 group-hover:opacity-100 transition">
                                 OK
@@ -186,11 +186,11 @@ select option {
                                 <i class="fas fa-times text-red-400 text-xs"></i>
                             </div>
                             <div>
-                                <p class="text-sm font-semibold text-slate-200">{{ $local->cidade }}</p>
-                                <p class="text-[11px] text-red-400/80">{{ $local->uf }} — Sem feriados municipais em {{ $anoAtual }}</p>
+                                <p class="text-sm font-semibold text-slate-200">{{ $local['cidade'] }}</p>
+                                <p class="text-[11px] text-red-400/80">{{ $local['uf'] }} — Sem feriados municipais em {{ $anoAtual }}</p>
                             </div>
                             <button type="button"
-                                    onclick="abrirModalManual('{{ $local->cidade }}', '{{ $local->uf }}')"
+                                    onclick="abrirModalManual('{{ $local['cidade'] }}', '{{ $local['uf'] }}')"
                                     class="ml-auto text-xs bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 px-3 py-1.5 rounded-lg transition whitespace-nowrap flex items-center gap-1.5 opacity-80 group-hover:opacity-100">
                                 <i class="fas fa-plus-circle"></i>
                                 Cadastrar Manualmente
@@ -239,8 +239,8 @@ select option {
                         <option value="" style="background: var(--bg-secondary); color: var(--text-primary);">Todas as Cidades</option>
                         
                         @foreach($cidadesMonitoradas as $local)
-                            <option value="{{ $local->cidade }}|{{ $local->uf }}" style="background: var(--bg-secondary); color: var(--text-primary);">
-                                {{ $local->cidade }} / {{ $local->uf }}
+                            <option value="{{ $local['cidade'] }}|{{ $local['uf'] }}" style="background: var(--bg-secondary); color: var(--text-primary);">
+                                {{ $local['cidade'] }} / {{ $local['uf'] }}
                             </option>
                         @endforeach
                     </x-select-input>
@@ -484,8 +484,8 @@ select option {
                             class="w-full bg-slate-900 border border-slate-700 text-slate-200 text-sm rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-orange-500 outline-none transition appearance-none">
                         <option value="">Selecione a localidade...</option>
                         @foreach($cidadesMonitoradas as $local)
-                            <option value="{{ $local->cidade }}|{{ $local->uf }}">
-                                {{ $local->cidade }} / {{ $local->uf }}
+                            <option value="{{ $local['cidade'] }}|{{ $local['uf'] }}">
+                                {{ $local['cidade'] }} / {{ $local['uf'] }}
                             </option>
                         @endforeach
                     </select>

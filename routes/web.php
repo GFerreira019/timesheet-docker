@@ -12,6 +12,7 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\PontoController;
 use App\Http\Controllers\WhatsappController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\SuporteController;
 use App\Http\Controllers\NotificacaoController;
 use App\Http\Controllers\Api\CalendarioApiController;
 use App\Livewire\Gerencial\Dashboard;
@@ -28,12 +29,43 @@ use App\Livewire\Gerencial\LancamentosAvancado;
 |
 */
 
+// Rota de entrada
+Route::get('/', function () {
+    return app()->environment('local') ? redirect('/dev/painel') : redirect()->route('painel');
+})->name('home');
+
+Route::get('/login', function () {
+        if (app()->environment('local')) {
+            return redirect()->route('dev.login');
+        }
+
+        // TODO: Substituir pelo redirecionamento oficial do SSO do ERP
+        // Exemplo futuro: return redirect()->to('https://sso.seu-erp.com.br/authorize?client_id=...');
+        return "Em breve: Redirecionamento para o login do ERP";
+    })->name('login');
+
+    // TODO: Substituir pelo redirecionamento de logout do SSO do ERP
+    Route::post('/logout', function () {
+        Auth::logout(); // Opcional: Efetua o logout do laravel temporariamente para evitar falhas de sessão caso o usuário clique
+        return redirect()->route('login');
+    })->name('logout');
+
 Route::middleware('auth')->group(function () {
     // Rotas Base (Home e Configurações)
-    Route::get('/', [HomeController::class, 'redirect'])->name('home');
-    Route::get('/menu', [HomeController::class, 'index'])->name('home.menu');
     Route::get('/painel', [DashboardController::class, 'index'])->name('painel');
-    
+
+    // Suporte
+    Route::prefix('suporte')->name('suporte.')->group(function () {
+        Route::get('/', [SuporteController::class, 'index'])->name('index');
+        Route::post('/', [SuporteController::class, 'store'])->name('store');
+        Route::get('/ticket/{ticket}/anexo', [SuporteController::class, 'anexo'])->name('anexo');
+        
+        // Rota protegida por Spatie para atualizar status
+        Route::patch('/ticket/{ticket}/status', [SuporteController::class, 'updateStatus'])
+            ->name('updateStatus')
+            ->middleware('role:ADMIN');
+    });
+
     // Novas rotas Livewire Migradas
     Route::get('/dashboard-gerencial', Dashboard::class)->name('dashboard.gerencial');
     Route::get('/lancamentos-avancado', LancamentosAvancado::class)->name('lancamentos.avancado');
@@ -57,7 +89,7 @@ Route::middleware('auth')->group(function () {
         Route::delete('/{id}', [ApontamentoController::class, 'destroy'])->name('destroy');
         Route::post('/{id}/ajuste', [ApontamentoController::class, 'solicitarAjuste'])->name('solicitar_ajuste');
         Route::post('/{id}/aprovar-ajuste', [ApontamentoController::class, 'aprovarAjuste'])
-            ->middleware('acesso:gestor') // Requer privilégios de gestor ou admin
+            ->middleware('role:COORDENADOR|ADMIN') // Requer perfil de Coordenador ou Admin via Spatie
             ->name('aprovar_ajuste');
     });
 
@@ -79,15 +111,15 @@ Route::middleware('auth')->group(function () {
     Route::get('/pontos', [PontoController::class, 'index'])->name('pontos.index');
     Route::post('/pontos/sincronizar-todos', [PontoController::class, 'sincronizarTodos'])->name('pontos.sincronizar_todos');
 
-    // Aprovações (apenas Gestores, Admins e Gerenciais)
-    Route::prefix('aprovacoes')->name('aprovacoes.')->middleware('acesso:gestor,gerencial')->group(function () {
+    // Aprovações (apenas Coordenadores, Admins e Gerenciais)
+    Route::prefix('aprovacoes')->name('aprovacoes.')->middleware('role:COORDENADOR|ADMIN|GERENCIAL')->group(function () {
         Route::get('/', [AprovacaoController::class, 'dashboard'])->name('dashboard');
         Route::get('/{id}/analise', [AprovacaoController::class, 'analise'])->name('analise');
         Route::post('/{id}/processar', [AprovacaoController::class, 'processar'])->name('processar');
     });
 
     // Conformidade e Painel Administrativo (apenas Admins)
-    Route::middleware('acesso:admin')->group(function () {
+    Route::middleware('role:ADMIN')->group(function () {
         Route::get('/configuracoes/health', [\App\Http\Controllers\ConfiguracaoController::class, 'index'])->name('configuracoes.health');
         Route::post('/configuracoes/salvar', [\App\Http\Controllers\ConfiguracaoController::class, 'salvar'])->name('configuracoes.salvar');
         Route::post('/configuracoes/testar-solides-api', [\App\Http\Controllers\ConfiguracaoController::class, 'testarSolidesApi'])->name('configuracoes.testar_solides_api');
@@ -197,11 +229,11 @@ if (app()->environment('local')) {
         
         $html .= "</ul></div>";
         return $html;
-    });
+    })->name('dev.login');
 
     Route::get('/dev/login/{id}', function ($id) {
         Auth::loginUsingId($id);
-        return redirect()->route('apontamentos.create');
+        return redirect()->route('painel');
     });
 
     Route::get('/teste-rls', function () {
@@ -275,4 +307,3 @@ if (app()->environment('local')) {
     });
 }
 
-require __DIR__.'/auth.php';

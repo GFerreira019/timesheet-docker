@@ -159,7 +159,7 @@
             <div class="flex items-center justify-between mb-4 px-2">
                 <h3 class="text-sm font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
                     <i class="fas fa-user-times text-slate-500"></i>
-                    Ausentes (0h)
+                    Sem Apontamento
                 </h3>
                 <span class="bg-slate-800 text-slate-300 text-xs font-bold px-2.5 py-1 rounded-full border border-slate-700/50">
                     {{ count($lista_ausente) }}
@@ -167,6 +167,8 @@
             </div>
 
             <div class="flex-1 overflow-y-auto space-y-3 pr-2 custom-scrollbar">
+                
+                {{-- SEÇÃO 1: Faltou Apontamento --}}
                 @forelse($lista_ausente as $item)
                 {{-- Mini Card (DS) --}}
                 <div class="bg-slate-800 rounded-xl border border-slate-700/50 p-4 hover:border-slate-500 transition group">
@@ -181,7 +183,7 @@
                             @else
                                 <span class="inline-flex bg-slate-900/50 text-slate-500 font-mono font-bold text-xs px-2 py-1 rounded border border-slate-700/50">00:00</span>
                                 @if(isset($item['total_horas_solides']) && $item['total_horas_solides'] !== '00:00')
-                                <span class="block text-[9px] text-yellow-500 font-mono mt-1 font-bold">Sólides: {{ $item['total_horas_solides'] }}</span>
+                                <span class="block text-[9px] text-yellow-500 font-mono mt-1 font-bold">SÓLIDES: {{ $item['total_horas_solides'] }}</span>
                                 @endif
                             @endif
                         </div>
@@ -189,18 +191,52 @@
                 </div>
                 @empty
                     @if($nome_feriado)
-                    <div class="h-full flex flex-col items-center justify-center text-center p-6 border border-dashed border-slate-700 rounded-xl bg-slate-800/30">
+                    <div class="flex flex-col items-center justify-center text-center p-6 border border-dashed border-slate-700 rounded-xl bg-slate-800/30">
                         <i class="fas fa-calendar-day text-3xl text-indigo-400 mb-3"></i>
                         <p class="font-bold text-white text-sm">Dia de Folga</p>
                         <p class="text-xs text-slate-400 mt-1">{{ $nome_feriado }}</p>
                     </div>
                     @else
-                    <div class="h-full flex flex-col items-center justify-center text-center p-6 border border-dashed border-slate-700 rounded-xl bg-slate-800/30">
+                    <div class="flex flex-col items-center justify-center text-center p-6 border border-dashed border-slate-700 rounded-xl bg-slate-800/30">
                         <i class="fas fa-check-circle text-3xl text-slate-600 mb-3"></i>
-                        <p class="text-sm text-slate-400">Nenhum colaborador ausente.</p>
+                        <p class="text-sm text-slate-400">Nenhum colaborador com falta de apontamento.</p>
                     </div>
                     @endif
                 @endforelse
+
+                {{-- SEÇÃO 2: Ausente --}}
+                <div class="mt-6 pt-4 border-t border-slate-700/50">
+                    <h4 class="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-3 flex items-center gap-2">
+                        <i class="fas fa-bed"></i> Ausente
+                        <span class="ml-auto bg-slate-800 text-slate-400 text-[10px] px-2 py-0.5 rounded-full">{{ count($lista_ausente_real) }}</span>
+                    </h4>
+                    
+                    <div class="space-y-3">
+                        @forelse($lista_ausente_real as $item)
+                        <div class="bg-slate-800/50 rounded-xl border border-slate-700/30 p-3 hover:border-slate-600 transition group opacity-70 hover:opacity-100">
+                            <div class="flex justify-between items-start gap-2">
+                                <div class="min-w-0">
+                                    <p class="font-bold text-slate-300 text-sm truncate">{{ $item['nome'] }}</p>
+                                    <p class="text-[10px] text-slate-500 uppercase tracking-wider mt-0.5">{{ $item['cargo'] }}</p>
+                                </div>
+                                <div class="flex-shrink-0 text-right">
+                                    @if(!empty($item['justificativa_abono']))
+                                        <span class="inline-flex bg-slate-900/50 text-yellow-500 font-mono font-bold text-xs px-2 py-1 rounded border border-yellow-500/30 truncate max-w-[120px]" title="{{ $item['justificativa_abono'] }}">
+                                            {{ $item['justificativa_abono'] }}
+                                        </span>
+                                    @else
+                                        <span class="inline-flex bg-slate-900/50 text-yellow-500 font-mono font-bold text-xs px-2 py-1 rounded border border-slate-700/30">SEM SÓLIDES</span>
+                                    @endif
+                                </div>
+                            </div>
+                        </div>
+                        @empty
+                        <div class="text-center p-4 border border-dashed border-slate-700/50 rounded-xl bg-slate-800/10">
+                            <p class="text-xs text-slate-500">Nenhum colaborador ausente.</p>
+                        </div>
+                        @endforelse
+                    </div>
+                </div>
             </div>
         </div>
 

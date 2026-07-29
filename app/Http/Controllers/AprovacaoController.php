@@ -37,13 +37,11 @@ class AprovacaoController extends Controller
         $ehOwner       = AcessoHelper::isOwner($user);
         $colaborador   = $user->colaborador;
         $colaboradorId = $colaborador->id ?? null;
-        $nivelAcesso   = $colaborador ? strtoupper($colaborador->nivel_acesso) : 'OPERACIONAL';
-        if ($ehOwner) {
-            $nivelAcesso = 'ADMIN';
-        }
+        $isAdmin       = AcessoHelper::isAdmin($user);
+        $nivelAcesso = AcessoHelper::isAdmin($user) ? 'ADMIN' : strtoupper($user->roles->first()?->name ?? 'OPERACIONAL');
         // 1. Query Base blindada
         $queryBase = Apontamento::with(['colaborador', 'projeto', 'centroCusto', 'auxiliar', 'auxiliaresExtras']);
-        if ($nivelAcesso !== 'ADMIN') {
+        if (!$isAdmin) {
             // Regras normais (Gestor/Gerencial)
             $queryBase->visibilidadePermitida($user)
                 ->when($colaboradorId, function($query) use ($colaboradorId) {
@@ -89,7 +87,7 @@ class AprovacaoController extends Controller
         $colaboradores = [];
         $projetos = [];
         $setores = [];
-        if ($nivelAcesso === 'ADMIN') {
+        if ($isAdmin) {
             $colaboradores = \App\Models\Colaborador::ativos()->orderBy('nome_completo')->get();
             $projetos = \App\Models\Projeto::ativos()->orderBy('codigo')->get();
             $setores = \App\Models\Setor::ativos()->orderBy('nome')->get();
@@ -152,6 +150,20 @@ class AprovacaoController extends Controller
             return redirect()->route('aprovacoes.dashboard');
         }
         $apontamento = Apontamento::findOrFail($id);
+        $user = auth()->user();
+
+        // TRAVA 1: Anti-Self-Approval (Impede aprovar as próprias horas)
+        if (!AcessoHelper::isAdmin($user) && $apontamento->colaborador_id === $user->colaborador?->id) {
+            abort(403, 'Operação bloqueada: Você não pode aprovar os seus próprios apontamentos.');
+        }
+
+        // TRAVA 2: Correção de IDOR (Garante que o gestor só processa o que ele tem permissão para enxergar)
+        if (!AcessoHelper::isAdmin($user)) {
+            $visivel = Apontamento::visibilidadePermitida($user)->where('id', $id)->exists();
+            if (!$visivel) {
+                abort(403, 'Acesso Negado: Você não tem jurisdição sobre este apontamento.');
+            }
+        }
 
         if (!($apontamento->status_aprovacao === 'EM_ANALISE' || ($apontamento->status_aprovacao === 'APROVADO' && $apontamento->tipo_aprovacao === 'automatica'))) {
             abort(403, 'Ação não permitida para este status.');

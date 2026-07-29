@@ -137,8 +137,9 @@
 
 @section('content')
 @php
-    $relacaoColaborador = auth()->user()->colaborador; 
-    $nivelAcesso = $relacaoColaborador ? strtoupper($relacaoColaborador->nivel_acesso) : 'OPERACIONAL';
+    $user = auth()->user();
+    $relacaoColaborador = $user->colaborador; 
+    $nivelAcesso = \App\Helpers\AcessoHelper::isAdmin($user) ? 'ADMIN' : strtoupper($user->roles->first()?->name ?? 'OPERACIONAL');
 @endphp
 
 {{-- ============================================================
@@ -258,8 +259,8 @@
                 </div>
             </a>
 
-            {{-- Card: Aprovações (apenas Gestores, Admins e Gerenciais) --}}
-            @if(in_array($nivelAcesso, ['GESTOR', 'ADMIN', 'GERENCIAL']))
+            {{-- Card: Aprovações (apenas Coordenadores, Admins e Gerenciais) --}}
+            @hasanyrole('ADMIN|GERENCIAL|COORDENADOR')
             <a href="{{ route('aprovacoes.dashboard') }}" class="module-card relative theme-bg-card rounded-xl border border-slate-700 p-4 lg:p-6 hover:border-yellow-500/50 transition group">
                 <div class="relative z-10">
                     <div class="module-icon w-12 h-12 lg:w-14 lg:h-14 bg-yellow-500/20 rounded-xl flex items-center justify-center mb-3 lg:mb-4 transition">
@@ -274,14 +275,14 @@
                     </div>
                 </div>
             </a>
-            @endif
+            @endhasanyrole
         </div>
     </div>
 
     {{-- ============================================================
-         CATEGORIA 2 — GESTÃO (apenas Owner)
+         CATEGORIA 2 — GESTÃO (apenas ADMIN)
          ============================================================ --}}
-    @if($nivelAcesso === 'ADMIN')
+    @role('ADMIN')
     <div class="mb-8">
         <h2 class="text-lg font-bold mb-4 flex items-center gap-2 theme-text-primary">
             <i class="fas fa-tasks text-rose-500"></i>
@@ -305,13 +306,13 @@
             </a>
 
             {{-- Card: Dashboard --}}
-            <a href="{{ route('dashboard.index') }}" class="module-card relative theme-bg-card rounded-xl border border-slate-700 p-4 lg:p-6 hover:border-blue-500/50 transition group">
+            <a href="{{ route('dashboard.gerencial') }}" class="module-card relative theme-bg-card rounded-xl border border-slate-700 p-4 lg:p-6 hover:border-blue-500/50 transition group">
                 <div class="relative z-10">
                     <div class="module-icon w-12 h-12 lg:w-14 lg:h-14 bg-blue-500/20 rounded-xl flex items-center justify-center mb-3 lg:mb-4 transition">
                         <i class="fas fa-chart-pie text-blue-500 text-xl lg:text-2xl"></i>
                     </div>
-                    <h3 class="text-base lg:text-lg font-bold mb-1 lg:mb-2 theme-text-primary">Dashboard</h3>
-                    <p class="text-xs lg:text-sm theme-text-secondary mb-3 lg:mb-4 line-clamp-2">Visão geral interativa com ranking de colaboradores e KPIs.</p>
+                    <h3 class="text-base lg:text-lg font-bold mb-1 lg:mb-2 theme-text-primary">Dashboard Gerencial</h3>
+                    <p class="text-xs lg:text-sm theme-text-secondary mb-3 lg:mb-4 line-clamp-2">Métricas de apontamentos por obras e KPI's</p>
                     
                     <div class="flex items-center text-blue-500 group-hover:opacity-80 transition">
                         <span class="text-xs lg:text-sm font-medium">Acessar</span>
@@ -337,12 +338,12 @@
             </a>
         </div>
     </div>
-    @endif
+    @endrole
 
     {{-- ============================================================
-         CATEGORIA 3 — CONFIGURAÇÕES (apenas Owner)
+         CATEGORIA 3 — CONFIGURAÇÕES (apenas ADMIN)
          ============================================================ --}}
-    @if($is_owner)
+    @role('ADMIN')
     <div class="mb-8">
         <h2 class="text-lg font-bold mb-4 flex items-center gap-2 theme-text-primary">
             <i class="fas fa-cog text-rose-500"></i>
@@ -415,12 +416,12 @@
             </a>
         </div>
     </div>
-    @endif
+    @endrole
 
     {{-- ============================================================
-         CATEGORIA 4 — MOVIMENTAÇÕES (apenas Owner)
+         CATEGORIA 4 — MOVIMENTAÇÕES (apenas ADMIN)
          ============================================================ --}}
-    @if($is_owner)
+    @role('ADMIN')
     <div class="mb-8">
         <h2 class="text-lg font-bold mb-4 flex items-center gap-2 theme-text-primary">
             <i class="fas fa-chart-line text-rose-500"></i>
@@ -492,7 +493,7 @@
             </a>
         </div>
     </div>
-    @endif
+    @endrole
 
     {{-- ============================================================
          14.4 BOTÃO DE AÇÃO INFERIOR (Voltar Geral)

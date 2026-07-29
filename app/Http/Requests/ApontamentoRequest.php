@@ -124,6 +124,24 @@ class ApontamentoRequest extends FormRequest
 
             $data = $this->all();
             $user = $this->user();
+            $colab = $user ? $user->colaborador : null;
+
+            // ==================================================================
+            // -1. VALIDAÇÃO DE SEGURANÇA PARA TERCEIROS (GERENCIAL/SAC)
+            // ==================================================================
+            $colaboradorIdReq = $data['colaborador_id'] ?? null;
+            if ($colaboradorIdReq && AcessoHelper::isAcessoExpandido($user) && !AcessoHelper::isAdmin($user)) {
+                if ($colab && $colaboradorIdReq != $colab->id) {
+                    $setoresVinculados = $colab->setoresVinculados()->pluck('setores.id');
+                    $setoresGerenciados = $colab->setoresGerenciados()->pluck('setores.id');
+                    $setoresPermitidos = $setoresVinculados->merge($setoresGerenciados)->unique();
+
+                    $colabAlvo = Colaborador::find($colaboradorIdReq);
+                    if (!$colabAlvo || !$setoresPermitidos->contains($colabAlvo->setor_id)) {
+                        $validator->errors()->add('colaborador_id', 'Acesso Negado: Você só pode lançar apontamentos para si mesmo ou para a equipe dos setores que gerencia.');
+                    }
+                }
+            }
 
             // ==================================================================
             // 0. MODO START (Cronômetro/Check-in)
@@ -631,13 +649,14 @@ class ApontamentoRequest extends FormRequest
             ]);
         }
 
-        // Blindagem de Segurança (RBAC) - Força ID do colaborador logado se for OPERACIONAL
+        // Blindagem de Segurança (RBAC) - Força ID do colaborador logado se for OPERACIONAL puro
+        // MIGRADO: substituiu leitura de nivel_acesso por helpers do AcessoHelper
         $user = $this->user();
         if ($user) {
             $colab = $user->colaborador;
-            $nivel = $colab ? strtoupper($colab->nivel_acesso) : 'OPERACIONAL';
+            $naoPodeLancarTerceiros = !AcessoHelper::podeLancarPorTerceiros($user);
 
-            if ($nivel === 'OPERACIONAL' && $colab) {
+            if ($naoPodeLancarTerceiros && $colab) {
                 $this->merge([
                     'colaborador_id'    => $colab->id,
                     'cargo_colaborador' => $colab->cargo

@@ -136,4 +136,40 @@ class User extends Authenticatable
     {
         return $this->isCoordenador() || $this->isAdministrativo() || $this->isOwner();
     }
+
+    /**
+     * Verifica se o usuário tem perfil GERENCIAL.
+     * Perfil com visão de setor, mas sem poderes de aprovação de gestor.
+     */
+    public function isGerencial(): bool
+    {
+        return $this->checkGroup('GERENCIAL') || $this->isOwner();
+    }
+
+    /**
+     * Verifica se o usuário tem perfil SAC.
+     * Perfil com acesso limitado a setores vinculados (suporte/atendimento).
+     */
+    public function isSac(): bool
+    {
+        return $this->checkGroup('SAC') || $this->isOwner();
+    }
+
+    /**
+     * Verifica se o usuário tem perfil ADMIN (administrador do sistema).
+     * Admin tem visão total igual ao Owner, mas sem o flag is_superuser.
+     */
+    public function isAdmin(): bool
+    {
+        return $this->checkGroup('ADMIN') || $this->isOwner();
+    }
+
+    /**
+     * Verifica se o usuário tem acesso expandido (visão de setor).
+     * Equivale a: GERENCIAL ou SAC ou Owner.
+     */
+    public function isAcessoExpandido(): bool
+    {
+        return $this->isGerencial() || $this->isSac() || $this->isOwner();
+    }
 }

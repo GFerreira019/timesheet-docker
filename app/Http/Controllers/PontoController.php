@@ -20,8 +20,8 @@ class PontoController extends Controller
         // 1. Carregar lista de colaboradores com a mesma regra da tela de Apontamentos
         $query = Colaborador::ativos()->whereHas('setorRelacionamento', fn($s) => $s->where('ativo', true));
 
-        if (!\App\Helpers\AcessoHelper::isOwner($user)) {
-            if (\App\Helpers\AcessoHelper::isAdministrativo($user)) {
+        if (!\App\Helpers\AcessoHelper::isAdmin($user)) {
+            if (\App\Helpers\AcessoHelper::isCoordenador($user) || \App\Helpers\AcessoHelper::isAdministrativo($user)) {
                 if (!$colab) {
                     $query->whereRaw('0=1');
                 } else {
@@ -38,7 +38,7 @@ class PontoController extends Controller
             } else {
                 if (!$colab) {
                     $query->whereRaw('0=1');
-                } elseif (in_array($colab->nivel_acesso, ['GERENCIAL', 'SAC'])) {
+                } elseif (\App\Helpers\AcessoHelper::isAcessoExpandido($user)) {
                     $setoresVinculados = $colab->setoresVinculados()->pluck('setores.id');
                     $query->where(function ($q) use ($setoresVinculados, $colab) {
                         $q->whereIn('setor_id', $setoresVinculados)
@@ -51,7 +51,7 @@ class PontoController extends Controller
         }
 
         $colaboradores = $query->distinct()
-            ->select('id', 'nome_completo')
+            ->select('id', 'nome_completo','cargo')
             ->orderBy('nome_completo')
             ->get();
 
@@ -82,21 +82,51 @@ class PontoController extends Controller
                     return $item->data->format('Y-m-d');
                 })->map(function($turnos) {
                     $saldoMinutos = 0;
-                    foreach ($turnos as $turno) {
-                        if ($turno->hora_entrada && $turno->hora_saida) {
+                    $horasAbonadasDia = 0;
+                    $justificativas = [];
+                    
+                    $turnosMapeados = $turnos->map(function($turno) use (&$saldoMinutos, &$horasAbonadasDia, &$justificativas) {
+                        if (!$turno->is_ajustado && $turno->hora_entrada && $turno->hora_saida) {
                             $entrada = Carbon::parse($turno->hora_entrada);
                             $saida = Carbon::parse($turno->hora_saida);
                             $saldoMinutos += $entrada->diffInMinutes($saida);
                         }
-                    }
+                        
+                        // Lógica da nova regra de negócio para abonos
+                        if ($turno->is_ajustado) {
+                            if ($turno->horas_abonadas) {
+                                $horasAbonadasDia += (float) $turno->horas_abonadas;
+                            }
+                            if ($turno->justificativa) {
+                                $justificativas[] = $turno->justificativa;
+                            }
+                            
+                            // Limpa horários para não exibir batidas falsas na view
+                            $turno->hora_entrada = null;
+                            $turno->hora_saida = null;
+                        }
+
+                        return $turno;
+                    });
                     
                     $horas = floor($saldoMinutos / 60);
                     $minutos = $saldoMinutos % 60;
                     
+                    $horasAbDecimal = $horasAbonadasDia;
+                    if ($horasAbDecimal > 100) {
+                        $horasAbDecimal = $horasAbDecimal / 1000;
+                    }
+                    
+                    $horasAb = floor($horasAbDecimal);
+                    $minutosAb = round(($horasAbDecimal - $horasAb) * 60);
+                    $horasAbonadasDiaStr = $horasAbonadasDia > 0 ? sprintf('%02d:%02d', $horasAb, $minutosAb) : '-';
+                    
                     return [
                         'data' => $turnos->first()->data,
-                        'turnos' => $turnos->values(),
-                        'saldo_dia' => sprintf('%02d:%02d', $horas, $minutos)
+                        'turnos' => $turnosMapeados->values(),
+                        'saldo_dia' => sprintf('%02d:%02d', $horas, $minutos),
+                        'horas_abonadas_dia' => $horasAbonadasDiaStr,
+                        'justificativas' => array_unique($justificativas)
                     ];
                 });
 
@@ -173,7 +203,7 @@ class PontoController extends Controller
                 } else {
                     if (!$colab) {
                         $query->whereRaw('0=1');
-                    } elseif (in_array($colab->nivel_acesso, ['GERENCIAL', 'SAC'])) {
+                    } elseif (\App\Helpers\AcessoHelper::isAcessoExpandido($user)) {
                         $setoresVinculados = $colab->setoresVinculados()->pluck('setores.id');
                         $query->where(function ($q) use ($setoresVinculados, $colab) {
                             $q->whereIn('setor_id', $setoresVinculados)

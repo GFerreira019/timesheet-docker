@@ -9,7 +9,7 @@ class ColaboradorController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Colaborador::with(['setorRelacionamento', 'setoresVinculados:id']);
+        $query = Colaborador::with(['setorRelacionamento', 'setoresVinculados:id', 'user.roles']);
 
         if ($request->filled('nome')) {
             $query->where('nome_completo', 'like', '%' . $request->nome . '%');
@@ -20,8 +20,10 @@ class ColaboradorController extends Controller
         if ($request->filled('setor_id')) {
             $query->where('setor_id', $request->setor_id);
         }
-        if ($request->filled('nivel_acesso')) {
-            $query->where('nivel_acesso', $request->nivel_acesso);
+        if ($request->filled('role')) {
+            $query->whereHas('user', function ($q) use ($request) {
+                $q->role($request->role);
+            });
         }
         if ($request->filled('cidade_trabalho')) {
             $query->where('cidade_trabalho', $request->cidade_trabalho);
@@ -46,7 +48,7 @@ class ColaboradorController extends Controller
         
         $cargos = Colaborador::whereNotNull('cargo')->distinct()->pluck('cargo');
         $setores = \App\Models\Setor::orderBy('nome_completo')->get();
-        $niveis_acesso = Colaborador::whereNotNull('nivel_acesso')->distinct()->pluck('nivel_acesso');
+        $roles = \Spatie\Permission\Models\Role::orderBy('name')->pluck('name');
         $cidades = Colaborador::select('cidade_moradia')
             ->union(Colaborador::select('cidade_trabalho'))
             ->whereNotNull('cidade_moradia')
@@ -54,37 +56,41 @@ class ColaboradorController extends Controller
             ->pluck('cidade_moradia');
         $cidades_trabalho = Colaborador::whereNotNull('cidade_trabalho')->distinct()->pluck('cidade_trabalho');
 
-        return view('colaboradores.index', compact('colaboradores', 'cargos', 'setores', 'cidades', 'cidades_trabalho', 'niveis_acesso'));
+        return view('colaboradores.index', compact('colaboradores', 'cargos', 'setores', 'cidades', 'cidades_trabalho', 'roles'));
     }
 
     public function update(Request $request, $id)
     {
         $validated = $request->validate([
-            'nome_completo' => 'sometimes|nullable|string|max:255',
-            'nivel_acesso' => 'sometimes|nullable|in:OPERACIONAL,GESTOR,ADMIN,GERENCIAL,SAC',
-            'telefone' => 'sometimes|nullable|string|max:20',
-            'cargo' => 'sometimes|nullable|string|max:255',
-            'setor_id' => 'sometimes|nullable|exists:setores,id',
-            'setores_vinculados' => 'sometimes|nullable|array',
-            'setores_vinculados.*' => 'exists:setores,id',
-            'cidade_moradia' => 'sometimes|nullable|string|max:255',
-            'cidade_trabalho' => 'sometimes|nullable|string|max:255',
-            'uf_moradia' => 'sometimes|nullable|string|max:2',
-            'uf_trabalho' => 'sometimes|nullable|string|max:2',
-            'data_demissao' => 'sometimes|nullable|date',
-            'data_vigencia' => 'required|date'
+            'nome_completo'       => 'sometimes|nullable|string|max:255',
+            'role'                => ['sometimes', 'nullable', 'string', 'exists:roles,name'], // Fase de Transição: substituiu nivel_acesso
+            'telefone'            => 'sometimes|nullable|string|max:20',
+            'cargo'               => 'sometimes|nullable|string|max:255',
+            'setor_id'            => 'sometimes|nullable|exists:setores,id',
+            'setores_vinculados'  => 'sometimes|nullable|array',
+            'setores_vinculados.*'=> 'exists:setores,id',
+            'cidade_moradia'      => 'sometimes|nullable|string|max:255',
+            'cidade_trabalho'     => 'sometimes|nullable|string|max:255',
+            'uf_moradia'          => 'sometimes|nullable|string|max:2',
+            'uf_trabalho'         => 'sometimes|nullable|string|max:2',
+            'data_demissao'       => 'sometimes|nullable|date',
+            'data_vigencia'       => 'required|date'
         ]);
 
         $colaborador = Colaborador::findOrFail($id);
         
         $dados = $validated;
         
-        // Remove a vigência e setores vinculados para processar separadamente
+        // Remove campos processados separadamente para não cair no fill()
         $dataVigencia = $dados['data_vigencia'];
         unset($dados['data_vigencia']);
 
         $setoresVinculados = $request->input('setores_vinculados', []);
         unset($dados['setores_vinculados']);
+
+        // Remove 'role' do array de dados do colaborador (não é coluna direta nesta fase)
+        $roleParaSincronizar = $dados['role'] ?? null;
+        unset($dados['role']);
 
         // Concatena a UF na Cidade de Moradia
         if (!empty($dados['cidade_moradia']) && !empty($dados['uf_moradia'])) {
@@ -96,10 +102,10 @@ class ColaboradorController extends Controller
             $dados['cidade_trabalho'] = $dados['cidade_trabalho'] . ' - ' . $dados['uf_trabalho'];
         }
 
-        // Remove os campos auxiliares de UF para não dar erro de coluna inexistente no SQL
+        // Remove os campos auxiliares de UF
         unset($dados['uf_moradia'], $dados['uf_trabalho'], $dados['uf']);
 
-        // Sanitização global: aplicar uppercase e ASCII em todos os textos, exceto datas
+        // Sanitização global: uppercase e ASCII em todos os textos, exceto datas
         foreach ($dados as $key => $value) {
             if (is_string($value) && !in_array($key, ['data_demissao'])) {
                 $dados[$key] = \Illuminate\Support\Str::upper(\Illuminate\Support\Str::ascii($value));
@@ -107,11 +113,22 @@ class ColaboradorController extends Controller
         }
 
         $colaborador->fill($dados);
-        $colaborador->dataVigenciaVirtual = $dataVigencia; // Atualiza a data_vigencia (virtual) no momento do save
-        $colaborador->save(); // Isso disparará o ColaboradorObserver automaticamente
+        $colaborador->dataVigenciaVirtual = $dataVigencia;
+        $colaborador->save();
 
-        // Sincroniza os setores vinculados (limpa se o array for vazio, ex: mudou para OPERACIONAL)
+        // Sincroniza os setores vinculados
         $colaborador->setoresVinculados()->sync($setoresVinculados);
+
+        // --- FASE DE TRANSIÇÃO: Sincronização Spatie + Espelhamento Temporário ---
+        // O campo nivel_acesso ainda existe para compatibilidade durante a migração de 30 dias.
+        if ($colaborador->user && $roleParaSincronizar) {
+            // 1. Atualiza a role autoritativa no Spatie (fonte de verdade)
+            $colaborador->user->syncRoles([$roleParaSincronizar]);
+
+            // 2. Espelha no campo legado sem disparar eventos Eloquent (evita loop com Observer)
+            $colaborador->updateQuietly(['nivel_acesso' => $roleParaSincronizar]);
+        }
+        // --- FIM DA FASE DE TRANSIÇÃO ---
 
         if ($request->wantsJson()) {
             return response()->json(['success' => true, 'message' => 'Colaborador atualizado com sucesso.']);
@@ -218,25 +235,29 @@ class ColaboradorController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'nome_completo' => 'required|string|max:255',
-            'nivel_acesso' => 'required|in:OPERACIONAL,GESTOR,ADMIN,GERENCIAL,SAC',
-            'id_colaborador' => 'required|string|max:255|unique:produtividade_colaborador,id_colaborador',
-            'telefone' => 'nullable|string|max:20',
-            'cargo' => 'required|string|max:255',
-            'setor_id' => 'required|exists:setores,id',
-            'setores_vinculados' => 'nullable|array',
-            'setores_vinculados.*' => 'exists:setores,id',
-            'cidade_moradia' => 'nullable|string|max:255',
-            'cidade_trabalho' => 'nullable|string|max:255',
-            'data_admissao' => 'required|date',
-            'uf_moradia' => 'nullable|string|max:2',
-            'uf_trabalho' => 'nullable|string|max:2',
+            'nome_completo'       => 'required|string|max:255',
+            'role'                => ['required', 'string', 'exists:roles,name'], // Fase de Transição: substituiu nivel_acesso
+            'id_colaborador'      => 'required|string|max:255|unique:produtividade_colaborador,id_colaborador',
+            'telefone'            => 'nullable|string|max:20',
+            'cargo'               => 'required|string|max:255',
+            'setor_id'            => 'required|exists:setores,id',
+            'setores_vinculados'  => 'nullable|array',
+            'setores_vinculados.*'=> 'exists:setores,id',
+            'cidade_moradia'      => 'nullable|string|max:255',
+            'cidade_trabalho'     => 'nullable|string|max:255',
+            'data_admissao'       => 'required|date',
+            'uf_moradia'          => 'nullable|string|max:2',
+            'uf_trabalho'         => 'nullable|string|max:2',
         ]);
 
         $dados = $validated;
 
+        // Remove campos processados separadamente para não cair no fill()
         $setoresVinculados = $request->input('setores_vinculados', []);
         unset($dados['setores_vinculados']);
+
+        $roleParaSincronizar = $dados['role'];
+        unset($dados['role']);
 
         // Concatena a UF na Cidade de Moradia
         if (!empty($dados['cidade_moradia']) && !empty($dados['uf_moradia'])) {
@@ -257,9 +278,22 @@ class ColaboradorController extends Controller
             }
         }
 
+        // --- FASE DE TRANSIÇÃO: Grava nivel_acesso legado para compatibilidade durante a migração ---
+        // Será removido após a Fase 6 (deprecação do campo).
+        $dados['nivel_acesso'] = $roleParaSincronizar;
+        // --- FIM DA FASE DE TRANSIÇÃO ---
+
         $colaborador = Colaborador::create($dados);
 
         $colaborador->setoresVinculados()->sync($setoresVinculados);
+
+        // --- FASE DE TRANSIÇÃO: Sincronização Spatie ---
+        // Colaborador recém-criado geralmente não tem User ainda (criado depois no SSO).
+        // Se já tiver, sincroniza imediatamente.
+        if ($colaborador->user) {
+            $colaborador->user->syncRoles([$roleParaSincronizar]);
+        }
+        // --- FIM DA FASE DE TRANSIÇÃO ---
 
         return back()->with('success', 'Colaborador cadastrado com sucesso!');
     }

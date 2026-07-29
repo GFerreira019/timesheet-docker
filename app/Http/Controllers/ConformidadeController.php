@@ -51,11 +51,11 @@ class ConformidadeController extends Controller
         $isFeriado      = (bool) $feriadoObj;
 
         $user = auth()->user();
-        $isAdmin = strtoupper($user->colaborador?->nivel_acesso) === 'ADMIN' || \App\Helpers\AcessoHelper::isOwner($user);
-        abort_if(!$isAdmin, 403, 'Acesso restrito a administradores.');
+        // MIGRADO: substituiu nivel_acesso === 'ADMIN' || isOwner() por isAdmin() (cobre ambos via Spatie)
+        abort_if(!AcessoHelper::isAdmin($user), 403, 'Acesso restrito a administradores.');
 
+        // Colaboradores operacionais (exclui ADMIN e GERENCIAL que são pessoais)
         $colaboradores = Colaborador::ativos()
-            ->whereIn('nivel_acesso', ['OPERACIONAL', 'GESTOR', 'SAC'])
             ->whereHas('setorRelacionamento', fn($q) => $q->where('ativo', true))
             ->orderBy('nome_completo')
             ->get();
@@ -65,15 +65,20 @@ class ConformidadeController extends Controller
         $ano          = $dataCarbon->year;
         $mapaEscalas  = ControlePontoService::obterEscalasDoMes($colaboradores, $mes, $ano);
 
-        $listaOk         = [];
-        $listaIncompleto = [];
-        $listaAusente    = [];
+        $listaOk                    = [];
+        $listaIncompleto            = [];
+        $listaAusenteSemApontamento = [];
+        $listaAusenteReal           = [];
 
         foreach ($colaboradores as $colab) {
             $pendenteSolides = empty($colab->solides_id);
             $totalSegundosSolides = 0;
             $qtdRegistrosSolides  = 0;
 
+            $segundosAbonados = 0;
+            $diaTrabalhado = true;
+            $justificativaAbono = null;
+            
             if (!$pendenteSolides) {
                 // Cálculo Real do Saldo usando SolidesPonto
                 $pontosSolides = \App\Models\SolidesPonto::where('colaborador_id', $colab->id)
@@ -81,7 +86,19 @@ class ConformidadeController extends Controller
                     ->get();
                 
                 foreach ($pontosSolides as $ps) {
-                    if ($ps->hora_entrada && $ps->hora_saida) {
+                    if ($ps->is_ajustado) {
+                        if (!$ps->dia_trabalhado) {
+                            $diaTrabalhado = false;
+                        }
+                        if ($ps->justificativa) {
+                            $justificativaAbono = $ps->justificativa;
+                        }
+                        if ($ps->horas_abonadas) {
+                            $horasDecimal = (float) $ps->horas_abonadas;
+                            if ($horasDecimal > 100) $horasDecimal = $horasDecimal / 1000;
+                            $segundosAbonados += (int) ($horasDecimal * 3600);
+                        }
+                    } elseif ($ps->hora_entrada && $ps->hora_saida) {
                         $entrada = Carbon::parse($ps->hora_entrada);
                         $saida = Carbon::parse($ps->hora_saida);
                         // Tratar virada de noite (se saída for menor que entrada)
@@ -125,16 +142,22 @@ class ConformidadeController extends Controller
             }
 
             $deveNotificar = $dadosPonto['deve_notificar'] ?? true;
-            if (!$deveNotificar) {
+            if (!$deveNotificar || !$diaTrabalhado) {
                 $metaSegundos = 0;
                 $tolerancia   = 0;
             } else {
                 $metaSegundos = $dadosPonto['meta_segundos'] ?? 31680;
                 $tolerancia   = $dadosPonto['tolerancia_segundos'] ?? 600;
+                
+                if ($segundosAbonados > 0) {
+                    $metaSegundos -= $segundosAbonados;
+                    if ($metaSegundos < 0) $metaSegundos = 0;
+                }
             }
 
-            // Pula dias de folga sem apontamentos e sem Sólides
-            if ($metaSegundos === 0 && $totalSegundosSolides === 0 && $totalSegundosTimesheet === 0) {
+            // Pula dias de folga sem apontamentos e sem Sólides real
+            // MAS NÃO PULA se tiver um atestado/abono, para que apareça na lista de Ausente (Real) com a justificativa
+            if ($metaSegundos === 0 && $totalSegundosSolides === 0 && $totalSegundosTimesheet === 0 && !$justificativaAbono) {
                 continue;
             }
 
@@ -169,12 +192,17 @@ class ConformidadeController extends Controller
                 'total_horas_timesheet'=> $totalHorasTimesheet,
                 'saldo_horas'          => $saldoHorasStr,
                 'pendente_solides'     => $pendenteSolides,
+                'justificativa_abono'  => $justificativaAbono,
             ];
 
             // Classificação
             if ($qtdApontamentos === 0) {
                 // Não enviou timesheet
-                $listaAusente[] = $dadosColab;
+                if ($qtdRegistrosSolides > 0) {
+                    $listaAusenteSemApontamento[] = $dadosColab;
+                } else {
+                    $listaAusenteReal[] = $dadosColab;
+                }
             } elseif (abs($diff) > $tolerancia) {
                 // Tem diferença fora da tolerância (Divergente)
                 $listaIncompleto[] = $dadosColab;
@@ -184,10 +212,15 @@ class ConformidadeController extends Controller
             }
         }
 
-        $totalPertinentes    = count($listaOk) + count($listaIncompleto) + count($listaAusente);
-        $enviaramApontamento = count($listaOk) + count($listaIncompleto);
-        $percentualAdesao    = $totalPertinentes > 0
-            ? (int) (($enviaramApontamento / $totalPertinentes) * 100)
+        $totalPertinentes = count($listaOk) + count($listaIncompleto) + count($listaAusenteSemApontamento);
+        
+        $qtdEnviadosCorretamente = count($listaOk);
+        $qtdDivergentes = count($listaIncompleto);
+        
+        $pontuacao = ($qtdEnviadosCorretamente * 1) + ($qtdDivergentes * 0.75);
+
+        $percentualAdesao = $totalPertinentes > 0
+            ? round(($pontuacao / $totalPertinentes) * 100, 1)
             : 0;
 
         return view('conformidade.dashboard', [
@@ -199,7 +232,8 @@ class ConformidadeController extends Controller
             'prev_date'           => Carbon::parse($dataRef)->subDay()->toDateString(),
             'lista_ok'            => $listaOk,
             'lista_incompleto'    => $listaIncompleto,
-            'lista_ausente'       => $listaAusente,
+            'lista_ausente'       => $listaAusenteSemApontamento,
+            'lista_ausente_real'  => $listaAusenteReal,
             'total_colaboradores' => $totalPertinentes,
             'percentual_adesao'   => $percentualAdesao,
             'nome_feriado'        => $nomeFeriado,
@@ -227,7 +261,6 @@ class ConformidadeController extends Controller
 
         $colaboradores = Colaborador::ativos()
             ->whereHas('setorRelacionamento', fn($q) => $q->where('ativo', true))
-            ->whereIn('nivel_acesso', ['OPERACIONAL', 'GESTOR', 'SAC'])
             ->get();
 
         $colaboradoresParaNotificar = [];
@@ -408,7 +441,6 @@ class ConformidadeController extends Controller
     public function sincronizarSolides(Request $request): \Illuminate\Http\JsonResponse
     {
         $colaboradores = Colaborador::ativos()
-            ->whereIn('nivel_acesso', ['OPERACIONAL', 'GESTOR', 'SAC'])
             ->whereHas('setorRelacionamento', fn($q) => $q->where('ativo', true))
             ->whereNotNull('solides_id')
             ->get();

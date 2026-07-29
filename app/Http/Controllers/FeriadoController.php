@@ -21,34 +21,45 @@ class FeriadoController extends Controller
         $anoAtual = (int) date('Y');
 
         // 1. Descobrir cidades mapeadas (onde há colaboradores)
-        $cidadesMonitoradas = Colaborador::select('cidade', 'uf')
-            ->whereNotNull('cidade')
-            ->where('cidade', '!=', '')
-            ->whereNotNull('uf')
-            ->where('uf', '!=', '')
+        $cidadesMonitoradas = Colaborador::select('cidade_trabalho')
+            ->whereNotNull('cidade_trabalho')
+            ->where('cidade_trabalho', '!=', '')
             ->distinct()
             ->get()
             ->map(function ($item) {
-                return (object) [
-                    'cidade' => $item->cidade,
-                    'uf'     => strtoupper(trim($item->uf)),
+                $partes = explode(' - ', $item->cidade_trabalho);
+                $cidade = trim($partes[0] ?? '');
+                $uf     = trim($partes[1] ?? '');
+
+                return [
+                    'original' => $item->cidade_trabalho,
+                    'cidade'   => $cidade,
+                    'uf'       => strtoupper($uf),
                 ];
+            })->filter(function($item) {
+                return !empty($item['cidade']) && !empty($item['uf']);
             });
 
         // 2. Identificar cidades pendentes (sem nenhum feriado no ano atual)
         $cidadesPendentes = $cidadesMonitoradas->filter(function ($local) use ($anoAtual) {
             return !Feriado::whereYear('data', $anoAtual)
-                ->whereRaw('UPPER(TRIM(cidade)) = ?', [strtoupper(trim($local->cidade))])
-                ->whereRaw('UPPER(TRIM(uf)) = ?', [strtoupper(trim($local->uf))])
+                ->whereRaw('UPPER(TRIM(cidade)) = ?', [strtoupper(trim($local['cidade']))])
+                ->whereRaw('UPPER(TRIM(uf)) = ?', [strtoupper(trim($local['uf']))])
                 ->exists();
+        })->map(function ($local) {
+            $local['pendente'] = true;
+            return $local;
         })->values();
 
         // 3. Cidades atendidas = todas - pendentes
         $cidadesAtendidas = $cidadesMonitoradas->filter(function ($local) use ($cidadesPendentes) {
             return !$cidadesPendentes->contains(function ($pendente) use ($local) {
-                return strtoupper(trim($pendente->cidade)) === strtoupper(trim($local->cidade))
-                    && strtoupper(trim($pendente->uf)) === strtoupper(trim($local->uf));
+                return strtoupper(trim($pendente['cidade'])) === strtoupper(trim($local['cidade']))
+                    && strtoupper(trim($pendente['uf'])) === strtoupper(trim($local['uf']));
             });
+        })->map(function ($local) {
+            $local['pendente'] = false;
+            return $local;
         })->values();
 
         // 4. Lista geral de feriados
@@ -103,27 +114,31 @@ class FeriadoController extends Controller
         }
 
         // Sincronizar municipais para cada cidade dos colaboradores
-        $cidades = Colaborador::select('cidade', 'uf')
-            ->whereNotNull('cidade')
-            ->where('cidade', '!=', '')
-            ->whereNotNull('uf')
-            ->where('uf', '!=', '')
+        $cidades = Colaborador::select('cidade_trabalho')
+            ->whereNotNull('cidade_trabalho')
+            ->where('cidade_trabalho', '!=', '')
             ->distinct()
             ->get();
 
-        foreach ($cidades as $local) {
-            $ok = FeriadoService::sincronizarFeriadosMunicipais($ano, $local->cidade, $local->uf);
-            if ($ok) {
-                $resultados[] = "✅ {$local->cidade}/{$local->uf}: Feriados municipais sincronizados.";
-            } else {
-                $possuiFeriados = Feriado::whereYear('data', $ano)
-                    ->whereRaw('UPPER(TRIM(cidade)) = ?', [strtoupper(trim($local->cidade))])
-                    ->whereRaw('UPPER(TRIM(uf)) = ?', [strtoupper(trim($local->uf))])
-                    ->exists();
-                
-                if (!$possuiFeriados) {
-                    $resultados[] = "⚠️ {$local->cidade}/{$local->uf}: Sem dados na API — cadastro manual necessário.";
-                    $temPendencias = true;
+        foreach ($cidades as $registro) {
+            $partes = explode('-', $registro->cidade_trabalho);
+            $cidade = isset($partes[0]) ? trim($partes[0]) : null;
+            $uf = isset($partes[1]) ? trim($partes[1]) : null;
+
+            if ($cidade && $uf) {
+                $ok = FeriadoService::sincronizarFeriadosMunicipais($ano, $cidade, $uf);
+                if ($ok) {
+                    $resultados[] = "✅ {$cidade}/{$uf}: Feriados municipais sincronizados.";
+                } else {
+                    $possuiFeriados = Feriado::whereYear('data', $ano)
+                        ->whereRaw('UPPER(TRIM(cidade)) = ?', [strtoupper($cidade)])
+                        ->whereRaw('UPPER(TRIM(uf)) = ?', [strtoupper($uf)])
+                        ->exists();
+                    
+                    if (!$possuiFeriados) {
+                        $resultados[] = "⚠️ {$cidade}/{$uf}: Sem dados na API — cadastro manual necessário.";
+                        $temPendencias = true;
+                    }
                 }
             }
         }

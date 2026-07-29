@@ -121,6 +121,8 @@
                             <th class="px-3 py-3 font-semibold">Turno 2</th>
                             <th class="px-3 py-3 font-semibold">Turno 3</th>
                             <th class="px-3 py-3 font-semibold">Turno 4</th>
+                            <th class="px-3 py-3 font-semibold">Horas Abonadas</th>
+                            <th class="px-3 py-3 font-semibold">Justificativa</th>
                             <th class="px-3 py-3 font-semibold">Saldo do Dia</th>
                         </tr>
                     </thead>
@@ -141,27 +143,40 @@
                                         @if(isset($diaPonto['turnos'][$i]))
                                             @php
                                                 $turno = $diaPonto['turnos'][$i];
-                                                $entrada = $turno->hora_entrada ? \Carbon\Carbon::parse($turno->hora_entrada)->format('H:i') : '--:--';
-                                                $saida = $turno->hora_saida ? \Carbon\Carbon::parse($turno->hora_saida)->format('H:i') : '--:--';
-                                                
-                                                // Lógica do Ícone de Status
-                                                $statusClass = 'text-slate-500';
-                                                $statusIcon = 'fas fa-info-circle';
-                                                
-                                                if (in_array(strtoupper($turno->status), ['APPROVED', 'NORMAL', 'APROVADO'])) {
-                                                    $statusClass = 'text-green-500';
-                                                    $statusIcon = 'fas fa-check-circle';
-                                                } elseif (in_array(strtoupper($turno->status), ['PENDING', 'AJUSTADO', 'PENDENTE'])) {
+                                                if ($turno->is_ajustado) {
+                                                    $entrada = '-';
+                                                    $saida = '-';
                                                     $statusClass = 'text-yellow-500';
-                                                    $statusIcon = 'fas fa-exclamation-triangle';
-                                                } elseif (empty($turno->hora_saida)) {
-                                                    $statusClass = 'text-red-500';
-                                                    $statusIcon = 'fas fa-exclamation-circle';
+                                                    $statusIcon = 'fas fa-info-circle';
+                                                    $turnoStatus = 'Ajuste/Abono';
+                                                } else {
+                                                    $entrada = $turno->hora_entrada ? \Carbon\Carbon::parse($turno->hora_entrada)->format('H:i') : '--:--';
+                                                    $saida = $turno->hora_saida ? \Carbon\Carbon::parse($turno->hora_saida)->format('H:i') : '--:--';
+                                                    
+                                                    // Lógica do Ícone de Status
+                                                    $statusClass = 'text-slate-500';
+                                                    $statusIcon = 'fas fa-info-circle';
+                                                    $turnoStatus = $turno->status;
+                                                    
+                                                    if (in_array(strtoupper($turno->status), ['APPROVED', 'NORMAL', 'APROVADO'])) {
+                                                        $statusClass = 'text-green-500';
+                                                        $statusIcon = 'fas fa-check-circle';
+                                                    } elseif (in_array(strtoupper($turno->status), ['PENDING', 'AJUSTADO', 'PENDENTE'])) {
+                                                        $statusClass = 'text-yellow-500';
+                                                        $statusIcon = 'fas fa-exclamation-triangle';
+                                                    } elseif (empty($turno->hora_saida)) {
+                                                        $statusClass = 'text-red-500';
+                                                        $statusIcon = 'fas fa-exclamation-circle';
+                                                    }
                                                 }
                                             @endphp
                                             <div class="flex items-center justify-center gap-2">
-                                                <span>{{ $entrada }} - {{ $saida }}</span>
-                                                <i class="{{ $statusIcon }} {{ $statusClass }}" title="Status: {{ $turno->status }}"></i>
+                                                @if($turno->is_ajustado)
+                                                    <span class="inline-flex items-center gap-1 bg-yellow-500/10 text-yellow-500 border border-yellow-500/20 font-bold px-2 py-0.5 rounded text-[10px] uppercase tracking-wider">Abono</span>
+                                                @else
+                                                    <span>{{ $entrada }} - {{ $saida }}</span>
+                                                    <i class="{{ $statusIcon }} {{ $statusClass }}" title="Status: {{ $turnoStatus }}"></i>
+                                                @endif
                                             </div>
                                         @else
                                             <span class="text-slate-500 font-normal">-</span>
@@ -169,13 +184,21 @@
                                     </td>
                                 @endfor
                                 
+                                <td class="px-3 py-2 text-yellow-400 font-bold text-center border-l border-slate-700/30">
+                                    {{ $diaPonto['horas_abonadas_dia'] !== '-' ? $diaPonto['horas_abonadas_dia'] . 'h' : '-' }}
+                                </td>
+                                
+                                <td class="px-3 py-2 font-semibold text-slate-300 text-[10px] max-w-[150px] truncate border-l border-slate-700/30" title="{{ !empty($diaPonto['justificativas']) ? implode(' | ', $diaPonto['justificativas']) : '' }}">
+                                    {{ !empty($diaPonto['justificativas']) ? implode(' | ', $diaPonto['justificativas']) : '-' }}
+                                </td>
+                                
                                 <td class="px-3 py-2 text-emerald-400 font-bold text-sm border-l border-slate-700/30">
                                     {{ $diaPonto['saldo_dia'] }}
                                 </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="12" class="px-5 py-12 text-center">
+                                <td colspan="10" class="px-5 py-12 text-center">
                                     <div class="flex flex-col items-center justify-center text-slate-500">
                                         <i class="fas fa-folder-open text-4xl mb-3 text-slate-600"></i>
                                         <p class="font-medium text-sm text-slate-400">Nenhum registro encontrado para este período.</p>

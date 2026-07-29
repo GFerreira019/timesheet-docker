@@ -115,7 +115,7 @@
                     <td class="py-3 px-4 text-sm text-slate-300 whitespace-normal break-words min-w-[150px] max-w-[250px] align-middle" id="cell-cargo-{{ $colab->id }}">{{ $colab->cargo ?? '-' }}</td>
                     <td class="py-3 px-4 text-sm text-slate-300 whitespace-nowrap align-middle" id="cell-setor-{{ $colab->id }}">{{ $colab->setorRelacionamento->nome ?? '-' }}</td>
                     <td class="py-3 px-4 text-sm text-slate-300 whitespace-nowrap align-middle">
-                        <span class="px-2 py-1 bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 rounded text-[10px] font-bold">{{ $colab->nivel_acesso }}</span>
+                        <span class="px-2 py-1 bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 rounded text-[10px] font-bold">{{ $colab->user ? ($colab->user->roles->first()?->name ?? 'SEM ACESSO') : 'SEM ACESSO' }}</span>
                     </td>
                     <td class="py-3 px-4 text-sm text-slate-300 whitespace-nowrap align-middle" id="cell-status-{{ $colab->id }}">
                         @if($colab->data_demissao)
@@ -129,7 +129,10 @@
                             
                             <button type="button" 
                                     onclick="abrirModalFicha(this)" 
-                                    data-info="{{ json_encode($colab) }}" 
+                                    data-colaborador="{{ json_encode(array_merge($colab->toArray(), [
+                                        'role_atual'  => $colab->user ? ($colab->user->roles->first()?->name ?? null) : null,
+                                        'tem_usuario' => (bool) $colab->user,
+                                    ])) }}" 
                                     class="p-2 rounded-md text-slate-300 hover:bg-slate-700 hover:text-white transition-colors"
                                     title="Ficha do Colaborador">
                                 <i class="fas fa-user-edit text-blue-400 text-lg"></i>
@@ -224,7 +227,7 @@
                                     <option value="" disabled selected>Selecione o que deseja filtrar...</option>
                                     <option value="cargo" @if(request('cargo')) selected @endif>Cargo</option>
                                     <option value="setor_id" @if(request('setor_id')) selected @endif>Setor</option>
-                                    <option value="nivel_acesso" @if(request('nivel_acesso')) selected @endif>Nível de Acesso</option>
+                                    <option value="role" @if(request('role')) selected @endif>Perfil de Acesso</option>
                                     <option value="status" @if(request('status')) selected @endif>Status</option>
                                 </select>
                                 <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-400">
@@ -251,10 +254,10 @@
                                     @endforeach
                                 </select>
 
-                                <select id="filtro-nivel_acesso" name="nivel_acesso" disabled class="filtro-input hidden w-full bg-slate-800 border border-slate-600 text-white text-xs rounded-lg p-3 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none appearance-none cursor-pointer transition-all hover:bg-slate-700">
-                                    <option value="">Selecione um Nível de Acesso...</option>
-                                    @foreach($niveis_acesso as $nivel_acesso)
-                                    <option value="{{ $nivel_acesso }}" @if(request('nivel_acesso') == $nivel_acesso) selected @endif>{{ $nivel_acesso }}</option>
+                                <select id="filtro-role" name="role" disabled class="filtro-input hidden w-full bg-slate-800 border border-slate-600 text-white text-xs rounded-lg p-3 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none appearance-none cursor-pointer transition-all hover:bg-slate-700">
+                                    <option value="">Selecione um Perfil...</option>
+                                    @foreach($roles as $role)
+                                    <option value="{{ $role }}" @if(request('role') == $role) selected @endif>{{ $role }}</option>
                                     @endforeach
                                 </select>
 
@@ -307,7 +310,7 @@
                         </div>
                         <div class="col-span-1 sm:col-span-2">
                             <label class="block text-xs font-bold text-slate-400 mb-1 ml-1">Nível de Acesso (Timesheet) *</label>
-                            <select name="nivel_acesso" id="novo_nivel_acesso" required class="w-full bg-slate-800 border border-slate-600 rounded-lg p-3 text-white text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all appearance-none cursor-pointer">
+                            <select name="role" id="novo_nivel_acesso" required class="w-full bg-slate-800 border border-slate-600 rounded-lg p-3 text-white text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all appearance-none cursor-pointer">
                                 <option value="OPERACIONAL">OPERACIONAL <span class="text-xs theme-text-secondary">(Apontamentos próprios)</span></option>
                                 <option value="GESTOR">COORDENADOR <span class="text-xs theme-text-secondary">(Apontamentos próprios e de suas obras)</span></option>
                                 <option value="ADMIN">ADMINISTRADOR <span class="text-xs theme-text-secondary">(Acesso total)</span></option>
@@ -515,14 +518,21 @@
                     <!-- Nivel Acesso -->
                     <div class="relative group">
                         <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Nível de Acesso (Timesheet) *</label>
-                        <select name="nivel_acesso" disabled required class="w-full bg-slate-900/50 border border-slate-700 text-slate-400 rounded-lg p-3 pr-10 focus:ring-2 focus:ring-indigo-500 outline-none transition-all appearance-none">
+
+                        {{-- Alerta para colaboradores sem usuário de sistema vinculado --}}
+                        <div id="aviso-sem-usuario" class="hidden mb-2 p-2 rounded-lg border border-amber-500/40 bg-amber-500/10 text-amber-400 text-xs flex items-center gap-2">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            <span>Nível de acesso só pode ser alterado para colaboradores com usuário de sistema vinculado.</span>
+                        </div>
+
+                        <select name="role" id="select-nivel-ficha" disabled required class="w-full bg-slate-900/50 border border-slate-700 text-slate-400 rounded-lg p-3 pr-10 focus:ring-2 focus:ring-indigo-500 outline-none transition-all appearance-none">
                             <option value="OPERACIONAL">OPERACIONAL <span class="text-xs theme-text-secondary">(Apontamentos próprios)</span></option>
                             <option value="GESTOR">COORDENADOR <span class="text-xs theme-text-secondary">(Apontamentos próprios e de suas obras)</span></option>
                             <option value="ADMIN">ADMINISTRADOR <span class="text-xs theme-text-secondary">(Acesso total)</span></option>
                             <option value="GERENCIAL">GERENTE <span class="text-xs theme-text-secondary">(Apontamentos do setor e aprovações)</span></option>
                             <option value="SAC">BACKOFFICE <span class="text-xs theme-text-secondary">(Apontamentos do setor)</span></option>
                         </select>
-                        <button type="button" onclick="desbloquearCampo(this)" class="absolute right-3 top-[28px] text-slate-500 hover:text-indigo-400 transition-colors opacity-50 hover:opacity-100" title="Editar informação">
+                        <button type="button" id="btn-editar-nivel" onclick="desbloquearCampo(this)" class="absolute right-3 top-[52px] text-slate-500 hover:text-indigo-400 transition-colors opacity-50 hover:opacity-100" title="Editar informação">
                             <i class="fas fa-pencil-alt"></i>
                         </button>
                         <div id="container-btn-vincular-ficha" class="hidden mt-2">
@@ -722,7 +732,7 @@
             });
         }
         
-        const selectNivelNovo = document.querySelector('select[name="nivel_acesso"]#novo_nivel_acesso');
+        const selectNivelNovo = document.querySelector('select[name="role"]#novo_nivel_acesso');
         if (selectNivelNovo) {
             selectNivelNovo.addEventListener('change', function() {
                 const isGerencialOrSac = ['GERENCIAL', 'SAC'].includes(this.value);
@@ -730,7 +740,7 @@
             });
         }
 
-        const selectNivelFicha = document.querySelector('#modal-ficha select[name="nivel_acesso"]');
+        const selectNivelFicha = document.getElementById('select-nivel-ficha');
         if (selectNivelFicha) {
             selectNivelFicha.addEventListener('change', function() {
                 const isGerencialOrSac = ['GERENCIAL', 'SAC'].includes(this.value);
@@ -823,7 +833,7 @@
 
     function abrirModalFicha(btnElement) {
         try {
-            const dados = JSON.parse(btnElement.getAttribute('data-info'));
+            const dados = JSON.parse(btnElement.getAttribute('data-colaborador'));
             const form = document.getElementById('form-ficha');
             
             // Set action dinâmica para o formulário
@@ -832,7 +842,7 @@
             // Limpar/Resetar validações visuais prévias e campos preenchidos
             form.reset();
 
-            const fields = ['id_colaborador', 'nome_completo', 'telefone', 'cargo', 'nivel_acesso', 'setor_id', 'cidade_moradia', 'cidade_trabalho'];
+            const fields = ['id_colaborador', 'nome_completo', 'telefone', 'cargo', 'setor_id', 'cidade_moradia', 'cidade_trabalho'];
             fields.forEach(f => {
                 if (form.elements[f]) {
                     form.elements[f].value = dados[f] || '';
@@ -841,6 +851,27 @@
                     form.elements[f].classList.remove('bg-slate-800', 'text-white', 'cursor-text');
                 }
             });
+
+            // Popula o select de role com a role atual via Spatie (ou legado como fallback)
+            const selectNivel = document.getElementById('select-nivel-ficha');
+            const avisoSemUsuario = document.getElementById('aviso-sem-usuario');
+            const btnEditarNivel = document.getElementById('btn-editar-nivel');
+            if (selectNivel) {
+                const roleAtual = dados.role_atual || 'OPERACIONAL';
+                selectNivel.value = roleAtual;
+                selectNivel.disabled = true;
+                selectNivel.classList.add('bg-slate-900/50', 'text-slate-400', 'cursor-not-allowed');
+                selectNivel.classList.remove('bg-slate-800', 'text-white');
+
+                // Se não tem usuário vinculado, exibe aviso e bloqueia o botão de editar
+                if (!dados.tem_usuario) {
+                    avisoSemUsuario.classList.remove('hidden');
+                    if (btnEditarNivel) btnEditarNivel.style.display = 'none';
+                } else {
+                    avisoSemUsuario.classList.add('hidden');
+                    if (btnEditarNivel) btnEditarNivel.style.display = '';
+                }
+            }
 
             if (form.elements['uf']) {
                 form.elements['uf'].value = dados['uf'] || '';
@@ -874,8 +905,7 @@
             }
 
             setoresSelecionadosFicha = (dados.setores_vinculados || []).map(s => String(s.id));
-            const selectNivel = form.elements['nivel_acesso'];
-            const isGerencialOrSac = ['GERENCIAL', 'SAC'].includes(selectNivel.value);
+            const isGerencialOrSac = ['GERENCIAL', 'SAC'].includes(selectNivel ? selectNivel.value : '');
             document.getElementById('container-btn-vincular-ficha').classList.toggle('hidden', !isGerencialOrSac);
             
             const badgeFicha = document.getElementById('badge-setores-ficha');
@@ -937,7 +967,7 @@
                                             .map(el => el.name);
 
             // Lista de campos que exigem a data de vigência
-            const camposComVigencia = ['nome_completo', 'cargo', 'nivel_acesso', 'setor_id', 'cidade_moradia', 'cidade_trabalho', 'telefone', 'data_demissao'];
+            const camposComVigencia = ['nome_completo', 'cargo', 'role', 'setor_id', 'cidade_moradia', 'cidade_trabalho', 'telefone', 'data_demissao'];
 
             // Se algum dos campos desbloqueados estiver na lista, mostra a vigência. Caso contrário, esconde.
             const precisaVigencia = camposDesbloqueados.some(nome => camposComVigencia.includes(nome));
@@ -1086,7 +1116,7 @@
         if (badgeNovo) badgeNovo.classList.add('hidden');
         const containerBtnNovo = document.getElementById('container-btn-vincular-novo');
         if (containerBtnNovo) containerBtnNovo.classList.add('hidden');
-        const selectNivelNovo = document.querySelector('select[name="nivel_acesso"]#novo_nivel_acesso');
+        const selectNivelNovo = document.querySelector('select[name="role"]#novo_nivel_acesso');
         if (selectNivelNovo) selectNivelNovo.value = 'OPERACIONAL';
     }
     
