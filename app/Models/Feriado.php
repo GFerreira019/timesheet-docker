@@ -32,6 +32,7 @@ class Feriado extends Model
 
     protected $casts = [
         'data' => 'date',
+        'inserido_manualmente' => 'boolean',
     ];
 
     // -------------------------------------------------------------------------

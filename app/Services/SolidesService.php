@@ -83,8 +83,11 @@ class SolidesService
                         continue;
                     }
 
-                    // 1. Buscar o Colaborador Local
-                    $colaboradorLocal = Colaborador::where('solides_id', $employeeId)->first();
+                    // solides_id foi movido para a tabela users (centralizado no ERP).
+                    // A busca é feita via relacionamento: colaborador → user → solides_id.
+                    $colaboradorLocal = Colaborador::whereHas('user', function ($q) use ($employeeId) {
+                        $q->where('solides_id', $employeeId);
+                    })->first();
 
                     if (!$colaboradorLocal) {
                         // Se não encontrar o colaborador localmente, grave um Log::warning e faça um continue

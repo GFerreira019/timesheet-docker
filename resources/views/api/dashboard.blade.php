@@ -66,9 +66,9 @@
                             <span class="text-sm font-medium text-slate-200">Banco de Dados</span>
                         </div>
                         @if($dbStatus)
-                        <span class="text-xs text-green-500">Online</span>
+                        <span class="text-xs text-green-500 font-bold bg-green-500/10 border border-green-500/20 px-2 py-0.5 rounded-md">Online</span>
                         @else
-                        <span class="text-xs text-red-500">Falha</span>
+                        <span class="text-xs text-red-500 font-bold bg-red-500/10 border border-red-500/20 px-2 py-0.5 rounded-md">Falha</span>
                         @endif
                     </li>
                     
@@ -83,9 +83,26 @@
                             <span class="text-sm font-medium text-slate-200">Storage</span>
                         </div>
                         @if($storageStatus)
-                        <span class="text-xs text-green-500">Online</span>
+                        <span class="text-xs text-green-500 font-bold bg-green-500/10 border border-green-500/20 px-2 py-0.5 rounded-md">Online</span>
                         @else
-                        <span class="text-xs text-red-500">Falha</span>
+                        <span class="text-xs text-red-500 font-bold bg-red-500/10 border border-red-500/20 px-2 py-0.5 rounded-md">Falha</span>
+                        @endif
+                    </li>
+
+                    {{-- ERP --}}
+                    <li class="flex items-center justify-between">
+                        <div class="flex items-center gap-2">
+                            @if(isset($erpStatus) && $erpStatus)
+                            <div id="status-erp-dot" class="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse shadow-[0_0_8px_rgba(34,197,94,0.6)]"></div>
+                            @else
+                            <div id="status-erp-dot" class="w-2.5 h-2.5 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.6)]"></div>
+                            @endif
+                            <span class="text-sm font-medium text-slate-200">ERP Connect</span>
+                        </div>
+                        @if(isset($erpStatus) && $erpStatus)
+                        <span id="status-erp-text" class="text-xs text-green-500 font-bold bg-green-500/10 border border-green-500/20 px-2 py-0.5 rounded-md">Online</span>
+                        @else
+                        <span id="status-erp-text" class="text-xs text-red-500 font-bold bg-red-500/10 border border-red-500/20 px-2 py-0.5 rounded-md">Falha</span>
                         @endif
                     </li>
 
@@ -127,9 +144,9 @@
                             </a>
                         </div>
                         @if($whatsappHealth['status'] === 'online')
-                        <span class="text-xs text-green-500" title="{{ $whatsappHealth['message'] }}">Online</span>
+                        <span class="text-xs text-green-500 font-bold bg-green-500/10 border border-green-500/20 px-2 py-0.5 rounded-md" title="{{ $whatsappHealth['message'] }}">Online</span>
                         @else
-                        <span class="text-xs text-red-500" title="{{ $whatsappHealth['message'] }}">Falha</span>
+                        <span class="text-xs text-red-500 font-bold bg-red-500/10 border border-red-500/20 px-2 py-0.5 rounded-md" title="{{ $whatsappHealth['message'] }}">Falha</span>
                         @endif
                     </li>
                 </ul>
@@ -173,7 +190,7 @@
                 </div>
             </div>
 
-            {{-- Bloco 2: Módulo WhatsApp --}}
+            {{-- Bloco Módulo WhatsApp --}}
             <div class="bg-slate-800 border border-slate-700/50 rounded-xl p-5 shadow-lg">
                 <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-2 border-b border-slate-700/50 pb-3">
                     <h3 class="text-base font-bold text-white flex items-center gap-2">
@@ -190,7 +207,22 @@
                 </div>
             </div>
 
-
+            {{-- Bloco Módulo ERP --}}
+            <div class="bg-slate-800 border border-slate-700/50 rounded-xl p-5 shadow-lg">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-2 border-b border-slate-700/50 pb-3">
+                    <h3 class="text-base font-bold text-white flex items-center gap-2">
+                        <i class="fas fa-industry text-purple-500 text-lg"></i>
+                        Integração ERP (ATGB Connect)
+                    </h3>
+                    <button type="button" id="btn-testar-erp" class="w-full sm:w-auto px-4 py-1.5 text-xs font-bold border border-purple-500/50 bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 rounded-lg transition whitespace-nowrap flex items-center justify-center gap-2 shadow-sm">
+                        <i class="fas fa-plug"></i> Testar Conexão
+                    </button>
+                </div>
+                <div class="text-sm text-slate-400 mt-2">
+                    <p>Valida a comunicação com a API do ERP ATGB Connect.</p>
+                    <div id="resultado-erp" class="mt-3 p-3 rounded-lg border border-slate-700/50 bg-slate-900/50 hidden text-xs font-medium transition"></div>
+                </div>
+            </div>
         </div>
     </div>
 </div>
@@ -329,6 +361,56 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    // ERP API
+    const btnERP = document.getElementById('btn-testar-erp');
+    const resERP = document.getElementById('resultado-erp');
+    const textERP = document.getElementById('status-erp-text');
+    const dotERP = document.getElementById('status-erp-dot');
+
+    if (btnERP) {
+        btnERP.addEventListener('click', function() {
+            resERP.classList.remove('hidden', 'bg-green-500/10', 'text-green-400', 'bg-red-500/10', 'text-red-400');
+            resERP.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Testando ERP...';
+            
+            if (dotERP) dotERP.className = 'w-2.5 h-2.5 rounded-full bg-slate-500 shadow-[0_0_8px_rgba(100,116,139,0.6)] animate-pulse';
+            if (textERP) {
+                textERP.className = 'text-xs text-slate-400 font-bold bg-slate-700/50 px-2 py-0.5 rounded-md';
+                textERP.innerText = 'Testando...';
+            }
+        
+            fetch('{{ route("erp.test") }}')
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success) {
+                        resERP.classList.add('bg-green-500/10', 'text-green-400');
+                        resERP.innerHTML = '<i class="fas fa-check-circle mr-1"></i> Conexão com o ERP OK. ' + (data.message || 'Funcionando perfeitamente.');
+                        if (textERP) {
+                            textERP.className = 'text-xs text-green-500 font-bold bg-green-500/10 border border-green-500/20 px-2 py-0.5 rounded-md';
+                            textERP.textContent = 'Online';
+                        }
+                        if (dotERP) dotERP.className = 'w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse shadow-[0_0_8px_rgba(34,197,94,0.6)]';
+                    } else {
+                        resERP.classList.add('bg-red-500/10', 'text-red-400');
+                        resERP.innerHTML = '<i class="fas fa-exclamation-circle mr-1"></i> Erro no ERP: ' + (data.message || 'Erro desconhecido.');
+                        if (textERP) {
+                            textERP.className = 'text-xs text-red-500 font-bold bg-red-500/10 border border-red-500/20 px-2 py-0.5 rounded-md';
+                            textERP.textContent = 'Falha';
+                        }
+                        if (dotERP) dotERP.className = 'w-2.5 h-2.5 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.6)]';
+                    }
+                })
+                .catch(e => {
+                    resERP.classList.add('bg-red-500/10', 'text-red-400');
+                    resERP.innerHTML = '<i class="fas fa-exclamation-circle mr-1"></i> Erro ao conectar com o ERP (Laravel interno).';
+                    if (textERP) {
+                        textERP.className = 'text-xs text-red-500 font-bold bg-red-500/10 border border-red-500/20 px-2 py-0.5 rounded-md';
+                        textERP.textContent = 'Falha';
+                    }
+                    if (dotERP) dotERP.className = 'w-2.5 h-2.5 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.6)]';
+                });
+        });
+    }
+
     // Botão de Teste Global
     const btnTestarTodos = document.getElementById('btn-testar-todos');
     if (btnTestarTodos) {
@@ -340,6 +422,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
             if (btnSolides) btnSolides.click();
             if (btnFeriados) btnFeriados.click();
+            if (btnERP) btnERP.click();
             if (btnWpp) btnWpp.click();
 
             // Revert botão principal após 2 segundos (tempo suficiente para requests iniciarem)

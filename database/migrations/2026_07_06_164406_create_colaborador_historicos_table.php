@@ -17,6 +17,7 @@ return new class extends Migration
             $table->foreignId('user_id_alteracao')->nullable()->constrained('users')->nullOnDelete();
             $table->json('dados_anteriores')->nullable();
             $table->json('campos_alterados')->nullable();
+            $table->date('data_vigencia')->nullable();
             $table->timestamps();
         });
     }

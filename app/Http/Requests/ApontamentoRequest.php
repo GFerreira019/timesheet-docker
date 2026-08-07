@@ -127,18 +127,28 @@ class ApontamentoRequest extends FormRequest
             $colab = $user ? $user->colaborador : null;
 
             // ==================================================================
-            // -1. VALIDAÇÃO DE SEGURANÇA PARA TERCEIROS (GERENCIAL/SAC)
+            // -1. VALIDAÇÃO DE SEGURANÇA PARA TERCEIROS
             // ==================================================================
             $colaboradorIdReq = $data['colaborador_id'] ?? null;
-            if ($colaboradorIdReq && AcessoHelper::isAcessoExpandido($user) && !AcessoHelper::isAdmin($user)) {
-                if ($colab && $colaboradorIdReq != $colab->id) {
-                    $setoresVinculados = $colab->setoresVinculados()->pluck('setores.id');
-                    $setoresGerenciados = $colab->setoresGerenciados()->pluck('setores.id');
-                    $setoresPermitidos = $setoresVinculados->merge($setoresGerenciados)->unique();
+            if ($colaboradorIdReq && $colab && $colaboradorIdReq != $colab->id) {
+                $podeLancarTerceiros = $user->hasAnyRole(['ADMIN', 'GERENCIAL', 'SAC', 'ADMINISTRATIVO']) || AcessoHelper::isOwner($user);
+
+                if (!$podeLancarTerceiros) {
+                    $validator->errors()->add('colaborador_id', 'Acesso Negado: Você não tem permissão para lançar/editar apontamentos em nome de outros colaboradores.');
+                } elseif (!$user->hasRole('ADMIN') && !AcessoHelper::isOwner($user)) {
+                    $setoresPermitidos = collect();
+
+                    if ($user->hasAnyRole(['GERENCIAL', 'SAC'])) {
+                        $setoresVinculados = $colab->setoresVinculados()->pluck('setores.id');
+                        $setoresGerenciados = $colab->setoresGerenciados()->pluck('setores.id');
+                        $setoresPermitidos = $setoresVinculados->merge($setoresGerenciados)->unique();
+                    } elseif ($user->hasRole('ADMINISTRATIVO')) {
+                        $setoresPermitidos = $colab->setoresGerenciados()->pluck('setores.id');
+                    }
 
                     $colabAlvo = Colaborador::find($colaboradorIdReq);
                     if (!$colabAlvo || !$setoresPermitidos->contains($colabAlvo->setor_id)) {
-                        $validator->errors()->add('colaborador_id', 'Acesso Negado: Você só pode lançar apontamentos para si mesmo ou para a equipe dos setores que gerencia.');
+                        $validator->errors()->add('colaborador_id', 'Acesso Negado: O colaborador selecionado não pertence aos setores que você gerencia.');
                     }
                 }
             }

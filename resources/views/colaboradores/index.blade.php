@@ -79,20 +79,136 @@
                 <div id="dropdown-busca-nome" class="absolute z-[100] w-full mt-1 bg-slate-800 border border-slate-600 rounded-lg shadow-2xl hidden max-h-60 overflow-y-auto"></div>        
             </div>
         </form>
+        <div class="flex items-stretch gap-2 relative z-10">
+            <!-- Botão Filtrar -->
+            <button type="button" onclick="abrirModalFiltros()" class="hidden sm:flex px-3 sm:px-4 py-2 bg-slate-800 border border-slate-700 hover:bg-slate-700 text-slate-300 font-bold rounded-lg transition-colors items-center gap-2 text-sm flex-shrink-0">
+                <i class="fas fa-filter"></i> <span class="hidden sm:inline">Filtrar</span>
+            </button>
 
-        <button type="button" onclick="abrirModalFiltros()" class="hidden sm:flex px-3 sm:px-4 py-2 bg-slate-800 border border-slate-700 hover:bg-slate-700 text-slate-300 font-bold rounded-lg transition-colors items-center gap-2 text-sm flex-shrink-0">
-            <i class="fas fa-filter"></i> <span class="hidden sm:inline">Filtrar</span>
-        </button>
+            <!-- Formulário e Botão Sincronizar ERP -->
+            <form action="{{ route('colaboradores.sync-erp') }}" method="POST" class="flex items-stretch m-0">
+                @csrf
+                <button type="submit" onclick="this.disabled=true; this.innerHTML='<i class=\'fas fa-spinner fa-spin\'></i>'; this.form.submit();" class="flex-shrink-0 w-full h-full px-3 sm:px-4 py-2 bg-sky-600 border border-transparent hover:bg-sky-500 text-white font-bold rounded-lg shadow-lg shadow-sky-900/20 transition-all flex items-center justify-center gap-2 text-sm">
+                    <i class="fas fa-sync"></i>
+                </button>
+            </form>
 
-        <button type="button" onclick="abrirModalNovo()" class="flex-shrink-0 px-3 sm:px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-lg shadow-lg shadow-indigo-900/20 transition-all flex items-center gap-2 text-sm">
-            <i class="fas fa-plus"></i> <span class="hidden sm:inline">Novo Colaborador</span>
-        </button>
-        
+            <!-- Botão Novo Colaborador -->
+            <button type="button" onclick="abrirModalNovo()" class="flex-shrink-0 h-full px-3 sm:px-4 py-2 bg-indigo-600 border border-transparent hover:bg-indigo-500 text-white font-bold rounded-lg shadow-lg shadow-indigo-900/20 transition-all flex items-center gap-2 text-sm">
+                <i class="fas fa-plus"></i> <span class="hidden sm:inline">Novo Colaborador</span>
+            </button>
+        </div>
     </div>
 </div>
 
 
 <div class="max-w-full xl:max-w-7xl mx-auto p-4 sm:p-6">
+    {{-- ALERTAS DE INTEGRAÇÃO ERP --}}
+    @if(isset($usuariosPendentes) && $usuariosPendentes->count() > 0)
+        <div class="mb-6 bg-yellow-500/20 border-l-4 border-yellow-500 p-4 rounded-r-lg flex items-center justify-between shadow-sm">
+            <div class="flex items-center gap-3">
+                <i class="fas fa-exclamation-triangle text-yellow-500 text-xl"></i>
+                <p class="text-yellow-200 text-sm font-semibold">
+                    Existem {{ $usuariosPendentes->count() }} novos usuários vindos do ERP aguardando finalização de cadastro.
+                </p>
+            </div>
+            <button type="button" onclick="document.getElementById('modal-pendentes').classList.remove('hidden')" class="px-4 py-2 bg-yellow-600 hover:bg-yellow-500 text-white font-bold rounded-lg text-sm transition-colors shadow-lg shadow-yellow-900/20">
+                Ver Pendentes
+            </button>
+        </div>
+    @endif
+
+    @if(isset($usuariosIgnorados) && $usuariosIgnorados->count() > 0)
+        <div class="mb-6 flex justify-end">
+            <button type="button" onclick="document.getElementById('modal-ignorados').classList.remove('hidden')" class="text-xs text-slate-400 hover:text-slate-300 transition-colors underline flex items-center gap-1">
+                <i class="fas fa-eye-slash"></i> Ver {{ $usuariosIgnorados->count() }} usuários ignorados
+            </button>
+        </div>
+    @endif
+
+    {{-- MODAL PENDENTES --}}
+    <div id="modal-pendentes" class="relative z-50 hidden" role="dialog" aria-modal="true">
+        <div class="fixed inset-0 bg-gray-900/80 transition-opacity backdrop-blur-sm"></div>
+        <div class="fixed inset-0 z-50 w-screen overflow-y-auto">
+            <div class="flex min-h-full items-center justify-center p-4">
+                <div class="relative transform overflow-hidden rounded-xl bg-slate-900 border border-slate-700 text-left shadow-2xl w-full max-w-2xl fade-in">
+                    <div class="bg-slate-800 px-4 py-3 border-b border-slate-700 flex justify-between items-center">
+                        <h3 class="text-lg font-bold text-yellow-500 flex items-center gap-2">
+                            <i class="fas fa-user-clock"></i>
+                            Usuários Pendentes
+                        </h3>
+                        <button type="button" onclick="document.getElementById('modal-pendentes').classList.add('hidden')" class="text-gray-400 hover:text-white text-2xl font-bold transition-colors">&times;</button>
+                    </div>
+                    <div class="p-6 max-h-[70vh] overflow-y-auto custom-scrollbar">
+                        <ul class="divide-y divide-slate-700/50">
+                            @if(isset($usuariosPendentes))
+                                @foreach($usuariosPendentes as $pendente)
+                                    <li class="py-4 flex items-center justify-between">
+                                        <div>
+                                            <p class="text-sm font-bold text-white">{{ $pendente->name }}</p>
+                                            <p class="text-xs text-slate-400">{{ $pendente->email ?? 'Sem E-mail' }}</p>
+                                        </div>
+                                        <div class="flex items-center gap-2">
+                                            <form action="{{ route('colaboradores.ignorar_erp', $pendente->id) }}" method="POST" class="flex m-0">
+                                                @csrf
+                                                <button type="submit" class="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-slate-300 text-xs font-bold rounded transition-colors" title="Ignorar Usuário">
+                                                    Ignorar
+                                                </button>
+                                            </form>
+                                            <button type="button" onclick="abrirModalNovoPreenchido('{{ $pendente->id }}', '{{ addslashes($pendente->name) }}', '{{ $pendente->id_usuario_erp }}')" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded transition-colors shadow shadow-indigo-900/20">
+                                                Completar Cadastro
+                                            </button>
+                                        </div>
+                                    </li>
+                                @endforeach
+                            @endif
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {{-- MODAL IGNORADOS --}}
+    <div id="modal-ignorados" class="relative z-50 hidden" role="dialog" aria-modal="true">
+        <div class="fixed inset-0 bg-gray-900/80 transition-opacity backdrop-blur-sm"></div>
+        <div class="fixed inset-0 z-50 w-screen overflow-y-auto">
+            <div class="flex min-h-full items-center justify-center p-4">
+                <div class="relative transform overflow-hidden rounded-xl bg-slate-900 border border-slate-700 text-left shadow-2xl w-full max-w-2xl fade-in">
+                    <div class="bg-slate-800 px-4 py-3 border-b border-slate-700 flex justify-between items-center">
+                        <h3 class="text-lg font-bold text-slate-300 flex items-center gap-2">
+                            <i class="fas fa-eye-slash"></i>
+                            Usuários Ignorados
+                        </h3>
+                        <button type="button" onclick="document.getElementById('modal-ignorados').classList.add('hidden')" class="text-gray-400 hover:text-white text-2xl font-bold transition-colors">&times;</button>
+                    </div>
+                    <div class="p-6 max-h-[70vh] overflow-y-auto custom-scrollbar">
+                        <ul class="divide-y divide-slate-700/50">
+                            @if(isset($usuariosIgnorados))
+                                @foreach($usuariosIgnorados as $ignorado)
+                                    <li class="py-4 flex items-center justify-between">
+                                        <div>
+                                            <p class="text-sm font-bold text-slate-400 line-through">{{ $ignorado->name }}</p>
+                                            <p class="text-xs text-slate-500">{{ $ignorado->email ?? 'Sem E-mail' }}</p>
+                                        </div>
+                                        <div class="flex items-center gap-2">
+                                            <form action="{{ route('colaboradores.designorar_erp', $ignorado->id) }}" method="POST">
+                                                @csrf
+                                                <button type="submit" class="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-slate-300 text-xs font-bold rounded transition-colors" title="Voltar para Pendentes">
+                                                    Restaurar
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </li>
+                                @endforeach
+                            @endif
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     {{-- ============================================================
          TABELA DE COLABORADORES
          ============================================================ --}}
@@ -105,6 +221,7 @@
                     <th class="py-3 px-4 text-left text-xs font-bold theme-text-primary uppercase tracking-wider">Setor</th>
                     <th class="py-3 px-4 text-left text-xs font-bold theme-text-primary uppercase tracking-wider">Nível Acesso</th>
                     <th class="py-3 px-4 text-left text-xs font-bold theme-text-primary uppercase tracking-wider">Status</th>
+                    <th class="py-3 px-4 text-center text-xs font-bold theme-text-primary uppercase tracking-wider">Vínculo SSO</th>
                     <th class="py-3 px-4 text-center text-xs font-bold theme-text-primary uppercase tracking-wider">Ações</th>
                 </tr>
             </thead>
@@ -122,6 +239,13 @@
                             <span class="px-2 py-1 bg-red-500/20 text-red-400 border border-red-500/30 rounded text-xs">Inativo</span>
                         @else
                             <span class="px-2 py-1 bg-green-500/20 text-green-400 border border-green-500/30 rounded text-xs">Ativo</span>
+                        @endif
+                    </td>
+                    <td class="py-3 px-4 text-center whitespace-nowrap align-middle">
+                        @if($colab->user)
+                            <span class="text-green-400" title="Usuário vinculado ({{ $colab->user->email }})"><i class="fas fa-link"></i> Vinculado</span>
+                        @else
+                            <span class="text-red-400" title="Sem usuário vinculado"><i class="fas fa-unlink"></i> Pendente</span>
                         @endif
                     </td>
                     <td class="py-3 px-4 text-center whitespace-nowrap align-middle">
@@ -151,7 +275,7 @@
                 </tr>
                 @empty
                 <tr>
-                    <td colspan="5" class="py-3 px-4 text-center text-sm text-slate-400">
+                    <td colspan="6" class="py-3 px-4 text-center text-sm text-slate-400">
                         Nenhum colaborador encontrado.
                     </td>
                 </tr>
@@ -257,7 +381,7 @@
                                 <select id="filtro-role" name="role" disabled class="filtro-input hidden w-full bg-slate-800 border border-slate-600 text-white text-xs rounded-lg p-3 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none appearance-none cursor-pointer transition-all hover:bg-slate-700">
                                     <option value="">Selecione um Perfil...</option>
                                     @foreach($roles as $role)
-                                    <option value="{{ $role }}" @if(request('role') == $role) selected @endif>{{ $role }}</option>
+                                    <option value="{{ $role->name }}" @if(request('role') == $role->name) selected @endif>{{ $role->name }}</option>
                                     @endforeach
                                 </select>
 
@@ -303,6 +427,7 @@
                 </div>
                 <form method="POST" action="{{ route('colaboradores.store') }}" class="p-6">
                     @csrf
+                    <input type="hidden" name="user_id" id="novo_user_id" value="">
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div class="col-span-1 sm:col-span-2">
                             <label class="block text-xs font-bold text-slate-400 mb-1 ml-1">Nome Completo *</label>
@@ -311,11 +436,9 @@
                         <div class="col-span-1 sm:col-span-2">
                             <label class="block text-xs font-bold text-slate-400 mb-1 ml-1">Nível de Acesso (Timesheet) *</label>
                             <select name="role" id="novo_nivel_acesso" required class="w-full bg-slate-800 border border-slate-600 rounded-lg p-3 text-white text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all appearance-none cursor-pointer">
-                                <option value="OPERACIONAL">OPERACIONAL <span class="text-xs theme-text-secondary">(Apontamentos próprios)</span></option>
-                                <option value="GESTOR">COORDENADOR <span class="text-xs theme-text-secondary">(Apontamentos próprios e de suas obras)</span></option>
-                                <option value="ADMIN">ADMINISTRADOR <span class="text-xs theme-text-secondary">(Acesso total)</span></option>
-                                <option value="GERENCIAL">GERENTE <span class="text-xs theme-text-secondary">(Apontamentos do setor e aprovações)</span></option>
-                                <option value="SAC">BACKOFFICE <span class="text-xs theme-text-secondary">(Apontamentos do setor)</span></option>
+                                @foreach($roles as $role)
+                                    <option value="{{ $role->name }}" @if($role->name === 'OPERACIONAL') selected @endif>{{ $role->name }}</option>
+                                @endforeach
                             </select>
                             <div id="container-btn-vincular-novo" class="hidden mt-2">
                                 <button type="button" onclick="abrirModalVincularSetores('novo')" class="w-full px-4 py-2 bg-slate-700 hover:bg-slate-600 text-slate-300 font-bold rounded-lg transition-colors border border-slate-600 flex items-center justify-center gap-2 text-sm">
@@ -526,11 +649,9 @@
                         </div>
 
                         <select name="role" id="select-nivel-ficha" disabled required class="w-full bg-slate-900/50 border border-slate-700 text-slate-400 rounded-lg p-3 pr-10 focus:ring-2 focus:ring-indigo-500 outline-none transition-all appearance-none">
-                            <option value="OPERACIONAL">OPERACIONAL <span class="text-xs theme-text-secondary">(Apontamentos próprios)</span></option>
-                            <option value="GESTOR">COORDENADOR <span class="text-xs theme-text-secondary">(Apontamentos próprios e de suas obras)</span></option>
-                            <option value="ADMIN">ADMINISTRADOR <span class="text-xs theme-text-secondary">(Acesso total)</span></option>
-                            <option value="GERENCIAL">GERENTE <span class="text-xs theme-text-secondary">(Apontamentos do setor e aprovações)</span></option>
-                            <option value="SAC">BACKOFFICE <span class="text-xs theme-text-secondary">(Apontamentos do setor)</span></option>
+                            @foreach($roles as $role)
+                                <option value="{{ $role->name }}">{{ $role->name }}</option>
+                            @endforeach
                         </select>
                         <button type="button" id="btn-editar-nivel" onclick="desbloquearCampo(this)" class="absolute right-3 top-[52px] text-slate-500 hover:text-indigo-400 transition-colors opacity-50 hover:opacity-100" title="Editar informação">
                             <i class="fas fa-pencil-alt"></i>
@@ -1273,6 +1394,22 @@
         // Trigger inicial caso exista uma seleção prévia persistida (ex: ao voltar à página com filtros ativos na URL)
         if(selectTipo.value) {
             selectTipo.dispatchEvent(new Event('change'));
+        }
+    }
+
+    function abrirModalNovoPreenchido(userId, nome, idErp) {
+        document.getElementById('modal-pendentes').classList.add('hidden');
+        abrirModalNovo();
+        
+        document.getElementById('novo_user_id').value = userId;
+        
+        const form = document.querySelector('#modal-novo-colaborador form');
+        if (form) {
+            const nomeInput = form.querySelector('input[name="nome_completo"]');
+            if (nomeInput) nomeInput.value = nome;
+            
+            const matriculaInput = form.querySelector('input[name="id_colaborador"]');
+            if (matriculaInput && idErp) matriculaInput.value = idErp;
         }
     }
 </script>

@@ -5,8 +5,8 @@ namespace App\Models;
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Spatie\Permission\Traits\HasRoles;
@@ -34,8 +34,13 @@ class User extends Authenticatable
     protected $fillable = [
         'name',
         'email',
-        'password',
         'is_superuser',
+        'produtividade_colaborador_id',
+        'id_usuario_erp',
+        // ID da plataforma Sólides — centralizado aqui para ser a fonte de verdade
+        // da integração de ponto. O Colaborador lê este valor via accessor.
+        'solides_id',
+        'ignorado_erp',
     ];
 
     protected $hidden = [
@@ -57,13 +62,45 @@ class User extends Authenticatable
     // -------------------------------------------------------------------------
 
     /**
-     * Perfil de colaborador vinculado a esta conta.
-     * Equivalente ao user_account = OneToOneField(User) do model Colaborador.
+     * Perfil de colaborador vinculado a esta conta via FK direta.
      * Acessado via: $user->colaborador
      */
-    public function colaborador(): HasOne
+    public function colaborador()
     {
-        return $this->hasOne(Colaborador::class, 'user_id');
+        return $this->belongsTo(Colaborador::class, 'produtividade_colaborador_id');
+    }
+
+    /**
+     * Alias semântico para o relacionamento com o perfil de produtividade.
+     */
+    public function produtividade()
+    {
+        return $this->belongsTo(Colaborador::class, 'produtividade_colaborador_id');
+    }
+
+    /**
+     * Registros de ponto sincronizados da Sólides para este usuário.
+     *
+     * A ligação é feita pela coluna `solides_id` desta tabela (users)
+     * e a coluna `colaborador_id` na tabela `solides_pontos` (que aponta
+     * para produtividade_colaborador). O acesso direto deve ser feito
+     * preferencialmente via $user->colaborador->pontosSolides().
+     * Este relacionamento é fornecido como atalho para relatórios.
+     */
+    public function pontosSolides(): HasMany
+    {
+        // Liga: users.id → produtividade_colaborador.user_id
+        // e depois produtividade_colaborador.id → solides_pontos.colaborador_id
+        // Como a FK direta é users → produtividade_colaborador via produtividade_colaborador_id,
+        // este atalho usa hasManyThrough:
+        return $this->hasManyThrough(
+            \App\Models\SolidesPonto::class,
+            Colaborador::class,
+            'id',                       // FK em produtividade_colaborador que aponta para users
+            'colaborador_id',           // FK em solides_pontos que aponta para produtividade_colaborador
+            'produtividade_colaborador_id', // coluna local em users
+            'id'                        // PK em produtividade_colaborador
+        );
     }
 
     /**

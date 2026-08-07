@@ -11,7 +11,7 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
-    "@wppconnect-team/wppconnect": "^2.2.1",
+    "@wppconnect-team/wppconnect": "^2.2.6",
     "dotenv": "^17.2.3",
     "express": "^5.2.1"
   }

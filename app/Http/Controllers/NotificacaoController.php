@@ -28,31 +28,45 @@ class NotificacaoController extends Controller
         }
 
         try {
-            $notificacao->comentario_colaborador = $request->resposta;
+            // Conversão manual de empty strings para null (PostgreSQL)
+            $notificacao->comentario_colaborador = $request->resposta !== '' ? $request->resposta : null;
             $notificacao->lida = true;
+            
+            // Garantir que campos numéricos/data vazios sejam null e não empty string ""
+            if ($notificacao->apontamento_id === '') $notificacao->apontamento_id = null;
+            if ($notificacao->remetente_id === '') $notificacao->remetente_id = null;
+            if ($notificacao->data_referencia === '') $notificacao->data_referencia = null;
+
             $notificacao->save();
 
             if ($notificacao->remetente_id) {
-                $remetenteColab = Colaborador::where('user_id', $notificacao->remetente_id)->first();
-                if ($remetenteColab) {
-                    Notificacao::create([
-                        'colaborador_id' => $remetenteColab->id,
-                        'titulo'         => $notificacao->titulo . ": ",
-                        'mensagem'       => $notificacao->colaborador->nome_completo . ': "' . $request->resposta . '"',
-                        'tipo'           => 'INFO',
-                        'data_referencia'=> $notificacao->data_referencia,
-                        'remetente_id'   => auth()->id(),
-                    ]);
+                try {
+                    $remetenteUser = \App\Models\User::find($notificacao->remetente_id);
+                    $remetenteColab = $remetenteUser ? $remetenteUser->colaborador : null;
+                    if ($remetenteColab) {
+                        Notificacao::create([
+                            'colaborador_id' => $remetenteColab->id,
+                            'titulo'         => \Illuminate\Support\Str::limit($notificacao->titulo, 95) . ": ",
+                            'mensagem'       => ($notificacao->colaborador?->nome_completo ?? 'Colaborador Desconhecido') . ': "' . $request->resposta . '"',
+                            'tipo'           => 'INFO',
+                            'data_referencia'=> $notificacao->data_referencia ?: null,
+                            'remetente_id'   => auth()->id(),
+                            'apontamento_id' => $notificacao->apontamento_id ?: null,
+                        ]);
+                    }
+                } catch (\Exception $e) {
+                    Log::error("Erro ao enviar notificação para o remetente: " . $e->getMessage());
+                    // Continua a execução normalmente (ação secundária isolada)
                 }
             }
 
             // Agora recuperamos o apontamento exato garantido pela coluna apontamento_id
-            $apontamentoId = $notificacao->apontamento_id;
-            $dataApontamento = $notificacao->data_referencia;
+            $apontamentoId = $notificacao->apontamento_id ?: null;
+            $dataApontamento = $notificacao->data_referencia ?: null;
 
             $detalhesPayload = json_encode([
                 'texto' => "Colaborador respondeu à notificação: '{$request->resposta}'",
-                'apontado' => $notificacao->colaborador->nome_completo ?? 'Colaborador Desconhecido',
+                'apontado' => $notificacao->colaborador?->nome_completo ?? 'Colaborador Desconhecido',
                 'apontamento_id' => $apontamentoId,
                 'data_apontamento' => $dataApontamento
             ], JSON_UNESCAPED_UNICODE);

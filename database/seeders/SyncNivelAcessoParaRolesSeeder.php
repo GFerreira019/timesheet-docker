@@ -48,8 +48,11 @@ class SyncNivelAcessoParaRolesSeeder extends Seeder
         $this->command->info('Roles criadas/verificadas: ' . implode(', ', self::NIVEIS_VALIDOS));
 
         // 2. Busca todos os colaboradores com usuario vinculado e nivel_acesso preenchido
+        // user_id foi removido de produtividade_colaborador (FK invertida).
+        // Usamos whereHas('user') para garantir que o Colaborador tenha um User vinculado
+        // via users.produtividade_colaborador_id.
         $colaboradores = Colaborador::whereNotNull('nivel_acesso')
-            ->whereNotNull('user_id')
+            ->whereHas('user')
             ->with('user')
             ->get();
 

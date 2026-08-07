@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Http;
 use App\Models\Feriado;
 
 class ConfiguracaoController extends Controller
@@ -57,7 +58,24 @@ class ConfiguracaoController extends Controller
             $whatsappHealth['message'] = 'Inacessível (Timeout ou Recusa de Conexão)';
         }
 
-        return view('api.dashboard', compact('dbStatus', 'storageStatus', 'config', 'whatsappHealth'));
+        // Teste ERP
+        $erpStatus = false;
+        if (config('services.erp.url')) {
+            try {
+                $erpUrl = rtrim(config('services.erp.url'), '/') . '/ping.php';
+                $response = Http::timeout(5)
+                    ->withToken(config('services.erp.key'))
+                    ->get($erpUrl);
+                    
+                if ($response->successful()) {
+                    $erpStatus = true;
+                }
+            } catch (\Exception $e) {
+                $erpStatus = false;
+            }
+        }
+
+        return view('api.dashboard', compact('dbStatus', 'storageStatus', 'config', 'whatsappHealth', 'erpStatus'));
     }
 
     public function salvar(Request $request)
@@ -139,4 +157,40 @@ class ConfiguracaoController extends Controller
         }
     }
 
+    public function testarERP()
+    {
+        try {
+            $erpUrlBase = config('services.erp.url');
+            if (!$erpUrlBase) {
+                return response()->json([
+                    'success' => false, 
+                    'message' => 'URL do ERP não configurada.'
+                ]);
+            }
+
+            $erpUrl = rtrim($erpUrlBase, '/') . '/ping.php';
+            
+            $response = Http::timeout(5)
+                ->withToken(config('services.erp.key'))
+                ->get($erpUrl);
+
+            if ($response->successful()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Ping realizado com sucesso.'
+                ]);
+            }
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Erro HTTP ' . $response->status() . ' - ' . $response->body()
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ]);
+        }
+    }
 }

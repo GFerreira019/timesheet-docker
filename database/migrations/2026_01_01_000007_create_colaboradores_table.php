@@ -19,38 +19,31 @@ return new class extends Migration
 {
     public function up(): void
     {
-        // Adiciona campos extras na tabela users padrão do Laravel
-        Schema::table('users', function (Blueprint $table) {
-            $table->boolean('is_superuser')->default(false)->after('remember_token')
-                ->comment('Equivalente ao is_superuser do Django — papel Owner');
-        });
-
         // Tabela de perfil do Colaborador
         Schema::create('produtividade_colaborador', function (Blueprint $table) {
             $table->id();
 
-            // Identificação interna da empresa
-            $table->string('id_colaborador', 50)->unique()->comment('ID Colaborador (matrícula)');
-            $table->string('nome_completo', 255);
-            $table->string('cargo', 100)->default('Operador');
+            // Identificação interna da empresa (chave de ligação com o ERP)
+            $table->string('id_colaborador', 50)->unique()->comment('ID Colaborador (matrícula / chave do ERP)');
+            $table->string('nome_completo', 255)->nullable();
+            $table->string('nivel_acesso', 20)->default('OPERACIONAL');
+            $table->string('cargo', 100)->nullable();
 
             // Dados geográficos para cálculo de feriados municipais
-            $table->string('cidade', 100)->nullable()
+            $table->string('cidade_moradia', 100)->nullable()
                 ->comment('Necessário para cálculo de feriados municipais');
+            $table->string('cidade_trabalho')->nullable();
+            $table->string('setor')->nullable();
             $table->string('uf', 2)->nullable()
                 ->comment('Sigla do Estado (ex: SP, RJ)');
 
-            // Relação OneToOne com a tabela users do Laravel
-            // on_delete=SET_NULL equivale a: nullOnDelete()
-            $table->foreignId('user_id')->nullable()->unique()
-                ->constrained('users')->nullOnDelete()
-                ->comment('Conta de Usuário (Login)');
-
             // Setor de alocação do colaborador (FK simples)
-            // on_delete=SET_NULL do Django
             $table->foreignId('setor_id')->nullable()
                 ->constrained('setores')->nullOnDelete()
                 ->comment('Setor de Alocação');
+            $table->date('data_admissao')->nullable();
+            $table->date('data_demissao')->nullable();
+            $table->date('data_vigencia')->nullable();
 
             // Contato WhatsApp para notificações
             $table->string('telefone', 20)->nullable()
@@ -59,13 +52,22 @@ return new class extends Migration
             $table->timestamps();
         });
 
+        // Após criar produtividade_colaborador, adiciona a FK de users → colaborador
+        // Assim garantimos integridade referencial sem dependência circular
+        Schema::table('users', function (Blueprint $table) {
+            $table->foreign('produtividade_colaborador_id')
+                ->references('id')
+                ->on('produtividade_colaborador')
+                ->nullOnDelete();
+        });
+
         /**
          * Tabela Pivô M2M: Colaborador ↔ Setores Gerenciados
          * Equivalente ao Django: setores_gerenciados = ManyToManyField(Setor, related_name='gestores')
          * Nomear como colaborador_setor_gerenciado para não colidir com outras pivôs.
          */
         Schema::create('colaborador_setor_gerenciado', function (Blueprint $table) {
-            $table->foreignId('colaborador_id')->constrained('colaboradores')->cascadeOnDelete();
+            $table->foreignId('colaborador_id')->constrained('produtividade_colaborador')->cascadeOnDelete();
             $table->foreignId('setor_id')->constrained('setores')->cascadeOnDelete();
             $table->primary(['colaborador_id', 'setor_id']);
         });
@@ -73,11 +75,12 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::dropIfExists('colaborador_setor_gerenciado');
-        Schema::dropIfExists('colaboradores');
-
+        // Remove a FK de users antes de derrubar a tabela referenciada
         Schema::table('users', function (Blueprint $table) {
-            $table->dropColumn('is_superuser');
+            $table->dropForeign(['produtividade_colaborador_id']);
         });
+
+        Schema::dropIfExists('colaborador_setor_gerenciado');
+        Schema::dropIfExists('produtividade_colaborador');
     }
 };

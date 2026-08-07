@@ -182,7 +182,8 @@ class PontoController extends Controller
 
             // Busca os colaboradores sob a mesma regra do index() para o usuário logado
             $query = \App\Models\Colaborador::ativos()
-                ->whereNotNull('solides_id')
+                // solides_id foi movido para users — filtramos via relacionamento
+                ->whereHas('user', fn($q) => $q->whereNotNull('solides_id'))
                 ->whereHas('setorRelacionamento', fn($s) => $s->where('ativo', true));
 
             if (!\App\Helpers\AcessoHelper::isOwner($user)) {

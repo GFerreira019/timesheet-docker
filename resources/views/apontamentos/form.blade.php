@@ -545,36 +545,6 @@
                            class="form-input" step="60" required>
                 </div>
 
-                {{-- Botão Check-in / Check-out --}}
-                <div id="checkin-btn-area"
-                     class="{{ $atividade_em_andamento ? 'sm:col-span-2' : 'hidden sm:col-span-2' }}">
-                    <div class="bg-slate-800/50 p-4 rounded-xl border border-slate-700 flex flex-col items-center justify-center gap-3">
-                        <p class="text-xs font-bold text-gray-400 uppercase tracking-widest" id="status-text">
-                            @if($atividade_em_andamento)
-                                ATIVIDADE INICIADA ÀS <span class="text-emerald-400 font-mono text-base">{{ $hora_inicio_em_andamento }}</span>
-                            @else
-                                Aguardando Registro...
-                            @endif
-                        </p>
-                        <button type="button" id="btn-action-main"
-                                class="w-full md:w-2/3 font-bold py-4 rounded-xl shadow-lg flex items-center justify-center gap-3 text-lg transition-all active:scale-95 text-white
-                                       {{ $atividade_em_andamento ? 'bg-red-600 hover:bg-red-500' : 'bg-emerald-600 hover:bg-emerald-500' }}">
-                            @if($atividade_em_andamento)
-                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
-                            </svg>
-                            <span>REGISTRAR SAÍDA</span>
-                            @else
-                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"/>
-                            </svg>
-                            <span>REGISTRAR ENTRADA</span>
-                            @endif
-                        </button>
-                        <p class="text-[12px] text-gray-500">Atenção: Não é possível editar depois de iniciar.</p>
-                    </div>
-                </div>
-
                 {{-- Auxiliares --}}
                 <div class="sm:col-span-2 bg-slate-800/50 p-4 rounded-xl border border-slate-700">
                     <div class="flex items-center gap-3">
@@ -634,6 +604,36 @@
                     <label class="text-xs text-gray-400 mb-1 block">Ocorrências / Obs.</label>
                     <textarea name="ocorrencias" rows="3" class="w-full bg-slate-800 border border-slate-700 rounded-md p-3 text-gray-300 focus:border-indigo-500 focus:ring-indigo-500 outline-none resize-none"
                               placeholder="Descreva ocorrências relevantes...">{{ old('ocorrencias', $initial_values['ocorrencias'] ?? '') }}</textarea>
+                </div>
+
+                {{-- Botão Check-in / Check-out --}}
+                <div id="checkin-btn-area"
+                     class="{{ $atividade_em_andamento ? 'sm:col-span-2' : 'hidden sm:col-span-2' }}">
+                    <div class="bg-slate-800/50 p-4 rounded-xl border border-slate-700 flex flex-col items-center justify-center gap-3">
+                        <p class="text-xs font-bold text-gray-400 uppercase tracking-widest" id="status-text">
+                            @if($atividade_em_andamento)
+                                ATIVIDADE INICIADA ÀS <span class="text-emerald-400 font-mono text-base">{{ $hora_inicio_em_andamento }}</span>
+                            @else
+                                Aguardando Registro...
+                            @endif
+                        </p>
+                        <button type="button" id="btn-action-main"
+                                class="w-full md:w-2/3 font-bold py-4 rounded-xl shadow-lg flex items-center justify-center gap-3 text-lg transition-all active:scale-95 text-white
+                                       {{ $atividade_em_andamento ? 'bg-red-600 hover:bg-red-500' : 'bg-emerald-600 hover:bg-emerald-500' }}">
+                            @if($atividade_em_andamento)
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+                            </svg>
+                            <span>REGISTRAR SAÍDA</span>
+                            @else
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"/>
+                            </svg>
+                            <span>REGISTRAR ENTRADA</span>
+                            @endif
+                        </button>
+                        <p class="text-[12px] text-gray-500">Atenção: Não é possível editar depois de iniciar.</p>
+                    </div>
                 </div>
             </div>
         </div>

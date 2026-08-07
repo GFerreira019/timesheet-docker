@@ -39,9 +39,9 @@ return new class extends Migration
             // ---------------------------------------------------------------
             // 2. Localização e Contexto
             // ---------------------------------------------------------------
-            // LOCAL_CHOICES: 'INT' = Dentro da obra | 'EXT' = Fora da obra
-            $table->string('local_execucao', 3)->default('INT')
-                ->comment("INT = Dentro da obra | EXT = Fora da obra");
+            // LOCAL_CHOICES: 'EXTERNO' = Dentro da obra | 'INTERNO' = Fora da obra
+            $table->string('local_execucao', 7)->default('EXTERNO')
+                ->comment("EXTERNO = Dentro da obra | INTERNO = Fora da obra");
 
             $table->foreignId('projeto_id')->nullable()
                 ->constrained('produtividade_projeto')->nullOnDelete();
@@ -94,7 +94,7 @@ return new class extends Migration
             // ---------------------------------------------------------------
             // 7. Controle de Ajustes e Workflow
             // ---------------------------------------------------------------
-            $table->string('id_agrupamento', 100)->nullable()
+            $table->uuid('id_agrupamento')->nullable()
                 ->comment('UUID para agrupar registros de rateio');
 
             $table->text('motivo_ajuste')->nullable()
@@ -103,6 +103,15 @@ return new class extends Migration
             // STATUS_APROVACAO_CHOICES
             $table->string('status_aprovacao', 20)->default('EM_ANALISE')
                 ->comment("EM_ANALISE | APROVADO | REJEITADO | SOLICITACAO_AJUSTE");
+
+            $table->string('tipo_aprovacao', 20)->nullable()->default(null)
+                ->comment("'automatica' | 'manual'");
+
+            $table->foreignId('aprovador_id')->nullable()->constrained('users')->nullOnDelete()
+                ->comment('Usuário que aprovou manualmente (null = automático)');
+
+            $table->timestamp('data_aprovacao')->nullable()->default(null)
+                ->comment('Data e hora da aprovação');
 
             // Status legado de ajuste
             $table->string('status_ajuste', 20)->nullable()
@@ -117,8 +126,8 @@ return new class extends Migration
             // ---------------------------------------------------------------
             // 8. Geolocalização
             // ---------------------------------------------------------------
-            $table->decimal('latitude', 12, 8)->nullable();
-            $table->decimal('longitude', 12, 8)->nullable();
+            $table->decimal('latitude', 11, 8)->nullable();
+            $table->decimal('longitude', 11, 8)->nullable();
 
             // ---------------------------------------------------------------
             // 9. Controle de Alertas CLT

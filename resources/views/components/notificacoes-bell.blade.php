@@ -86,7 +86,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const bellBtn = document.getElementById('btn-notificacoes-bell');
     const dropdown = document.getElementById('notificacoes-dropdown');
     const container = document.getElementById('notificacoes-bell-container');
-    const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+    const metaCsrf = document.querySelector('meta[name="csrf-token"]');
+    const csrfToken = metaCsrf ? metaCsrf.getAttribute('content') : '';
 
     if (!bellBtn || !dropdown) return;
 

@@ -19,6 +19,10 @@ return new class extends Migration
             $table->time('hora_entrada')->nullable();
             $table->time('hora_saida')->nullable();
             $table->string('status', 50)->default('APPROVED');
+            $table->boolean('is_ajustado')->default(false);
+            $table->text('justificativa')->nullable();
+            $table->decimal('horas_abonadas', 8, 2)->nullable();
+            $table->boolean('dia_trabalhado')->default(true);
             $table->timestamps();
         });
     }

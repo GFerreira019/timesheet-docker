@@ -14,12 +14,16 @@ class ProjetoController extends Controller
     {
         $query = Projeto::with('gestores')->orderBy('nome');
 
-        if ($request->filled('nome')) {
-            $query->where('nome', 'like', '%' . $request->nome . '%')
-                  ->orWhere('codigo', 'like', '%' . $request->nome . '%');
+        $busca = $request->query('busca');
+        if ($busca) {
+            $query->where(function($q) use ($busca) {
+                $q->where('nome', 'ilike', '%' . $busca . '%')
+                  ->orWhere('codigo', 'ilike', '%' . $busca . '%');
+            });
         }
 
         $projetos = $query->paginate(15);
+        $projetos->appends($request->all());
 
         // Buscar apenas colaboradores com perfil de gestão via Spatie
         $possiveisGestores = Colaborador::ativos()->whereHas('user.roles', function($q) {
@@ -28,7 +32,9 @@ class ProjetoController extends Controller
                                         ->orderBy('nome_completo')
                                         ->get();
 
-        return view('projetos.index', compact('projetos', 'possiveisGestores'));
+        $todosProjetos = Projeto::select('nome', 'codigo')->orderBy('nome')->get();
+
+        return view('projetos.index', compact('projetos', 'possiveisGestores', 'todosProjetos'));
     }
 
     public function store(Request $request)
@@ -65,7 +71,7 @@ class ProjetoController extends Controller
 
     public function sincronizarErp()
     {
-        $dadosErp = \Illuminate\Support\Facades\DB::table('erp_obras_mock')->get();
+        $dadosErp = \Illuminate\Support\Facades\DB::table('erp_obras_api')->get();
 
         DB::beginTransaction();
         try {

@@ -21,8 +21,8 @@ return new class extends Migration
                 ->constrained('apontamentos')->cascadeOnDelete()
                 ->comment('Apontamento Original');
 
-            // Snapshot JSON dos dados antes da edição
-            $table->json('dados_snapshot')->comment('Cópia dos Dados (Snapshot)');
+            // Snapshot JSONB dos dados antes da edição
+            $table->jsonb('dados_snapshot')->comment('Cópia dos Dados (Snapshot)');
 
             // Quem fez a edição
             $table->foreignId('editado_por_id')->nullable()

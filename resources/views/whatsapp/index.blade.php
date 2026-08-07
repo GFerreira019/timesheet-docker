@@ -96,6 +96,13 @@
                                 Desligar
                             </button>
                         </form>
+
+                        <form action="{{ route('whatsapp.atualizar_wppconnect') }}" method="POST" class="flex-none" onsubmit="this.querySelector('button').innerHTML = '<i class=\'fas fa-spinner fa-spin text-blue-400\'></i>'; this.querySelector('button').classList.add('opacity-50', 'cursor-not-allowed');">
+                            @csrf
+                            <button type="submit" title="Atualizar WPPConnect" class="h-full px-4 py-2.5 bg-slate-700 hover:bg-slate-600 text-white text-sm font-bold rounded-lg transition border border-slate-600 hover:border-slate-500 shadow-lg flex items-center justify-center gap-2">
+                                <i class="fas fa-sync-alt text-blue-400"></i>
+                            </button>
+                        </form>
                     </div>
                 </div>
             </div>

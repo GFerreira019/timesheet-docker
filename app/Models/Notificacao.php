@@ -22,7 +22,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string      $mensagem
  * @property string      $tipo
  * @property bool        $lida
- * @property string      $data_criacao
+ * @property \Carbon\Carbon $created_at
  * @property string|null $data_referencia
  * @property string|null $comentario_colaborador   Resposta do colaborador (visível ao Owner)
  */
@@ -38,11 +38,10 @@ class Notificacao extends Model
     ];
 
     /**
-     * Configura created_at e updated_at.
-     * data_criacao equivale ao auto_now_add do Django.
+     * Usa as colunas padrão created_at e updated_at geradas por timestamps().
+     * Isso corrige o SQLSTATE[42703] no PostgreSQL ao ordenar por created_at.
      */
-    const CREATED_AT = 'data_criacao';
-    const UPDATED_AT = 'updated_at';
+    // CREATED_AT e UPDATED_AT usam os nomes padrão do Laravel (created_at / updated_at)
 
     protected $fillable = [
         'colaborador_id',
@@ -50,7 +49,6 @@ class Notificacao extends Model
         'mensagem',
         'tipo',
         'lida',
-        'data_criacao',
         'data_referencia',
         'comentario_colaborador',
         'remetente_id',
@@ -58,9 +56,11 @@ class Notificacao extends Model
     ];
 
     protected $casts = [
+        // boolean explícito garante compat. com PostgreSQL (evita int vs bool)
         'lida'            => 'boolean',
-        'data_criacao'    => 'datetime',
         'data_referencia' => 'date',
+        'created_at'      => 'datetime',
+        'updated_at'      => 'datetime',
     ];
 
     // -------------------------------------------------------------------------

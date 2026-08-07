@@ -16,6 +16,8 @@ return new class extends Migration
             $table->id();
             $table->string('placa', 10)->unique()->comment('Placa');
             $table->string('descricao', 100)->nullable()->comment('Modelo/Descrição');
+            $table->string('status', 20)->default('ativo');
+            $table->string('sistema_rastreamento', 255)->nullable();
             $table->timestamps();
         });
     }

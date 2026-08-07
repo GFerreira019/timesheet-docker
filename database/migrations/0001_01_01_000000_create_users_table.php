@@ -13,11 +13,16 @@ return new class extends Migration
     {
         Schema::create('users', function (Blueprint $table) {
             $table->id();
+            // FK para o perfil de colaborador no ERP (nullable pois o user pode
+            // chegar antes do colaborador ser sincronizado)
+            $table->unsignedBigInteger('produtividade_colaborador_id')->nullable()->unique();
+            // ID externo do usuário vindo do payload do ERP
+            $table->string('id_usuario_erp')->nullable()->unique();
+            // ID do colaborador na plataforma Sólides (usado para sincronização de ponto)
+            $table->string('solides_id')->nullable()->unique();
             $table->string('name');
             $table->string('email')->unique();
-            $table->timestamp('email_verified_at')->nullable();
-            $table->string('password');
-            $table->rememberToken();
+            $table->boolean('ignorado_erp')->default(false);
             $table->timestamps();
         });
 
@@ -42,8 +47,8 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('users');
-        Schema::dropIfExists('password_reset_tokens');
         Schema::dropIfExists('sessions');
+        Schema::dropIfExists('password_reset_tokens');
+        Schema::dropIfExists('users');
     }
 };

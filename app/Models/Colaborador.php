@@ -28,6 +28,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
  * @property int|null    $user_id
  * @property int|null    $setor_id
  * @property string|null $telefone
+ * @property-read string|null $solides_id  Lido via accessor de users.solides_id
  */
 class Colaborador extends Model
 {
@@ -42,19 +43,31 @@ class Colaborador extends Model
 
     protected $fillable = [
         'id_colaborador',
-        'solides_id',
         'nome_completo',
         'nivel_acesso',
         'cargo',
         'cidade_moradia',
         'cidade_trabalho',
         'uf',
-        'user_id',
+        'setor',
         'setor_id',
         'telefone',
         'data_admissao',
         'data_demissao',
+        'data_vigencia',
     ];
+
+    // -------------------------------------------------------------------------
+    // Accessor: solides_id — delega para users.solides_id
+    // -------------------------------------------------------------------------
+    // O campo foi centralizado na tabela users para ser a fonte de verdade da
+    // integração com o ERP. Este accessor mantém a API pública do Colaborador
+    // compatível: $colab->solides_id continua funcionando sem alterar os
+    // controllers, SolidesService ou qualquer outro código existente.
+    public function getSolidesIdAttribute(): ?string
+    {
+        return $this->user?->solides_id;
+    }
 
     protected $casts = [
     ];
@@ -110,12 +123,12 @@ class Colaborador extends Model
     // -------------------------------------------------------------------------
 
     /**
-     * Conta de usuário vinculada.
-     * Equivalente ao user_account = OneToOneField(User, on_delete=SET_NULL) do Django.
+     * Conta de usuário vinculada (HasOne: a FK está em users.produtividade_colaborador_id).
+     * Acessado via: $colaborador->user
      */
-    public function user(): BelongsTo
+    public function user(): HasOne
     {
-        return $this->belongsTo(\App\Models\User::class, 'user_id');
+        return $this->hasOne(\App\Models\User::class, 'produtividade_colaborador_id');
     }
 
     /**
@@ -283,15 +296,17 @@ class Colaborador extends Model
     }
 
     /**
-     * Escopo para listar apenas colaboradores ativos
-     * Um colaborador é considerado ativo se a data_demissao for nula ou vazia.
+     * Escopo para listar apenas colaboradores ativos.
+     *
+     * Compatível com PostgreSQL: colunas do tipo DATE não aceitam comparação
+     * com string vazia ('') ou '0000-00-00' — apenas NULL ou datas reais.
+     *
+     * Regra:
+     *  - data_demissao IS NULL  → ativo (sem data de saída cadastrada)
+     *  - data_demissao > hoje   → demissão agendada para o futuro, ainda ativo
      */
     public function scopeAtivos($query)
     {
-        return $query->where(function($q) {
-            $q->whereNull('data_demissao')
-              ->orWhere('data_demissao', '')
-              ->orWhere('data_demissao', '0000-00-00');
-        });
+        return $query->whereNull('data_demissao');
     }
 }

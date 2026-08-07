@@ -12,7 +12,7 @@ class ColaboradorController extends Controller
         $query = Colaborador::with(['setorRelacionamento', 'setoresVinculados:id', 'user.roles']);
 
         if ($request->filled('nome')) {
-            $query->where('nome_completo', 'like', '%' . $request->nome . '%');
+            $query->where('nome_completo', 'ilike', '%' . $request->nome . '%');
         }
         if ($request->filled('cargo')) {
             $query->where('cargo', $request->cargo);
@@ -30,16 +30,14 @@ class ColaboradorController extends Controller
         }
         if ($request->filled('status')) {
             if ($request->status === 'ativo') {
-                $query->where(function ($q) {
-                    $q->whereNull('data_demissao')->orWhere('data_demissao', '');
-                });
+                $query->whereNull('data_demissao');
             } elseif ($request->status === 'inativo') {
-                $query->whereNotNull('data_demissao')->where('data_demissao', '!=', '');
+                $query->whereNotNull('data_demissao');
             }
         }
 
         // 1º Ordena por Status (Ativos primeiro)
-        $query->orderByRaw("CASE WHEN data_demissao IS NULL OR data_demissao = '' THEN 0 ELSE 1 END ASC");
+        $query->orderByRaw("CASE WHEN data_demissao IS NULL THEN 0 ELSE 1 END ASC");
 
         // 2º Ordena alfabeticamente
         $query->orderBy('nome_completo', 'asc');
@@ -47,8 +45,8 @@ class ColaboradorController extends Controller
         $colaboradores = $query->paginate(25)->withQueryString();
         
         $cargos = Colaborador::whereNotNull('cargo')->distinct()->pluck('cargo');
-        $setores = \App\Models\Setor::orderBy('nome_completo')->get();
-        $roles = \Spatie\Permission\Models\Role::orderBy('name')->pluck('name');
+        $setores = \App\Models\Setor::orderBy('nome')->get();
+        $roles = \Spatie\Permission\Models\Role::all();
         $cidades = Colaborador::select('cidade_moradia')
             ->union(Colaborador::select('cidade_trabalho'))
             ->whereNotNull('cidade_moradia')
@@ -56,7 +54,25 @@ class ColaboradorController extends Controller
             ->pluck('cidade_moradia');
         $cidades_trabalho = Colaborador::whereNotNull('cidade_trabalho')->distinct()->pluck('cidade_trabalho');
 
-        return view('colaboradores.index', compact('colaboradores', 'cargos', 'setores', 'cidades', 'cidades_trabalho', 'roles'));
+        $usuariosPendentes = \App\Models\User::whereNull('produtividade_colaborador_id')
+                                ->where('ignorado_erp', false)
+                                ->get();
+                                
+        $usuariosIgnorados = \App\Models\User::whereNull('produtividade_colaborador_id')
+                                ->where('ignorado_erp', true)
+                                ->get();
+
+        return view('colaboradores.index', compact('colaboradores', 'cargos', 'setores', 'cidades', 'cidades_trabalho', 'roles', 'usuariosPendentes', 'usuariosIgnorados'));
+    }
+
+    public function syncErp(\App\Services\ErpIntegrationService $erpService)
+    {
+        try {
+            $erpService->syncUsuarios();
+            return redirect()->back()->with('success', 'Sincronização de usuários concluída com sucesso!');
+        } catch (\Exception $e) {
+            return redirect()->back()->with('error', 'Erro ao sincronizar: ' . $e->getMessage());
+        }
     }
 
     public function update(Request $request, $id)
@@ -225,7 +241,7 @@ class ColaboradorController extends Controller
         $busca = $request->query('q');
         if (empty($busca)) return response()->json([]);
         
-        $colaboradores = Colaborador::where('nome_completo', 'LIKE', "%{$busca}%")
+        $colaboradores = Colaborador::where('nome_completo', 'ilike', "%{$busca}%")
                             ->limit(10)
                             ->get(['id', 'nome_completo', 'cargo']);
                             
@@ -237,7 +253,7 @@ class ColaboradorController extends Controller
         $validated = $request->validate([
             'nome_completo'       => 'required|string|max:255',
             'role'                => ['required', 'string', 'exists:roles,name'], // Fase de Transição: substituiu nivel_acesso
-            'id_colaborador'      => 'required|string|max:255|unique:produtividade_colaborador,id_colaborador',
+            'id_colaborador'      => 'required|string|max:255', // Removido unique para permitir o updateOrCreate do ERP
             'telefone'            => 'nullable|string|max:20',
             'cargo'               => 'required|string|max:255',
             'setor_id'            => 'required|exists:setores,id',
@@ -283,7 +299,10 @@ class ColaboradorController extends Controller
         $dados['nivel_acesso'] = $roleParaSincronizar;
         // --- FIM DA FASE DE TRANSIÇÃO ---
 
-        $colaborador = Colaborador::create($dados);
+        $colaborador = Colaborador::updateOrCreate(
+            ['id_colaborador' => $dados['id_colaborador']],
+            $dados
+        );
 
         $colaborador->setoresVinculados()->sync($setoresVinculados);
 
@@ -295,6 +314,29 @@ class ColaboradorController extends Controller
         }
         // --- FIM DA FASE DE TRANSIÇÃO ---
 
+        $user_id = $request->input('user_id');
+        if ($user_id) {
+            $user = \App\Models\User::find($user_id);
+            if ($user) {
+                $user->update(['produtividade_colaborador_id' => $colaborador->id]);
+                $user->syncRoles([$roleParaSincronizar]);
+            }
+        }
+
         return back()->with('success', 'Colaborador cadastrado com sucesso!');
+    }
+
+    public function ignorarUserErp($id)
+    {
+        $user = \App\Models\User::findOrFail($id);
+        $user->update(['ignorado_erp' => true]);
+        return redirect()->back()->with('success', 'Usuário ignorado com sucesso.');
+    }
+
+    public function designorarUserErp($id)
+    {
+        $user = \App\Models\User::findOrFail($id);
+        $user->update(['ignorado_erp' => false]);
+        return redirect()->back()->with('success', 'Usuário retornado para a lista de pendentes com sucesso.');
     }
 }

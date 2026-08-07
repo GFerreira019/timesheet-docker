@@ -19,6 +19,8 @@ return new class extends Migration
             $table->string('descricao', 100)->comment('Nome do Feriado');
             $table->string('cidade', 100);
             $table->string('uf', 2);
+            $table->string('tipo', 10)->nullable()->comment('Municipal, Estadual, Nacional');
+            $table->boolean('inserido_manualmente')->default(false);
             $table->timestamps();
 
             // Equivalente ao unique_together = ('data', 'cidade', 'uf') do Django

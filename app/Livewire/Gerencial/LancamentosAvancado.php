@@ -87,7 +87,7 @@ class LancamentosAvancado extends Component
         if (!empty($this->filtroVeiculo)) {
             $query->whereHas('veiculo', function($q) {
                 $q->where('placa', 'like', '%' . $this->filtroVeiculo . '%')
-                  ->orWhere('modelo', 'like', '%' . $this->filtroVeiculo . '%');
+                  ->orWhere('descricao', 'like', '%' . $this->filtroVeiculo . '%');
             });
         }
 
@@ -129,7 +129,7 @@ class LancamentosAvancado extends Component
         $obrasOptions = Projeto::orderBy('nome')->get();
         $colaboradoresOptions = Colaborador::orderBy('nome_completo')->get();
         $cargosOptions = Colaborador::select('cargo')->distinct()->whereNotNull('cargo')->pluck('cargo');
-        $veiculosOptions = Veiculo::orderBy('modelo')->get();
+        $veiculosOptions = Veiculo::orderBy('descricao')->get();
 
         return view('livewire.gerencial.lancamentos-avancado', [
             'dados' => $dados,

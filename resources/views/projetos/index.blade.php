@@ -31,28 +31,30 @@
     <div class="flex items-center gap-2 sm:gap-4 relative justify-between mb-6">
             
         <div class="flex flex-col sm:flex-row items-center gap-3 w-full sm:flex-1">
-            <div class="relative w-full sm:w-80 lg:w-96" id="searchContainerProjetos">
-                <input type="text" id="searchInputProjetos" autocomplete="off" placeholder="Buscar projeto..." class="w-full bg-slate-900 border border-slate-700 rounded-lg pl-10 pr-4 py-2 text-sm text-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition">
+            <form method="GET" action="{{ route('projetos.index') }}" class="relative w-full sm:w-80 lg:w-96" id="searchContainerProjetos">
+                <input type="text" name="busca" value="{{ request('busca') }}" id="searchInputProjetos" autocomplete="off" placeholder="Buscar projeto..." class="w-full bg-slate-900 border border-slate-700 rounded-lg pl-10 pr-4 py-2 text-sm text-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition">
                 <i class="fas fa-search absolute left-3 top-2.5 text-slate-400"></i>
                 
                 <ul id="searchDropdownProjetos" class="hidden absolute top-full left-0 right-0 mt-1 max-h-60 overflow-y-auto bg-slate-800 border border-slate-700 rounded-lg shadow-2xl z-50">
-                    <!-- 1. Opções de busca por NOME (Garante que o nome apareça só uma vez) -->
-                    @foreach($projetos->unique('nome') as $projeto)
+                    <!-- 1. Opções de busca por NOME -->
+                    @foreach($todosProjetos->unique('nome') as $projeto)
                         <li class="px-4 py-2 text-sm text-slate-300 hover:bg-indigo-600 hover:text-white cursor-pointer transition dropdown-item flex items-center gap-2 group">
                             <i class="fas fa-user text-slate-500 group-hover:text-indigo-200 text-xs w-4 text-center"></i>
                             <span class="valor-filtro">{{ $projeto->nome }}</span>
                         </li>
                     @endforeach
                     
-                    <!-- 2. Opções de busca por CÓDIGO (Lista todos os códigos existentes) -->
-                    @foreach($projetos->unique('codigo') as $projeto)
+                    <!-- 2. Opções de busca por CÓDIGO -->
+                    @foreach($todosProjetos->unique('codigo') as $projeto)
+                        @if($projeto->codigo)
                         <li class="px-4 py-2 text-sm text-slate-300 hover:bg-indigo-600 hover:text-white cursor-pointer transition dropdown-item flex items-center gap-2 group">
                             <i class="fas fa-building text-slate-500 group-hover:text-indigo-200 text-xs w-4 text-center"></i>
                             <span class="valor-filtro">{{ $projeto->codigo }}</span>
                         </li>
+                        @endif
                     @endforeach
                 </ul>
-            </div>
+            </form>
         </div>
 
         <form action="{{ route('projetos.sincronizar') }}" method="POST" class="flex-shrink-0">
@@ -378,73 +380,54 @@
         const inputBusca = document.getElementById('searchInputProjetos');
         const dropdownBusca = document.getElementById('searchDropdownProjetos');
         const dropdownItems = dropdownBusca ? dropdownBusca.querySelectorAll('li') : [];
-        const tabelaProjetos = document.getElementById('tabela-projetos');
+        const formBusca = document.getElementById('searchContainerProjetos');
 
-        if (tabelaProjetos) {
-            const linhasTabela = tabelaProjetos.querySelectorAll('tbody tr');
+        if (inputBusca && dropdownBusca) {
+            inputBusca.addEventListener('input', function() {
+                const query = this.value.toLowerCase().trim();
+                
+                if (query.length < 2) {
+                    dropdownBusca.classList.add('hidden');
+                    return;
+                }
 
-            function executarFiltro() {
-                const termoBusca = inputBusca ? inputBusca.value.toLowerCase().trim() : '';
-
-                linhasTabela.forEach(linha => {
-                    if (linha.querySelector('td[colspan]')) return; // ignorar placeholder vazio
-
-                    const textoLinha = linha.textContent.toLowerCase();
-
-                    if (textoLinha.includes(termoBusca)) {
-                        linha.style.display = '';
-                    } else {
-                        linha.style.display = 'none';
-                    }
-                });
-            }
-
-            if (inputBusca && dropdownBusca) {
-                inputBusca.addEventListener('input', function() {
-                    const query = this.value.toLowerCase().trim();
-                    
-                    // Apenas começa a buscar a partir do 2º caractere
-                    if (query.length < 2) {
-                        dropdownBusca.classList.add('hidden');
-                        return;
-                    }
-
-                    let hasVisibleItems = false;
-                    
-                    dropdownItems.forEach(li => {
-                        // Pega o texto exato daquela linha (seja o nome ou o código)
-                        const textoItem = li.querySelector('.valor-filtro').textContent.toLowerCase();
-                        
-                        if (textoItem.includes(query)) {
-                            li.style.display = 'flex'; // Exibe a linha
-                            hasVisibleItems = true;
-                        } else {
-                            li.style.display = 'none'; // Esconde a linha
-                        }
-                    });
-
-                    // Mostra a caixa do dropdown se achou algo, esconde se estiver vazia
-                    if (hasVisibleItems) {
-                        dropdownBusca.classList.remove('hidden');
-                    } else {
-                        dropdownBusca.classList.add('hidden');
-                    }
-                });
-
+                let hasVisibleItems = false;
+                
                 dropdownItems.forEach(li => {
-                    li.addEventListener('click', function() {
-                        // Pega apenas o valor (nome ou código) que o usuário clicou
-                        const valorClicado = this.querySelector('.valor-filtro').textContent.trim();
-                        
-                        inputBusca.value = valorClicado;
-                        dropdownBusca.classList.add('hidden');
-                        
-                        // Roda o seu filtro da tabela com o valor que acabou de ser selecionado
-                        executarFiltro();
-                    });
+                    const textoItem = li.querySelector('.valor-filtro').textContent.toLowerCase();
+                    
+                    if (textoItem.includes(query)) {
+                        li.style.display = 'flex';
+                        hasVisibleItems = true;
+                    } else {
+                        li.style.display = 'none';
+                    }
                 });
-            }
+
+                if (hasVisibleItems) {
+                    dropdownBusca.classList.remove('hidden');
+                } else {
+                    dropdownBusca.classList.add('hidden');
+                }
+            });
+
+            // Fechar dropdown ao clicar fora
+            document.addEventListener('click', function(e) {
+                if (!formBusca.contains(e.target)) {
+                    dropdownBusca.classList.add('hidden');
+                }
+            });
+
+            dropdownItems.forEach(li => {
+                li.addEventListener('click', function() {
+                    const valorClicado = this.querySelector('.valor-filtro').textContent.trim();
+                    inputBusca.value = valorClicado;
+                    dropdownBusca.classList.add('hidden');
+                    formBusca.submit();
+                });
+            });
         }
     });
+
 </script>
 @endpush

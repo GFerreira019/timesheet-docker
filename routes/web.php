@@ -29,20 +29,18 @@ use App\Livewire\Gerencial\LancamentosAvancado;
 |
 */
 
+// ==========================================
+// ROTAS PÚBLICAS DE SSO (Fora de Autenticação)
+// ==========================================
+Route::get('/auth/sso/callback', [\App\Http\Controllers\SsoController::class, 'callback'])->name('sso.callback');
+
 // Rota de entrada
 Route::get('/', function () {
     return app()->environment('local') ? redirect('/dev/painel') : redirect()->route('painel');
 })->name('home');
 
-Route::get('/login', function () {
-        if (app()->environment('local')) {
-            return redirect()->route('dev.login');
-        }
+Route::view('/login', 'auth.sso-intercept')->name('login');
 
-        // TODO: Substituir pelo redirecionamento oficial do SSO do ERP
-        // Exemplo futuro: return redirect()->to('https://sso.seu-erp.com.br/authorize?client_id=...');
-        return "Em breve: Redirecionamento para o login do ERP";
-    })->name('login');
 
     // TODO: Substituir pelo redirecionamento de logout do SSO do ERP
     Route::post('/logout', function () {
@@ -149,12 +147,19 @@ Route::middleware('auth')->group(function () {
         Route::get('/colaboradores/api/cidades', [\App\Http\Controllers\ColaboradorController::class, 'buscarCidades'])->name('api.cidades');
         Route::get('/colaboradores/api/buscar-nomes', [\App\Http\Controllers\ColaboradorController::class, 'buscarNomesAoVivo'])->name('api.buscar-nomes');
 
+        // Módulo de Saúde e Integrações
+        Route::get('/saude-integracoes', [\App\Http\Controllers\ConfiguracaoController::class, 'saudeIntegracoes'])->name('saude.integracoes');
+        Route::get('/erp/test', [\App\Http\Controllers\ConfiguracaoController::class, 'testarERP'])->name('erp.test');
+
         // Módulo de Colaboradores (RH)
         Route::prefix('colaboradores')->name('colaboradores.')->group(function () {
+            Route::post('/sync-erp', [\App\Http\Controllers\ColaboradorController::class, 'syncErp'])->name('sync-erp');
             Route::get('/', [\App\Http\Controllers\ColaboradorController::class, 'index'])->name('index');
             Route::post('/', [\App\Http\Controllers\ColaboradorController::class, 'store'])->name('store');
             Route::put('/{id}', [\App\Http\Controllers\ColaboradorController::class, 'update'])->name('update');
             Route::get('/{id}/historico', [\App\Http\Controllers\ColaboradorController::class, 'historico'])->name('historico');
+            Route::post('/{id}/ignorar-erp', [\App\Http\Controllers\ColaboradorController::class, 'ignorarUserErp'])->name('ignorar_erp');
+            Route::post('/{id}/designorar-erp', [\App\Http\Controllers\ColaboradorController::class, 'designorarUserErp'])->name('designorar_erp');
         });
 
         // Módulo de Projetos / Obras
@@ -197,6 +202,7 @@ Route::middleware('auth')->group(function () {
         Route::post('/iniciar-node', [WhatsappController::class, 'iniciarServidorNode'])->name('iniciar_node');
         Route::post('/stop', [WhatsappController::class, 'pararServidorNode'])->name('parar_node');
         Route::post('/teste', [WhatsappController::class, 'enviarTeste'])->name('enviar_teste');
+        Route::post('/atualizar-wppconnect', [WhatsappController::class, 'atualizarWppConnect'])->name('atualizar_wppconnect');
     });
 
     // Profile (do Laravel Breeze, se mantido para o Colaborador/Usuário)

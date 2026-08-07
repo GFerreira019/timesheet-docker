@@ -23,6 +23,14 @@ return new class extends Migration
                 ->constrained('produtividade_colaborador')->cascadeOnDelete()
                 ->comment('Destinatário');
 
+            $table->foreignId('remetente_id')->nullable()
+                ->constrained('users')->nullOnDelete()
+                ->comment('Usuário que gerou a notificação');
+
+            $table->foreignId('apontamento_id')->nullable()
+                ->constrained('apontamentos')->nullOnDelete()
+                ->comment('ID do apontamento relacionado (opcional)');
+
             $table->string('titulo', 100)->comment('Título');
             $table->text('mensagem')->comment('Conteúdo da Mensagem');
 
@@ -32,9 +40,6 @@ return new class extends Migration
 
             $table->boolean('lida')->default(false)->comment('Lida?');
 
-            // data_criacao: auto_now_add no Django
-            $table->timestamp('data_criacao')->useCurrent();
-
             // Data de referência para alertas de conformidade
             $table->date('data_referencia')->nullable()
                 ->comment('Data de Referência (Para Alertas)');
@@ -43,8 +48,9 @@ return new class extends Migration
             $table->text('comentario_colaborador')->nullable()
                 ->comment('Resposta/Justificativa do Colaborador');
 
-            // timestamps() adicionado para updated_at também
-            $table->timestamp('updated_at')->nullable();
+            // timestamps() cria created_at e updated_at — compatível com PostgreSQL
+            // O Eloquent ordena por created_at por padrão (corrige SQLSTATE[42703])
+            $table->timestamps();
         });
     }
 

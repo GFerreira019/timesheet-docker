@@ -14,6 +14,7 @@ return new class extends Migration
     {
         Schema::create('produtividade_projeto', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('codigo_cliente_id')->nullable()->constrained('produtividade_codigocliente')->nullOnDelete();
             $table->string('codigo', 50)->unique()->nullable()->comment('Código da Obra');
             $table->string('nome', 255)->comment('Nome do Projeto');
             $table->boolean('ativo')->default(true);

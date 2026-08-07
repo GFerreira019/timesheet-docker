@@ -442,7 +442,8 @@ class ConformidadeController extends Controller
     {
         $colaboradores = Colaborador::ativos()
             ->whereHas('setorRelacionamento', fn($q) => $q->where('ativo', true))
-            ->whereNotNull('solides_id')
+            // solides_id foi movido para users — filtramos via relacionamento
+            ->whereHas('user', fn($q) => $q->whereNotNull('solides_id'))
             ->get();
 
         $dataInicio = now()->subDays(7)->format('Y-m-d');

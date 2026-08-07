@@ -144,4 +144,29 @@ class WhatsappController extends Controller
             return back()->withErrors(['erro' => 'Erro na API Node: ' . $e->getMessage()]);
         }
     }
+
+    /**
+     * Atualiza a biblioteca WPPConnect via npm no diretório do servidor Node.
+     */
+    public function atualizarWppConnect(Request $request)
+    {
+        try {
+            $pastaNode = base_path('zap-server');
+            
+            $result = \Illuminate\Support\Facades\Process::path($pastaNode)
+                ->run('npm install @wppconnect-team/wppconnect@latest');
+
+            if ($result->successful()) {
+                return redirect()->route('whatsapp.index')
+                    ->with('success', 'WPPConnect atualizado com sucesso! Reinicie o servidor Node para aplicar as alterações.');
+            } else {
+                return redirect()->route('whatsapp.index')
+                    ->withErrors(['erro' => 'Falha ao atualizar WPPConnect: ' . $result->errorOutput()]);
+            }
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Erro ao atualizar WPPConnect: ' . $e->getMessage());
+            return redirect()->route('whatsapp.index')
+                ->withErrors(['erro' => 'Exceção ao tentar atualizar WPPConnect: ' . $e->getMessage()]);
+        }
+    }
 }
