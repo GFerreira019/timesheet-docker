@@ -44,7 +44,6 @@ class Colaborador extends Model
     protected $fillable = [
         'id_colaborador',
         'nome_completo',
-        'nivel_acesso',
         'cargo',
         'cidade_moradia',
         'cidade_trabalho',

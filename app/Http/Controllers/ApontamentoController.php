@@ -406,8 +406,8 @@ class ApontamentoController extends Controller
     {
         $apontamento = Apontamento::findOrFail($id);
         $user        = auth()->user();
-        
-        if (AcessoHelper::isAcessoExpandido($user) && !AcessoHelper::isOwner($user)) {
+        // Segurança: só Admin ou Owner podem excluir de terceiros
+        if (!AcessoHelper::isAdmin($user) && !AcessoHelper::isOwner($user)) {
             if (!$user->colaborador || $apontamento->colaborador_id !== $user->colaborador->id) {
                 session()->flash('error', 'Acesso Negado: Você só pode excluir apontamentos em que você seja o colaborador.');
                 return redirect()->route('historico.index');

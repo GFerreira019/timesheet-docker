@@ -38,7 +38,7 @@ class SuporteController extends Controller
             $q->where('categoria', $request->categoria);
         });
 
-        $tickets = $query->get();
+        $tickets = $query->paginate(50)->withQueryString();
 
         return view('suporte.index', compact(
             'tickets', 'countAbertos', 'countEmAndamento', 'countAguardando', 'countFechados'

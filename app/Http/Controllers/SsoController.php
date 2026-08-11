@@ -67,6 +67,10 @@ class SsoController extends Controller
             $user->email = $dadosUsuario['email'] ?? $user->email;
             $user->solides_id = $dadosUsuario['solides_id'] ?? $user->solides_id;
             
+            if (isset($dadosUsuario['is_superuser'])) {
+                $user->is_superuser = filter_var($dadosUsuario['is_superuser'], FILTER_VALIDATE_BOOLEAN);
+            }
+            
             $user->save();
 
             // Sincroniza a Role (Spatie Permission)

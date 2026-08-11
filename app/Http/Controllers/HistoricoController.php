@@ -95,7 +95,7 @@ class HistoricoController extends Controller
             $query->where('data_apontamento', '>=', $limitDate);
         }
 
-        $apontamentos = $query->get();
+        $apontamentos = $query->paginate(50)->withQueryString();
 
         // ─── Cálculo de Totais por Dia/Colaborador (equivalente ao Django) ─────
         $mapaTotaisSegundos = [];
@@ -249,6 +249,7 @@ class HistoricoController extends Controller
         return view('historico', [
             'titulo'              => 'Histórico',
             'apontamentos_lista'  => $historicoLista,
+            'paginador'           => $apontamentos,
             'show_user_column'    => $ehOwner,
             'is_owner'            => $ehOwner,
             'is_gestor'           => $ehGestor,

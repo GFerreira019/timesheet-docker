@@ -32,7 +32,9 @@ use App\Livewire\Gerencial\LancamentosAvancado;
 // ==========================================
 // ROTAS PÚBLICAS DE SSO (Fora de Autenticação)
 // ==========================================
-Route::get('/auth/sso/callback', [\App\Http\Controllers\SsoController::class, 'callback'])->name('sso.callback');
+Route::get('/auth/sso/callback', [\App\Http\Controllers\SsoController::class, 'callback'])
+    ->middleware('throttle:6,1')
+    ->name('sso.callback');
 
 // Rota de entrada
 Route::get('/', function () {

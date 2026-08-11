@@ -34,7 +34,6 @@ class User extends Authenticatable
     protected $fillable = [
         'name',
         'email',
-        'is_superuser',
         'produtividade_colaborador_id',
         'id_usuario_erp',
         // ID da plataforma Sólides — centralizado aqui para ser a fonte de verdade

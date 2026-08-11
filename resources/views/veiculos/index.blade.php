@@ -121,6 +121,12 @@
             </tbody>
         </table>
     </div>
+    
+    @if($veiculos->hasPages())
+    <div class="mt-4">
+        {{ $veiculos->links() }}
+    </div>
+    @endif
 </div>
 
 {{-- MODAL NOVO VEÍCULO --}}

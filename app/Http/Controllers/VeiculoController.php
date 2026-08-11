@@ -17,7 +17,7 @@ class VeiculoController extends Controller
         }
 
         // Para listar todos, sem paginação (ou com, mas na view original era só $veiculos)
-        $veiculos = $query->orderBy('placa')->get();
+        $veiculos = $query->orderBy('placa')->paginate(50)->withQueryString();
 
         $sistemasRastreamento = Veiculo::whereNotNull('sistema_rastreamento')
                                     ->where('sistema_rastreamento', '!=', '')

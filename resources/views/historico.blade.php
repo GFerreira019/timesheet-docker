@@ -625,6 +625,11 @@
         </div>
         @endforelse
     </div>
+    @if($paginador->hasPages())
+    <div class="mt-4 px-4 pb-4 w-full">
+        {{ $paginador->links() }}
+    </div>
+    @endif
 </div>
 
 {{-- Modal de texto genérico (Observações / Detalhes) --}}
