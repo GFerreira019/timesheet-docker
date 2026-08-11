@@ -55,34 +55,26 @@ class SsoController extends Controller
             }
 
             // Just-In-Time Provisioning
-            $user = User::where('id_usuario_erp', $dadosUsuario['id_usuario'])->first();
+            $user = User::firstOrNew(['id_usuario_erp' => $dadosUsuario['id_usuario']]);
 
-            if (!$user) {
-                // Usuário não existe, vamos criar um
-                $user = User::create([
-                    'id_usuario_erp' => $dadosUsuario['id_usuario'],
-                    'name' => $dadosUsuario['nome'] ?? 'Sem Nome',
-                    'email' => $dadosUsuario['email'] ?? null,
-                    'password' => bcrypt(Str::random(24)),
-                ]);
+            // Atualiza o nome APENAS no primeiro acesso (quando o ID ainda não existe)
+            if (!$user->exists) {
+                $user->name = $dadosUsuario['nome'] ?? 'Sem Nome';
+                $user->password = bcrypt(Str::random(24));
+            }
+
+            // Dados que devem ser atualizados em TODO login
+            $user->email = $dadosUsuario['email'] ?? $user->email;
+            $user->solides_id = $dadosUsuario['solides_id'] ?? $user->solides_id;
+            
+            $user->save();
+
+            // Sincroniza a Role (Spatie Permission)
+            if (!empty($dadosUsuario['nivel_acesso'])) {
+                $user->syncRoles([$dadosUsuario['nivel_acesso']]);
+            } elseif ($user->roles()->count() === 0) {
+                // Fallback caso não venha nivel_acesso e o usuário não tenha nenhuma role
                 $user->assignRole('OPERACIONAL');
-            } else {
-                // Usuário existe, verifica se tem role
-                if ($user->roles()->count() === 0) {
-                    $user->assignRole('OPERACIONAL');
-                }
-                
-                // Opcional: Atualiza os dados básicos se eles mudaram
-                $updateData = [];
-                if (isset($dadosUsuario['nome']) && $user->name !== $dadosUsuario['nome']) {
-                    $updateData['name'] = $dadosUsuario['nome'];
-                }
-                if (isset($dadosUsuario['email']) && $user->email !== $dadosUsuario['email']) {
-                    $updateData['email'] = $dadosUsuario['email'];
-                }
-                if (!empty($updateData)) {
-                    $user->update($updateData);
-                }
             }
 
             // Loga o usuário no Laravel

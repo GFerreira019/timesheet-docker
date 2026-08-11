@@ -165,8 +165,8 @@
                     </div>
 
                     <div>
-                        <h1 class="text-lg font-bold text-white">Planejamento</h1>
-                        <p class="text-xs theme-text-muted">Gestão de Projetos</p>
+                        <h1 class="text-lg font-bold text-white">Timesheet</h1>
+                        <p class="text-xs theme-text-muted">Apontamentos</p>
                     </div>
                 </div>
             </div>
@@ -183,17 +183,6 @@
                 <div class="flex items-center gap-4 shrink-0 justify-end">
                     <x-user-info />
                 </div>
-
-                {{-- Logout --}}
-                <form method="POST" action="{{ route('logout') }}" class="m-0">
-                    @csrf
-                    <button type="submit"
-                            class="p-2 rounded-lg hover:bg-red-500/20 text-slate-400 hover:text-red-400 transition"
-                            title="Sair">
-                        <i class="fas fa-sign-out-alt text-lg text-white"></i>
-                    </button>
-                </form>
-
             </div>
         </div>
     </div>
@@ -209,11 +198,11 @@
 
         <h1 class="text-xl sm:text-3xl lg:text-4xl font-bold mb-2 sm:mb-4 text-white">
             <i class="fas fa-project-diagram text-rose-500 mr-3"></i>
-            Módulo <span class="text-rose-500">Planejamento</span>
+            Gestão de <span class="text-rose-500">Timesheet</span>
         </h1>
 
         <p class="text-sm sm:text-lg lg:text-xl text-slate-400">
-            Gestão de projetos e planejamento
+            Apontamento de horas em projetos
         </p>
 
     </div>

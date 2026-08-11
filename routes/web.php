@@ -89,6 +89,12 @@ Route::middleware('auth')->group(function () {
         Route::post('/{id}/aprovar-ajuste', [ApontamentoController::class, 'aprovarAjuste'])
             ->middleware('role:COORDENADOR|ADMIN') // Requer perfil de Coordenador ou Admin via Spatie
             ->name('aprovar_ajuste');
+            
+        Route::get('/comparativo-diario', [ApontamentoController::class, 'comparativoDiario'])
+            ->name('comparativo.diario');
+            
+        Route::get('/verificar-plantao', [ApontamentoController::class, 'mockVerificarPlantao'])
+            ->name('mock.plantao');
     });
 
     // Rotas de API consumidas pelo Frontend (AJAX do Cronômetro)

@@ -31,6 +31,11 @@
 </x-page-header>
 
 <div class="flex justify-end gap-2 sm:gap-3 pb-2">
+    <a href="{{ route('apontamentos.comparativo.diario', ['user_id' => $apontamento->colaborador->user_id ?? $apontamento->colaborador_id, 'data' => \Carbon\Carbon::parse($apontamento->data_apontamento)->format('Y-m-d'), 'apontamento_id' => $apontamento->id]) }}" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-1.5 px-4 rounded-full flex items-center justify-center gap-2 transition shadow-lg text-xs whitespace-nowrap">
+        <i class="fas fa-balance-scale"></i>
+        <span class="hidden sm:inline">Comparativo Diário</span>
+    </a>
+    
     @if($apontamento->status_aprovacao === 'EM_ANALISE')
     <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] sm:text-xs font-bold bg-yellow-500/20 text-yellow-500 border border-yellow-500/30">
         <i class="fas fa-circle text-[8px]"></i>

@@ -82,8 +82,31 @@ class ApontamentoRequest extends FormRequest
             'veiculo_id'              => ['nullable', 'integer', 'exists:produtividade_veiculo,id'],
             'veiculo_manual_modelo'   => ['nullable', 'string', 'max:100'],
             'veiculo_manual_placa'    => ['nullable', 'string', 'max:20'],
-            'registrar_veiculo'       => ['nullable', 'boolean'],
-            'veiculo_selecao'         => ['nullable', 'string'],
+            'registrar_veiculo'       => [
+                \Illuminate\Validation\Rule::requiredIf(function () {
+                    $local = $this->input('local_execucao');
+                    if ($local === 'EXTERNO') return true;
+                    if ($local === 'INTERNO' && $this->input('centro_custo_id')) {
+                        $cc = \App\Models\CentroCusto::find($this->input('centro_custo_id'));
+                        return $cc && mb_strtoupper($cc->nome, 'UTF-8') === 'REVISAO DE VEICULO';
+                    }
+                    return false;
+                }),
+                'boolean'
+            ],
+            'veiculo_selecao'         => [
+                \Illuminate\Validation\Rule::requiredIf(function () {
+                    $local = $this->input('local_execucao');
+                    if ($local === 'EXTERNO') return true;
+                    if ($local === 'INTERNO' && $this->input('centro_custo_id')) {
+                        $cc = \App\Models\CentroCusto::find($this->input('centro_custo_id'));
+                        return $cc && mb_strtoupper($cc->nome, 'UTF-8') === 'REVISAO DE VEICULO';
+                    }
+                    return false;
+                }),
+                'nullable',
+                'string'
+            ],
 
             // Equipe
             'registrar_auxiliar'      => ['nullable', 'boolean'],

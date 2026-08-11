@@ -114,7 +114,7 @@
         <div class="{{ $atividade_em_andamento ? 'opacity-50 pointer-events-none' : '' }}">
             <label class="relative inline-flex items-center cursor-pointer w-28 h-8 rounded-full">
                 <!-- 1. INPUT (O "Chefe" que controla os estados) -->
-                <input type="checkbox" id="mode-toggle" class="sr-only peer" {{ $atividade_em_andamento ? 'checked disabled' : '' }}>
+                <input type="checkbox" id="mode-toggle" class="sr-only peer" {{ $atividade_em_andamento ? 'checked disabled' : 'checked' }}>
                 
                 <!-- 2. TRILHA DO FUNDO (Irmão 1) -->
                 <div class="absolute inset-0 bg-slate-800 border border-slate-700 rounded-full shadow-inner peer-focus:ring-2 peer-focus:ring-indigo-500/50 transition-colors peer-checked:bg-slate-800"></div>
@@ -146,10 +146,12 @@
         @endif
         
         <div class="flex justify-end gap-4">
+            @role('ADMIN')
             <button type="button" onclick="openTimelineModal()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 px-4 rounded-lg flex items-center justify-center gap-2 transition shadow-lg shadow-emerald-900/20 text-sm whitespace-nowrap">
                 <i class="fas fa-clock"></i>
                 <span class="hidden sm:inline">Comparativo Diário</span>
             </button>
+            @endrole
             <a href="{{ route('historico.index') }}" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 px-4 rounded-lg flex items-center justify-center gap-2 transition shadow-lg shadow-indigo-900/20 text-sm whitespace-nowrap">
                 <i class="fas fa-list"></i>
                 <span class="hidden sm:inline">Histórico</span>
@@ -233,6 +235,7 @@
                         @foreach($timeline_data as $item)
                             @php
                                 $has_ts = count($item['timesheet_data']) > 0;
+                                $isEmbaixo = $loop->even;
                             @endphp
                             
                             <div class="relative z-10 flex items-center shrink-0 {{ !$has_ts ? 'w-32 justify-center' : 'mx-2' }}">
@@ -253,8 +256,9 @@
                                         {{-- Bolinha com contraste (miolo cinza, borda escura, sombra azul) para não sumir na barra --}}
                                         <div class="w-4 h-4 bg-slate-300 rounded-full border-[3px] border-slate-950 shadow-[0_0_0_3px_#3b82f6] z-20 relative"></div>
                                         
-                                        <div class="absolute top-full mt-4 flex flex-col items-center">
-                                            <span class="text-[#3b82f6] font-bold text-xl tracking-wider">{{ $item['hora'] }}</span>
+                                        <div class="absolute flex items-center {{ $isEmbaixo ? 'top-full mt-1 flex-col' : 'bottom-full mb-1 flex-col-reverse' }}">
+                                            <div class="h-8 w-px border-l border-dashed border-[#3b82f6]"></div>
+                                            <span class="text-[#3b82f6] font-bold text-xl tracking-wider {{ $isEmbaixo ? 'mt-1' : 'mb-1' }}">{{ $item['hora'] }}</span>
                                         </div>
                                     </div>
                                 @endif
@@ -285,8 +289,9 @@
                                         @if(!$is_connected_next)
                                             <div class="relative flex flex-col items-center z-20">
                                                 <div class="w-4 h-4 bg-[#3b82f6] rounded-full border-[3px] border-[#3b82f6] shadow-[0_0_0_2px_#3b82f6]"></div>
-                                                <div class="absolute top-full mt-4 flex flex-col items-center">
-                                                    <span class="text-[#3b82f6] font-bold text-xl tracking-wider">{{ $ts['hora_fim'] }}</span>
+                                                <div class="absolute flex items-center {{ $isEmbaixo ? 'top-full mt-1 flex-col' : 'bottom-full mb-1 flex-col-reverse' }}">
+                                                    <div class="h-8 w-px border-l border-dashed border-[#3b82f6]"></div>
+                                                    <span class="text-[#3b82f6] font-bold text-xl tracking-wider {{ $isEmbaixo ? 'mt-1' : 'mb-1' }}">{{ $ts['hora_fim'] }}</span>
                                                 </div>
                                             </div>
                                         @endif
@@ -414,16 +419,16 @@
                     <div class="flex items-center gap-3">
                         <input type="checkbox" id="id_registrar_veiculo" name="registrar_veiculo" value="1"
                                class="w-5 h-5 accent-emerald-500 cursor-pointer"
-                               {{ old('registrar_veiculo', $initial_values['registrar_veiculo'] ?? false) ? 'checked' : '' }}>
+                               {{ old('registrar_veiculo', $initial_values['registrar_veiculo'] ?? ($ultimoVeiculo ? true : false)) ? 'checked' : '' }}>
                         <label for="id_registrar_veiculo" class="font-bold text-sm cursor-pointer select-none">Adicionar veículo</label>
                     </div>
-                    <div id="veiculo-container" class="{{ old('registrar_veiculo', $initial_values['registrar_veiculo'] ?? false) ? '' : 'hidden' }} mt-3 space-y-3">
+                    <div id="veiculo-container" class="{{ old('registrar_veiculo', $initial_values['registrar_veiculo'] ?? ($ultimoVeiculo ? true : false)) ? '' : 'hidden' }} mt-3 space-y-3">
                         <div>
                             <label class="form-label">Selecione o Veículo</label>
                             <select id="id_veiculo_selecao" name="veiculo_selecao" class="form-input select2-enable">
                                 <option value="">Nenhum</option>
                                 @foreach($veiculos as $v)
-                                <option value="{{ $v->id }}" {{ old('veiculo_selecao', $initial_values['veiculo_id'] ?? '') == $v->id ? 'selected' : '' }}>
+                                <option value="{{ $v->id }}" {{ old('veiculo_selecao', $initial_values['veiculo_id'] ?? $ultimoVeiculo ?? '') == $v->id ? 'selected' : '' }}>
                                     {{ $v }} {{-- __toString() --}}
                                 </option>
                                 @endforeach
@@ -550,16 +555,16 @@
                     <div class="flex items-center gap-3">
                         <input type="checkbox" id="id_registrar_auxiliar" name="registrar_auxiliar" value="1"
                                class="w-5 h-5 accent-indigo-500 cursor-pointer"
-                               {{ old('registrar_auxiliar', $initial_values['tem_auxiliar'] ?? false) ? 'checked' : '' }}>
+                               {{ old('registrar_auxiliar', $initial_values['tem_auxiliar'] ?? ($ultimoAuxiliar ? true : false)) ? 'checked' : '' }}>
                         <label for="id_registrar_auxiliar" class="font-bold text-sm text-indigo-300 cursor-pointer select-none">Adicionar Auxiliares?</label>
                     </div>
-                    <div class="aux-wrapper {{ old('registrar_auxiliar', $initial_values['tem_auxiliar'] ?? false) ? '' : 'hidden' }} space-y-3 mt-3">
+                    <div class="aux-wrapper {{ old('registrar_auxiliar', $initial_values['tem_auxiliar'] ?? ($ultimoAuxiliar ? true : false)) ? '' : 'hidden' }} space-y-3 mt-3">
                         <div>
                             <label class="form-label">Auxiliar Principal</label>
                             <select id="id_auxiliar_selecao" name="auxiliar_id" class="form-input select2-enable">
                                 <option value="">Nenhum</option>
                                 @foreach($auxiliares as $a)
-                                <option value="{{ $a->id }}" {{ old('auxiliar_id', $initial_values['auxiliar_id'] ?? '') == $a->id ? 'selected' : '' }}>
+                                <option value="{{ $a->id }}" {{ old('auxiliar_id', $initial_values['auxiliar_id'] ?? $ultimoAuxiliar ?? '') == $a->id ? 'selected' : '' }}>
                                     {{ $a->nome_exibicao }} ({{ $a->cargo }})
                                 </option>
                                 @endforeach
@@ -578,11 +583,15 @@
                     <div class="flex flex-col gap-1">
                         <div class="flex items-center gap-2">
                             <input type="checkbox" id="id_em_plantao" name="em_plantao" value="1"
-                                   class="w-5 h-5 accent-purple-500 cursor-pointer"
+                                   class="w-5 h-5 accent-purple-500 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                                   @if(!(isset($podePlantao) && $podePlantao)) disabled @endif
                                    {{ old('em_plantao', $initial_values['em_plantao'] ?? false) ? 'checked' : '' }}>
                             <label for="id_em_plantao" class="text-sm text-gray-300 cursor-pointer select-none hover:text-white">Atividade em Plantão?</label>
                         </div>
-                        <p id="data-plantao-feedback" class="text-xs text-red-400 hidden ml-6">
+                        <small id="plantao-lock-msg" class="text-slate-500 text-[10px] ml-7 items-center gap-1 {{ (isset($podePlantao) && $podePlantao) ? 'hidden' : 'flex block' }}">
+                            <i class="fas fa-lock text-slate-400"></i> Disponível apenas para horários de plantão escalado (17h às 08h).
+                        </small>
+                        <p id="data-plantao-feedback" class="text-xs text-red-400 hidden ml-7">
                             Data Plantão: <span id="data-plantao-display" class="font-bold">--/--/--</span>
                         </p>
                     </div>
@@ -819,7 +828,9 @@ if (modeToggle) {
         }
     }
     modeToggle.addEventListener('change', aplicarModo);
-    aplicarModo(); // aplica no carregamento
+    document.addEventListener('DOMContentLoaded', function() {
+        modeToggle.dispatchEvent(new Event('change'));
+    });
 }
 
 // ========================================================================
@@ -1362,7 +1373,9 @@ function renderPicker() {
         if (isClickable) {
             el.onclick = function() {
                 if (activeDateInputId) {
-                    document.getElementById(activeDateInputId).value = formatBackend;
+                    const inputTarget = document.getElementById(activeDateInputId);
+                    inputTarget.value = formatBackend;
+                    inputTarget.dispatchEvent(new Event('change', { bubbles: true }));
                     
                     if (activeDateInputId === 'id_data_plantao') { 
                         document.getElementById('data-plantao-display').textContent = formatDisplay; 
@@ -1737,5 +1750,167 @@ function closeTimelineModal() {
         }).catch(err => console.log(err));
     }
 }
+
+// ========================================================================
+// Regra de Obrigatoriedade de Veículo
+// ========================================================================
+function aplicarRegraVeiculoObrigatorio() {
+    const localSelect = document.getElementById('select-local-trabalho');
+    const setorSelect = document.getElementById('id_centro_custo');
+    const btnRegistrarVeiculo = document.getElementById('id_registrar_veiculo');
+    
+    if (!localSelect || !setorSelect || !btnRegistrarVeiculo) return;
+
+    const labelRegistrarVeiculo = btnRegistrarVeiculo.nextElementSibling;
+    const veiculoContainer = document.getElementById('veiculo-container');
+    const veiculoSelecao = document.getElementById('id_veiculo_selecao');
+    
+    const localValue = localSelect.value;
+    const setorText = setorSelect.options[setorSelect.selectedIndex]?.text.trim() || '';
+
+    let obrigatorio = false;
+
+    if (localValue === 'EXTERNO') {
+        obrigatorio = true;
+    } else if (localValue === 'INTERNO' && setorText.toUpperCase() === 'REVISAO DE VEICULO') {
+        obrigatorio = true;
+    }
+
+    if (obrigatorio) {
+        // Marca o checkbox e mostra o select
+        btnRegistrarVeiculo.checked = true;
+        btnRegistrarVeiculo.dispatchEvent(new Event('change'));
+        
+        // Impede que o usuário desmarque o checkbox
+        btnRegistrarVeiculo.onclick = function(e) { e.preventDefault(); };
+        btnRegistrarVeiculo.classList.add('opacity-50', 'cursor-not-allowed');
+        if (labelRegistrarVeiculo) {
+            labelRegistrarVeiculo.classList.remove('cursor-pointer');
+            labelRegistrarVeiculo.classList.add('cursor-not-allowed');
+        }
+
+        // Adiciona asterisco vermelho
+        if (labelRegistrarVeiculo && !labelRegistrarVeiculo.querySelector('.text-red-400')) {
+            labelRegistrarVeiculo.innerHTML += ' <span class="text-red-400">*</span>';
+        }
+        
+        // Torna a seleção obrigatória
+        if (veiculoSelecao) {
+            veiculoSelecao.setAttribute('required', 'required');
+            // Remove a opção "Nenhum" se for obrigatório, ou deixa como value="" para barrar no validate nativo
+        }
+        
+    } else {
+        // Remove travas
+        btnRegistrarVeiculo.onclick = null;
+        btnRegistrarVeiculo.classList.remove('opacity-50', 'cursor-not-allowed');
+        if (labelRegistrarVeiculo) {
+            labelRegistrarVeiculo.classList.add('cursor-pointer');
+            labelRegistrarVeiculo.classList.remove('cursor-not-allowed');
+            
+            const asterisk = labelRegistrarVeiculo.querySelector('.text-red-400');
+            if (asterisk) asterisk.remove();
+        }
+
+        // Remove required da seleção
+        if (veiculoSelecao) {
+            veiculoSelecao.removeAttribute('required');
+        }
+    }
+}
+
+// Iniciar a regra nos listeners
+document.addEventListener('DOMContentLoaded', function() {
+    const localSelectElem = document.getElementById('select-local-trabalho');
+    const setorSelectElem = document.getElementById('id_centro_custo');
+
+    if (localSelectElem) {
+        localSelectElem.addEventListener('change', aplicarRegraVeiculoObrigatorio);
+    }
+
+    if (setorSelectElem) {
+        // Tratar evento do Select2, que não dispara o change nativo facilmente às vezes
+        $('#id_centro_custo').on('change', aplicarRegraVeiculoObrigatorio);
+        setorSelectElem.addEventListener('change', aplicarRegraVeiculoObrigatorio);
+    }
+
+    // ========================================================================
+    // Verificação AJAX de Plantão
+    // ========================================================================
+    const inputData = document.querySelector('input[name="data_apontamento"]') || document.querySelector('#id_data_apontamento');
+    const inputHora = document.querySelector('input[name="hora_inicio"]') || document.querySelector('#id_hora_inicio');
+    const checkboxPlantao = document.querySelector('input[name="em_plantao"]') || document.querySelector('#id_em_plantao');
+    const aviso = document.querySelector('#plantao-lock-msg');
+
+    if (!inputData || !inputHora) {
+        console.error("ERRO: Campos de Data ou Hora não encontrados pelo JavaScript! Verifique os seletores.");
+    }
+
+    async function verificarPlantaoAjax() {
+        if (!checkboxPlantao) return;
+
+        // Bloqueia o checkbox enquanto vai consultar a API
+        checkboxPlantao.disabled = true;
+
+        const dataVal = inputData ? inputData.value : '';
+        const horaVal = inputHora ? inputHora.value : '';
+        
+        console.log(`Verificando plantão para Data: ${dataVal || 'now()'}, Hora: ${horaVal || 'now()'}`);
+
+        try {
+            const response = await fetch(`{{ route('apontamentos.mock.plantao') }}?data=${dataVal}&hora=${horaVal}`);
+            const data = await response.json();
+            
+            if (data.pode_plantao) {
+                checkboxPlantao.disabled = false;
+                if (aviso) {
+                    aviso.style.display = 'none';
+                    aviso.classList.add('hidden');
+                }
+                console.log('Plantão liberado!');
+            } else {
+                checkboxPlantao.disabled = true;
+                if (checkboxPlantao.checked) {
+                    checkboxPlantao.checked = false;
+                    checkboxPlantao.dispatchEvent(new Event('change'));
+                }
+                if (aviso) {
+                    aviso.style.display = 'block';
+                    aviso.classList.remove('hidden');
+                }
+                console.log('Plantão bloqueado!', data.motivo ? `- ${data.motivo}` : '');
+            }
+        } catch (error) {
+            console.error("Erro ao verificar plantão:", error);
+        }
+    }
+
+    // Array com os eventos que queremos escutar
+    const eventos = ['change', 'input', 'blur'];
+
+    // Aplica os eventos no campo de Data
+    if (inputData) {
+        eventos.forEach(evento => {
+            inputData.addEventListener(evento, verificarPlantaoAjax);
+        });
+    }
+
+    // Aplica os eventos no campo de Hora
+    if (inputHora) {
+        eventos.forEach(evento => {
+            inputHora.addEventListener(evento, verificarPlantaoAjax);
+        });
+    }
+
+    // Intervalo de 5 min
+    setInterval(() => {
+        verificarPlantaoAjax();
+    }, 5 * 60 * 1000);
+
+    // Chamada inicial
+    verificarPlantaoAjax();
+
+    aplicarRegraVeiculoObrigatorio();
+});
 </script>
 @endpush

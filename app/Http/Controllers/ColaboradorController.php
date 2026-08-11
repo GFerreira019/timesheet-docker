@@ -79,7 +79,6 @@ class ColaboradorController extends Controller
     {
         $validated = $request->validate([
             'nome_completo'       => 'sometimes|nullable|string|max:255',
-            'role'                => ['sometimes', 'nullable', 'string', 'exists:roles,name'], // Fase de Transição: substituiu nivel_acesso
             'telefone'            => 'sometimes|nullable|string|max:20',
             'cargo'               => 'sometimes|nullable|string|max:255',
             'setor_id'            => 'sometimes|nullable|exists:setores,id',
@@ -103,10 +102,6 @@ class ColaboradorController extends Controller
 
         $setoresVinculados = $request->input('setores_vinculados', []);
         unset($dados['setores_vinculados']);
-
-        // Remove 'role' do array de dados do colaborador (não é coluna direta nesta fase)
-        $roleParaSincronizar = $dados['role'] ?? null;
-        unset($dados['role']);
 
         // Concatena a UF na Cidade de Moradia
         if (!empty($dados['cidade_moradia']) && !empty($dados['uf_moradia'])) {
@@ -135,16 +130,7 @@ class ColaboradorController extends Controller
         // Sincroniza os setores vinculados
         $colaborador->setoresVinculados()->sync($setoresVinculados);
 
-        // --- FASE DE TRANSIÇÃO: Sincronização Spatie + Espelhamento Temporário ---
-        // O campo nivel_acesso ainda existe para compatibilidade durante a migração de 30 dias.
-        if ($colaborador->user && $roleParaSincronizar) {
-            // 1. Atualiza a role autoritativa no Spatie (fonte de verdade)
-            $colaborador->user->syncRoles([$roleParaSincronizar]);
 
-            // 2. Espelha no campo legado sem disparar eventos Eloquent (evita loop com Observer)
-            $colaborador->updateQuietly(['nivel_acesso' => $roleParaSincronizar]);
-        }
-        // --- FIM DA FASE DE TRANSIÇÃO ---
 
         if ($request->wantsJson()) {
             return response()->json(['success' => true, 'message' => 'Colaborador atualizado com sucesso.']);

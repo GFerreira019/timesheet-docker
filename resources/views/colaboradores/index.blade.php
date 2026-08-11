@@ -640,7 +640,7 @@
 
                     <!-- Nivel Acesso -->
                     <div class="relative group">
-                        <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Nível de Acesso (Timesheet) *</label>
+                        <label class="block text-xs font-medium mb-1 text-slate-400">Nível de Acesso (Timesheet) *</label>
 
                         {{-- Alerta para colaboradores sem usuário de sistema vinculado --}}
                         <div id="aviso-sem-usuario" class="hidden mb-2 p-2 rounded-lg border border-amber-500/40 bg-amber-500/10 text-amber-400 text-xs flex items-center gap-2">
@@ -648,14 +648,14 @@
                             <span>Nível de acesso só pode ser alterado para colaboradores com usuário de sistema vinculado.</span>
                         </div>
 
-                        <select name="role" id="select-nivel-ficha" disabled required class="w-full bg-slate-900/50 border border-slate-700 text-slate-400 rounded-lg p-3 pr-10 focus:ring-2 focus:ring-indigo-500 outline-none transition-all appearance-none">
+                        <select name="role" id="select-nivel-ficha" disabled class="w-full bg-slate-900/50 border border-slate-700 text-slate-500 rounded-lg p-3 outline-none cursor-not-allowed appearance-none">
                             @foreach($roles as $role)
                                 <option value="{{ $role->name }}">{{ $role->name }}</option>
                             @endforeach
                         </select>
-                        <button type="button" id="btn-editar-nivel" onclick="desbloquearCampo(this)" class="absolute right-3 top-[52px] text-slate-500 hover:text-indigo-400 transition-colors opacity-50 hover:opacity-100" title="Editar informação">
-                            <i class="fas fa-pencil-alt"></i>
-                        </button>
+                        <small class="text-slate-500 text-[10px] mt-1 block flex items-center gap-1">
+                            <i class="fas fa-lock text-slate-400"></i> Campo gerenciado pelo ATGB Connect.
+                        </small>
                         <div id="container-btn-vincular-ficha" class="hidden mt-2">
                             <button type="button" onclick="abrirModalVincularSetores('ficha')" class="w-full px-4 py-2 bg-slate-700 hover:bg-slate-600 text-slate-300 font-bold rounded-lg transition-colors border border-slate-600 flex items-center justify-center gap-2 text-xs">
                                 <i class="fas fa-network-wired text-indigo-400"></i> Vincular Setores <span id="badge-setores-ficha" class="bg-indigo-600 text-white rounded-full px-2 py-0.5 ml-1 hidden">0</span>

@@ -18,6 +18,7 @@ use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\View\View;
 use Ramsey\Uuid\Uuid;
 
@@ -93,6 +94,12 @@ class ApontamentoController extends Controller
             ];
         }
 
+        $ultimoApontamento = $colab ? Apontamento::where('colaborador_id', $colab->id)->latest('id')->first() : null;
+        $ultimoVeiculo = $ultimoApontamento ? $ultimoApontamento->veiculo_id : null;
+        $ultimoAuxiliar = $ultimoApontamento ? $ultimoApontamento->auxiliar_id : null;
+
+        $podePlantao = $this->verificarElegibilidadePlantao($user->id, now());
+
         return view('apontamentos.form', [
             'titulo'                   => 'Timesheet',
             'subtitulo'                => 'Preencha os dados de horário e local de trabalho.',
@@ -115,6 +122,9 @@ class ApontamentoController extends Controller
                                             ->whereHas('setorRelacionamento', fn($q) => $q->where('ativo', true))
                                             ->whereIn('cargo', ['AUXILIAR TECNICO', 'OFICIAL DE SISTEMAS'])
                                             ->orderBy('nome_completo')->get(),
+            'ultimoVeiculo'            => $ultimoVeiculo,
+            'ultimoAuxiliar'           => $ultimoAuxiliar,
+            'podePlantao'              => $podePlantao,
         ]);
     }
 
@@ -223,6 +233,9 @@ class ApontamentoController extends Controller
             'latitude'               => $apontamento->latitude,
             'longitude'              => $apontamento->longitude,
         ];
+
+        $dataHoraEdicao = Carbon::parse($apontamento->data_apontamento . ' ' . ($apontamento->hora_inicio ?: '00:00:00'));
+        $podePlantao = $this->verificarElegibilidadePlantao($user->id, $dataHoraEdicao);
 
         return view('apontamentos.form', [
             'titulo'                   => 'Editar Apontamento',
@@ -847,18 +860,18 @@ class ApontamentoController extends Controller
     /**
      * Retorna os dados da timeline mesclados (Solides mock + Timesheet reais de hoje)
      */
-    private function getTimelineData(?Colaborador $colab): array
+    private function getTimelineData(?Colaborador $colab, ?string $data_referencia = null): array
     {
         if (!$colab) {
             return [];
         }
 
         $timeline = [];
-        $hojeCarbon = Carbon::today();
+        $hojeCarbon = $data_referencia ? Carbon::parse($data_referencia) : Carbon::today();
         $hoje = $hojeCarbon->format('Y-m-d');
 
         // Sincronização Silenciosa JIT (Limita chamadas à API da Sólides a cada 15 min)
-        $dataHoje = now()->format('Y-m-d');
+        $dataHoje = $hoje;
         $cacheKey = "sync_solides_{$colab->id}_{$dataHoje}";
 
         // Verifica se o colaborador tem o ID do Sólides configurado ANTES de entrar no cache
@@ -902,7 +915,7 @@ class ApontamentoController extends Controller
         }
 
         // 2. Fetch Timesheet Data for today
-        $apontamentosHoje = Apontamento::with(['projeto', 'codigoCliente'])
+        $apontamentosHoje = Apontamento::with(['projeto', 'codigoCliente', 'centroCusto'])
             ->where('colaborador_id', $colab->id)
             ->whereDate('data_apontamento', $hoje)
             ->whereNotNull('hora_inicio')
@@ -914,10 +927,25 @@ class ApontamentoController extends Controller
             $horaTermino = $ap->hora_termino ? substr($ap->hora_termino, 0, 5) : '--:--';
             
             $codigo = 'S/ COD';
-            if ($ap->projeto) {
-                $codigo = $ap->projeto->nome;
-            } elseif ($ap->codigoCliente) {
-                $codigo = $ap->codigoCliente->nome;
+            
+            if ($ap->centroCusto) {
+                if ($ap->centroCusto->permite_alocacao) {
+                    if ($ap->projeto) {
+                        $codigo = $ap->projeto->nome;
+                    } elseif ($ap->codigoCliente) {
+                        $codigo = $ap->codigoCliente->nome;
+                    } else {
+                        $codigo = $ap->centroCusto->nome;
+                    }
+                } else {
+                    $codigo = $ap->centroCusto->nome;
+                }
+            } else {
+                if ($ap->projeto) {
+                    $codigo = $ap->projeto->nome;
+                } elseif ($ap->codigoCliente) {
+                    $codigo = $ap->codigoCliente->nome;
+                }
             }
 
             $timeline[] = [
@@ -943,5 +971,142 @@ class ApontamentoController extends Controller
         })->sortBy('hora')->values()->toArray();
 
         return $grouped_timeline;
+    }
+
+    /**
+     * Tela dedicada do Comparativo Diário para Gerentes/Admins/Auditores
+     */
+    public function comparativoDiario(Request $request): \Illuminate\View\View
+    {
+        $user = auth()->user();
+        
+        $targetUserId = $request->input('user_id', $user->id);
+        
+        if ($targetUserId != $user->id) {
+            // Regra de Segurança: Só ADMIN ou GESTOR podem ver apontamentos de terceiros aqui
+            if (!\App\Helpers\AcessoHelper::isAdmin($user) && !\App\Helpers\AcessoHelper::isGerente($user) && !\App\Helpers\AcessoHelper::isCoordenador($user)) {
+                $targetUserId = $user->id;
+            }
+        }
+        
+        $targetUser = \App\Models\User::find($targetUserId);
+        $colab = $targetUser ? $targetUser->colaborador : null;
+        
+        // Se user_id for null, usa o do colaborador em si (caso a view analise.blade.php envie colaborador_id)
+        if (!$targetUser) {
+             $colab = \App\Models\Colaborador::find($request->input('user_id'));
+             if ($colab) {
+                 $targetUser = $colab->user;
+             }
+        }
+
+        $data = $request->input('data', date('Y-m-d'));
+        
+        $timeline_data = $this->getTimelineData($colab, $data);
+        
+        $apontamento_id = $request->input('apontamento_id');
+        $backUrl = $apontamento_id ? route('aprovacoes.analise', ['id' => $apontamento_id]) : url()->previous();
+        
+        return view('apontamentos.comparativo', [
+            'titulo' => 'Comparativo Diário',
+            'subtitulo' => 'Sólides x Timesheet',
+            'timeline_data' => $timeline_data,
+            'colaborador' => $colab,
+            'data_comparativo' => $data,
+            'backUrl' => $backUrl,
+        ]);
+    }
+
+    /**
+     * Verifica se o colaborador tem permissão para usar o checkbox de "Plantão"
+     * baseado na escala do ERP. A janela de plantão é das 17:00 do dia D até as 08:00 do dia D+1.
+     */
+    public function verificarElegibilidadePlantao($userId, $dataHoraApontamento): bool
+    {
+        $dataApontamento = Carbon::parse($dataHoraApontamento);
+        
+        // Se for antes das 08:00, o plantão pertence ao dia anterior
+        if ($dataApontamento->hour < 8) {
+            $dataApenas = $dataApontamento->copy()->subDay()->format('Y-m-d');
+        } else {
+            $dataApenas = $dataApontamento->format('Y-m-d');
+        }
+        
+        $cacheKey = "escala_plantao_user_{$userId}_date_{$dataApenas}";
+
+        $escalaErp = \Illuminate\Support\Facades\Cache::remember($cacheKey, now()->addHour(), function () use ($userId, $dataApenas) {
+            // Chamada real para a API do ERP (Aguardando endpoint oficial)
+            /*
+            $response = \Illuminate\Support\Facades\Http::get("https://api.erp.com/escala-plantao", [
+                'user_id' => $userId,
+                'data' => $dataApenas
+            ]);
+            
+            if ($response->successful()) {
+                return [
+                    'escalado' => $response->json('escalado'),
+                    'data_plantao' => $response->json('data_plantao')
+                ];
+            }
+            */
+
+            // Retorno padrão falso para Produção enquanto a API não é lançada
+            return [
+                'escalado' => false,
+                'data_plantao' => null
+            ];
+        });
+        
+        if (empty($escalaErp['escalado'])) {
+            return false;
+        }
+        
+        // Monta a janela de tempo permitida baseada na data do plantão
+        $dataPlantao = Carbon::parse($escalaErp['data_plantao']);
+        $inicioJanela = $dataPlantao->copy()->setTime(17, 0, 0);
+        $fimJanela = $dataPlantao->copy()->addDay()->setTime(8, 0, 0);
+        
+        \Illuminate\Support\Facades\Log::info("Testando Plantão - User: {$userId}", [
+            'Data Requisicao' => $dataApontamento->format('Y-m-d H:i:s'),
+            'Data Base Calculada' => $dataApenas,
+            'Escalado?' => $escalaErp['escalado'],
+            'Janela Inicio' => $inicioJanela->format('Y-m-d H:i:s'),
+            'Janela Fim' => $fimJanela->format('Y-m-d H:i:s'),
+            'Resultado (Between)' => $dataApontamento->between($inicioJanela, $fimJanela)
+        ]);
+        
+        // Verifica se a hora do apontamento está dentro da janela
+        return $dataApontamento->between($inicioJanela, $fimJanela);
+    }
+
+    /**
+     * Rota AJAX (mock) para verificar a elegibilidade de plantão via frontend.
+     */
+    public function mockVerificarPlantao(Request $request)
+    {
+        $user = auth()->user();
+        if (!$user) {
+            return response()->json(['pode_plantao' => false]);
+        }
+        
+        $data = $request->input('data');
+        $hora = $request->input('hora');
+        
+        // Modo Check-in (nenhum dado enviado): Usa o momento EXATO atual
+        if (!$data && !$hora) {
+            $dataHora = now();
+        } 
+        // Modo Manual incompleto: Se tem data mas a hora ainda está vazia, bloqueia logo de cara
+        elseif ($data && empty($hora)) {
+            return response()->json(['pode_plantao' => false, 'motivo' => 'Hora não preenchida']);
+        } 
+        // Modo Manual completo
+        else {
+            $dataHora = Carbon::parse("{$data} {$hora}");
+        }
+        
+        $podePlantao = $this->verificarElegibilidadePlantao($user->id, $dataHora);
+        
+        return response()->json(['pode_plantao' => $podePlantao]);
     }
 }

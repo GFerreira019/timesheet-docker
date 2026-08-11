@@ -71,6 +71,10 @@ class CronometroApiController extends Controller
         $ap->codigo_cliente_id = $dados['codigo_cliente_id'] ?? null;
         $ap->centro_custo_id   = $dados['centro_custo_id'] ?? null;
         $ap->ocorrencias       = $dados['ocorrencias'] ?? null;
+        $ap->em_plantao        = filter_var($dados['em_plantao'] ?? false, FILTER_VALIDATE_BOOLEAN);
+        $ap->data_plantao      = $dados['data_plantao'] ?? null;
+        $ap->dorme_fora        = filter_var($dados['dorme_fora'] ?? false, FILTER_VALIDATE_BOOLEAN);
+        $ap->data_dorme_fora   = $dados['data_dorme_fora'] ?? null;
         $ap->latitude          = $dados['latitude'] ?? null;
         $ap->longitude         = $dados['longitude'] ?? null;
         $ap->registrado_por_id = $user->id;
