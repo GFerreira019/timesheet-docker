@@ -48,3 +48,10 @@ storage/logs/whatsapp_node.log
 /zap-server/node_modules
 /zap-server/package-lock.json
 /zap-server/tokens/
+
+# Credenciais, Backups e Service Accounts
+*service-account*.json
+*credentials*.json
+/storage/app/backup-temp/
+/storage/framework/cache/data/*
+!/storage/framework/cache/data/.gitignore

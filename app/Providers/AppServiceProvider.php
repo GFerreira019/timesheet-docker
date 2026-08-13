@@ -4,6 +4,11 @@ namespace App\Providers;
 
 use App\View\Composers\NotificacaoComposer;
 use Illuminate\Support\Facades\View;
+use Illuminate\Support\Facades\Storage;
+use Google\Client;
+use Google\Service\Drive;
+use Masbug\Flysystem\GoogleDriveAdapter;
+use League\Flysystem\Filesystem;
 use App\Listeners\RegistrarFalhaLogin;
 use App\Listeners\RegistrarLogin;
 use App\Listeners\RegistrarLogout;
@@ -54,6 +59,35 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // ─────────────────────────────────────────────────────────────
+        // INTEGRAÇÕES EXTERNAS (Discos customizados)
+        // ─────────────────────────────────────────────────────────────
+        Storage::extend('google', function ($app, $config) {
+            $client = new Client();
+            $client->setClientId($config['clientId']);
+            $client->setClientSecret($config['clientSecret']);
+            $client->refreshToken($config['refreshToken']);
+            $client->addScope(Drive::DRIVE);
+
+            $service = new Drive($client);
+            
+            // 1. Captura o folderId do config (Se não existir, cai para a raiz '/')
+            $folderId = $config['folderId'] ?? '/';
+            
+            // Adiciona o suporte a drives compartilhados e pastas de terceiros
+            $options = [
+                'parameters' => [
+                    'supportsAllDrives' => true,
+                ],
+            ];
+            
+            // 2. Passa o folderId para o Adapter informando que esta é a raiz do disco
+            $adapter = new GoogleDriveAdapter($service, $folderId, $options);
+
+            $driver = new Filesystem($adapter);
+            return new \Illuminate\Filesystem\FilesystemAdapter($driver, $adapter, $config);
+        });
+
         // ─────────────────────────────────────────────────────────────
         // OBSERVERS — Invalidação de Cache (equivalente aos signals Django)
         // ─────────────────────────────────────────────────────────────

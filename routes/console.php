@@ -13,3 +13,7 @@ Schedule::command('timesheet:aprovar-automatico')->dailyAt('00:00');
 Schedule::command('timesheet:importar-feriados')->yearly();
 Schedule::command('erp:sync-obras')->dailyAt('01:00');
 Schedule::command('erp:sync-usuarios')->dailyAt('01:30');
+
+// Rotinas de Backup (Spatie)
+Schedule::command('backup:run')->dailyAt('00:30');
+Schedule::command('backup:clean')->dailyAt('02:00');

@@ -7,18 +7,18 @@ use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
 
 /**
- * RolesSeeder — Cria os grupos/roles do sistema.
+ * RolesAndPermissionsSeeder — Cria os grupos/roles do sistema.
  *
  * Níveis de Acesso oficiais definidos:
  *   1. ADMIN
  *   2. GERENCIAL
- *   3. COORDENADOR
- *   4. SAC
+ *   3. SAC
+ *   4. COORDENADOR
  *   5. OPERACIONAL
  *
- * Rodar com: php artisan db:seed --class=RolesSeeder
+ * Rodar com: php artisan db:seed --class=RolesAndPermissionsSeeder
  */
-class RolesSeeder extends Seeder
+class RolesAndPermissionsSeeder extends Seeder
 {
     public function run(): void
     {
@@ -27,7 +27,7 @@ class RolesSeeder extends Seeder
         // causem erros silenciosos no assignRole() logo em seguida.
         app()[PermissionRegistrar::class]->forgetCachedPermissions();
 
-        $roles = ['ADMIN', 'GERENCIAL', 'COORDENADOR', 'SAC', 'OPERACIONAL'];
+        $roles = ['ADMIN', 'GERENCIAL', 'SAC', 'COORDENADOR', 'OPERACIONAL'];
         
         foreach ($roles as $role) {
             Role::firstOrCreate(
@@ -37,6 +37,6 @@ class RolesSeeder extends Seeder
         }
 
         $this->command->newLine();
-        $this->command->info('✅ Roles do sistema (ADMIN, GERENCIAL, COORDENADOR, SAC, OPERACIONAL) configuradas com sucesso.');
+        $this->command->info('✅ Roles do sistema (ADMIN, GERENCIAL, SAC, COORDENADOR, OPERACIONAL) configuradas com sucesso.');
     }
 }
