@@ -24,7 +24,7 @@ Para contemplar apontamentos que ocorrem depois da meia-noite (ex: entrada às 0
 
 ### Desempenho (Cacheamento TTL 1 Hora)
 Como a checagem da escala de plantão exige um Request assíncrono para a matriz do ERP, utilizamos a camada de **Cache File** do Laravel (`Cache::remember`).
-A resposta do ERP para a elegibilidade de Plantão de um Colaborador em um Dia específico (chave: `escala_plantao_user_{id}_date_{date}`) é salva em cache por **1 hora** (`60 * 60` segundos). Isso impede o sobreaquecimento da API do ERP durante salvamentos massivos nas viradas de turno e na edição de apontamentos na Controller e Livewire.
+A resposta da API do ERP sobre o plantão vigente (chave genérica: `api_plantao_data`) é salva em cache por **1 hora** (`60 * 60` segundos). Isso impede o sobreaquecimento da API externa durante salvamentos massivos nas viradas de turno e na edição de apontamentos na Controller e Livewire. A elegibilidade individual é então validada em memória buscando o `id_usuario_erp` na resposta cacheada.
 
 ## 3. Reatividade no Frontend
 Nos formulários de novos apontamentos, o preenchimento da `data` ou `hora` dispara callbacks no frontend (Javascript/AlpineJS) ou requisições AJAX (`api.timer.status`) que reavaliam os inputs e escondem/exibem campos como "Ocorrências de Plantão" caso o horário cruze a regra de negócios descrita acima.

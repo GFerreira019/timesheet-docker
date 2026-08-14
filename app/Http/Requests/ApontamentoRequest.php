@@ -274,6 +274,29 @@ class ApontamentoRequest extends FormRequest
                         }
                     } catch (\Throwable) {}
                 }
+
+                // Segurança: Validação real no Backend para barrar manipulações de HTML
+                $colaboradorId = $data['colaborador_id'] ?? null;
+                if ($colaboradorId) {
+                    $user = \App\Models\User::find($colaboradorId);
+                    $idErp = $user ? $user->id_usuario_erp : null;
+                    
+                    if (!$idErp) {
+                        $validator->errors()->add('em_plantao', 'Colaborador sem vínculo com o ERP.');
+                    } else {
+                        if (!empty($dataApontamento) && !empty($horaInicio)) {
+                            $dataHora = \Carbon\Carbon::parse("{$dataApontamento} {$horaInicio}");
+                        } else {
+                            $dataHora = now(); // Modo Check-in: momento exato do clique
+                        }
+                        
+                        $elegivel = app(\App\Http\Controllers\ApontamentoController::class)->verificarElegibilidadePlantao($idErp, $dataHora);
+                        
+                        if (!$elegivel) {
+                            $validator->errors()->add('em_plantao', 'O colaborador selecionado não possui escala de plantão para este horário.');
+                        }
+                    }
+                }
             }
 
             // ==================================================================

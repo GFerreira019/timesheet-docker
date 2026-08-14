@@ -858,7 +858,7 @@ class ApontamentoController extends Controller
     }
 
     /**
-     * Retorna os dados da timeline mesclados (Solides mock + Timesheet reais de hoje)
+     * Retorna os dados da timeline mesclados (Solides  + Timesheet reais de hoje)
      */
     private function getTimelineData(?Colaborador $colab, ?string $data_referencia = null): array
     {
@@ -1021,71 +1021,76 @@ class ApontamentoController extends Controller
      * Verifica se o colaborador tem permissão para usar o checkbox de "Plantão"
      * baseado na escala do ERP. A janela de plantão é das 17:00 do dia D até as 08:00 do dia D+1.
      */
-    public function verificarElegibilidadePlantao($userId, $dataHoraApontamento): bool
+    public function verificarElegibilidadePlantao($idUsuarioErp, \Carbon\Carbon $dataHoraApontamento): bool
     {
-        $dataApontamento = Carbon::parse($dataHoraApontamento);
+        $dataReferencia = $dataHoraApontamento->copy();
         
-        // Se for antes das 08:00, o plantão pertence ao dia anterior
-        if ($dataApontamento->hour < 8) {
-            $dataApenas = $dataApontamento->copy()->subDay()->format('Y-m-d');
-        } else {
-            $dataApenas = $dataApontamento->format('Y-m-d');
+        // Se o apontamento for na madrugada (antes das 08:00), pertence à escala do dia anterior
+        if ($dataHoraApontamento->hour < 8) {
+            $dataReferencia->subDay();
         }
-        
-        $cacheKey = "escala_plantao_user_{$userId}_date_{$dataApenas}";
 
-        $escalaErp = \Illuminate\Support\Facades\Cache::remember($cacheKey, now()->addHour(), function () use ($userId, $dataApenas) {
-            // Chamada real para a API do ERP (Aguardando endpoint oficial)
-            /*
-            $response = \Illuminate\Support\Facades\Http::get("https://api.erp.com/escala-plantao", [
-                'user_id' => $userId,
-                'data' => $dataApenas
-            ]);
-            
-            if ($response->successful()) {
-                return [
-                    'escalado' => $response->json('escalado'),
-                    'data_plantao' => $response->json('data_plantao')
-                ];
+        $dataStr = $dataReferencia->format('Y-m-d');
+        $cacheKey = 'plantao_' . $dataStr;
+
+        // Cacheia a resposta da API por 1 hora (3600 segundos) atrelada à data do apontamento
+        $plantaoData = \Illuminate\Support\Facades\Cache::remember($cacheKey, 3600, function () use ($dataStr) {
+            try {
+                $baseUrl = env('ERP_API_URL', 'https://atgbconnect.com.br/api/v1');
+
+                $response = \Illuminate\Support\Facades\Http::timeout(5)
+                    ->withHeaders([
+                        'X-Api-Key' => env('ERP_API_KEY')
+                    ])
+                    ->get("{$baseUrl}/plantao.php?data={$dataStr}");
+
+                if ($response->successful()) {
+                    return $response->json();
+                }
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::error('Erro ao consultar API de Plantão: ' . $e->getMessage());
             }
-            */
-
-            // Retorno padrão falso para Produção enquanto a API não é lançada
-            return [
-                'escalado' => false,
-                'data_plantao' => null
-            ];
+            return null;
         });
-        
-        if (empty($escalaErp['escalado'])) {
-            return false;
+
+        if ($plantaoData && isset($plantaoData['success']) && $plantaoData['success'] === true) {
+            $data = $plantaoData['data'] ?? [];
+            
+            $tecnicos = $data['tecnicos'] ?? [];
+            $coordenadores = $data['coordenadores'] ?? [];
+            
+            $profissionais = array_merge($tecnicos, $coordenadores);
+            
+            // Busca robusta garantindo que a tipagem não atrapalhe (int vs string)
+            $isEscalado = collect($profissionais)->contains(function ($item) use ($idUsuarioErp) {
+                return (string) $item['id_usuario'] === (string) $idUsuarioErp;
+            });
+            
+            if ($isEscalado && !empty($data['data_plantao'])) {
+                $dataPlantao = \Carbon\Carbon::parse($data['data_plantao']);
+                
+                // Janela de Tempo: 17h do dia do plantão até 8h do dia seguinte
+                $inicioJanela = $dataPlantao->copy()->setTime(17, 0, 0);
+                $fimJanela = $dataPlantao->copy()->addDay()->setTime(8, 0, 0);
+                
+                return $dataHoraApontamento->between($inicioJanela, $fimJanela);
+            }
         }
         
-        // Monta a janela de tempo permitida baseada na data do plantão
-        $dataPlantao = Carbon::parse($escalaErp['data_plantao']);
-        $inicioJanela = $dataPlantao->copy()->setTime(17, 0, 0);
-        $fimJanela = $dataPlantao->copy()->addDay()->setTime(8, 0, 0);
-        
-        \Illuminate\Support\Facades\Log::info("Testando Plantão - User: {$userId}", [
-            'Data Requisicao' => $dataApontamento->format('Y-m-d H:i:s'),
-            'Data Base Calculada' => $dataApenas,
-            'Escalado?' => $escalaErp['escalado'],
-            'Janela Inicio' => $inicioJanela->format('Y-m-d H:i:s'),
-            'Janela Fim' => $fimJanela->format('Y-m-d H:i:s'),
-            'Resultado (Between)' => $dataApontamento->between($inicioJanela, $fimJanela)
-        ]);
-        
-        // Verifica se a hora do apontamento está dentro da janela
-        return $dataApontamento->between($inicioJanela, $fimJanela);
+        return false;
     }
 
     /**
-     * Rota AJAX (mock) para verificar a elegibilidade de plantão via frontend.
+     * Rota AJAX para verificar a elegibilidade de plantão via frontend.
      */
-    public function mockVerificarPlantao(Request $request)
+    public function apiVerificarPlantao(Request $request)
     {
-        $user = auth()->user();
-        if (!$user) {
+        $userId = $request->input('colaborador') ?? auth()->id();
+        
+        $user = \App\Models\User::find($userId);
+        $idErp = $user ? $user->id_usuario_erp : null;
+        
+        if (!$idErp) {
             return response()->json(['pode_plantao' => false]);
         }
         
@@ -1102,10 +1107,10 @@ class ApontamentoController extends Controller
         } 
         // Modo Manual completo
         else {
-            $dataHora = Carbon::parse("{$data} {$hora}");
+            $dataHora = \Carbon\Carbon::parse("{$data} {$hora}");
         }
         
-        $podePlantao = $this->verificarElegibilidadePlantao($user->id, $dataHora);
+        $podePlantao = $this->verificarElegibilidadePlantao($idErp, $dataHora);
         
         return response()->json(['pode_plantao' => $podePlantao]);
     }

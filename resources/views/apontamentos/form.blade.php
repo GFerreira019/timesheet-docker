@@ -1847,6 +1847,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     async function verificarPlantaoAjax() {
+        console.log('Disparando AJAX...');
         if (!checkboxPlantao) return;
 
         // Bloqueia o checkbox enquanto vai consultar a API
@@ -1855,13 +1856,19 @@ document.addEventListener('DOMContentLoaded', function() {
         const dataVal = inputData ? inputData.value : '';
         const horaVal = inputHora ? inputHora.value : '';
         
-        console.log(`Verificando plantão para Data: ${dataVal || 'now()'}, Hora: ${horaVal || 'now()'}`);
+        const colabSelect = document.querySelector('#id_colaborador');
+        const colabVal = colabSelect ? colabSelect.value : '';
+        
+        console.log(`Verificando plantão para Data: ${dataVal || 'now()'}, Hora: ${horaVal || 'now()'}, Colab: ${colabVal}`);
 
         try {
-            const response = await fetch(`{{ route('apontamentos.mock.plantao') }}?data=${dataVal}&hora=${horaVal}`);
+            const response = await fetch(`{{ route('apontamentos.api.plantao') }}?data=${dataVal}&hora=${horaVal}&colaborador=${colabVal}`);
             const data = await response.json();
             
+            console.log('Resposta do Back-end:', data);
+            
             if (data.pode_plantao) {
+                // Habilita o checkbox. O Tailwind retira as classes "disabled:" (opacity e cursor) nativamente.
                 checkboxPlantao.disabled = false;
                 if (aviso) {
                     aviso.style.display = 'none';
@@ -1869,6 +1876,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
                 console.log('Plantão liberado!');
             } else {
+                // Desabilita o checkbox. O Tailwind reaplica as classes "disabled:" nativamente.
                 checkboxPlantao.disabled = true;
                 if (checkboxPlantao.checked) {
                     checkboxPlantao.checked = false;
@@ -1900,6 +1908,16 @@ document.addEventListener('DOMContentLoaded', function() {
         eventos.forEach(evento => {
             inputHora.addEventListener(evento, verificarPlantaoAjax);
         });
+    }
+
+    // Aplica o evento change no Colaborador, se existir
+    const selectColaborador = document.querySelector('#id_colaborador');
+    if (selectColaborador) {
+        // Se usar select2, precisa atrelar via jQuery também
+        if (typeof $ !== 'undefined') {
+            $('#id_colaborador').on('change', verificarPlantaoAjax);
+        }
+        selectColaborador.addEventListener('change', verificarPlantaoAjax);
     }
 
     // Intervalo de 5 min

@@ -95,8 +95,8 @@ Route::middleware('auth')->group(function () {
         Route::get('/comparativo-diario', [ApontamentoController::class, 'comparativoDiario'])
             ->name('comparativo.diario');
             
-        Route::get('/verificar-plantao', [ApontamentoController::class, 'mockVerificarPlantao'])
-            ->name('mock.plantao');
+        Route::get('/verificar-plantao', [ApontamentoController::class, 'apiVerificarPlantao'])
+            ->name('api.plantao');
     });
 
     // Rotas de API consumidas pelo Frontend (AJAX do Cronômetro)
