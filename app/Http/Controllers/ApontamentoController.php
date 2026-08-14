@@ -135,7 +135,7 @@ class ApontamentoController extends Controller
      *
      * POST /apontamentos
      */
-    public function store(ApontamentoRequest $request): RedirectResponse
+    public function store(ApontamentoRequest $request)
     {
         $user  = auth()->user();
         $data  = $request->validated();
@@ -144,6 +144,9 @@ class ApontamentoController extends Controller
         // Bloqueia novo apontamento se há check-in aberto (equivalente ao Django)
         if ($colab && Apontamento::where('colaborador_id', $colab->id)->whereNull('hora_termino')->exists()) {
             session()->flash('error', 'Você possui uma atividade em andamento (Check-in). Finalize-a antes de iniciar outra.');
+            if ($request->expectsJson()) {
+                return response()->json(['error' => 'Atividade em andamento.'], 400);
+            }
             return redirect()->route('apontamentos.create');
         }
 
@@ -151,19 +154,25 @@ class ApontamentoController extends Controller
 
         // Modo START (cronômetro) — cria apontamento sem hora_termino
         if (($dados['tipo_acao'] ?? '') === 'START') {
-            return $this->criarCheckIn($dados, $user);
+            $response = $this->criarCheckIn($dados, $user);
+        } else {
+            // Verifica se é rateio
+            $isRateio = AcessoHelper::podeFazerRateio($user)
+                && filter_var($dados['registrar_multiplas_obras'] ?? false, FILTER_VALIDATE_BOOLEAN)
+                && !empty(trim($dados['obras_extras_list'] ?? ''));
+
+            if ($isRateio) {
+                $response = $this->criarComRateio($dados, $request, $user);
+            } else {
+                $response = $this->criarRegistroUnico($dados, $request, $user);
+            }
         }
 
-        // Verifica se é rateio
-        $isRateio = AcessoHelper::podeFazerRateio($user)
-            && filter_var($dados['registrar_multiplas_obras'] ?? false, FILTER_VALIDATE_BOOLEAN)
-            && !empty(trim($dados['obras_extras_list'] ?? ''));
-
-        if ($isRateio) {
-            return $this->criarComRateio($dados, $request, $user);
+        if ($request->expectsJson()) {
+            return response()->json(['message' => 'Apontamento salvo com sucesso'], 201);
         }
 
-        return $this->criarRegistroUnico($dados, $request, $user);
+        return $response;
     }
 
     // =========================================================================
@@ -282,7 +291,7 @@ class ApontamentoController extends Controller
      *
      * PUT /apontamentos/{id}
      */
-    public function update(ApontamentoRequest $request, int $id): RedirectResponse
+    public function update(ApontamentoRequest $request, int $id)
     {
         $apontamento = Apontamento::findOrFail($id);
         $user        = auth()->user();
@@ -290,18 +299,21 @@ class ApontamentoController extends Controller
         // Segurança (mesma da view de edição)
         if (!AcessoHelper::isOwner($user) && $apontamento->registrado_por_id !== $user->id) {
             session()->flash('error', 'Acesso Negado.');
+            if ($request->expectsJson()) return response()->json(['error' => 'Acesso Negado'], 403);
             return redirect()->route('historico.index');
         }
 
         if (!AcessoHelper::isAdmin($user)) {
             if (!$user->colaborador || $apontamento->colaborador_id !== $user->colaborador->id) {
                 session()->flash('error', 'Acesso Negado: Você só pode editar apontamentos em que você seja o colaborador.');
+                if ($request->expectsJson()) return response()->json(['error' => 'Acesso Negado'], 403);
                 return redirect()->route('historico.index');
             }
         }
 
         if ($apontamento->contagem_edicao >= 1 && !AcessoHelper::isOwner($user)) {
             session()->flash('error', 'Limite de edição atingido.');
+            if ($request->expectsJson()) return response()->json(['error' => 'Limite de edição atingido'], 403);
             return redirect()->route('historico.index');
         }
 
@@ -389,6 +401,11 @@ class ApontamentoController extends Controller
         });
 
         session()->flash('success', 'Apontamento editado com sucesso! (Histórico salvo)');
+        
+        if ($request->expectsJson()) {
+            return response()->json(['message' => 'Apontamento editado com sucesso'], 200);
+        }
+
         return redirect()->route('historico.index');
     }
 

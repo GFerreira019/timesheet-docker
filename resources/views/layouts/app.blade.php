@@ -6,28 +6,16 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield('title', 'Timesheet') | ATGB</title>
 
-    <!-- Favicon -->
-    <link rel="icon" type="image/png" href="{{ asset('img/favicon.png') }}">
+    <!-- Favicon / Ícone PWA Principal -->
+    <link rel="icon" type="image/png" href="{{ asset('img/icons/icon-192x192.png') }}">
 
     <!-- Google Fonts: Inter -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 
-    <!-- Tailwind CSS via CDN (mesmo padrão do Django original) -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    fontFamily: { sans: ['Inter', 'sans-serif'] },
-                    colors: {
-                        brand: { 50:'#f0f9ff', 500:'#3b82f6', 600:'#2563eb', 700:'#1d4ed8' }
-                    }
-                }
-            }
-        }
-    </script>
+    <!-- Tailwind CSS e Scripts locais via Vite -->
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
 
     <style>
         /* Micro-animações globais */
@@ -47,6 +35,9 @@
         ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
         ::-webkit-scrollbar-thumb:hover { background: #475569; }
     </style>
+
+    <!-- PWA Manifest (com Cache Busting) -->
+    <link rel="manifest" href="{{ asset('manifest.json') }}?v=2">
 
     @stack('head')
 </head>
@@ -134,5 +125,20 @@
 @livewireScripts
 @stack('scripts')
 @include('components.btn-suporte')
+
+<!-- Registro do Service Worker para o PWA -->
+<script>
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('/sw.js')
+                .then(registration => {
+                    console.log('ServiceWorker registrado com sucesso:', registration.scope);
+                })
+                .catch(error => {
+                    console.error('Falha ao registrar o ServiceWorker:', error);
+                });
+        });
+    }
+</script>
 </body>
 </html>

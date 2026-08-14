@@ -769,19 +769,27 @@ $(document).ready(function() {
 // ========================================================================
 const gpsIcon = document.getElementById('gps-status-icon');
 if (navigator.geolocation) {
-    navigator.geolocation.getCurrentPosition(pos => {
-        document.getElementById('id_latitude').value  = pos.coords.latitude;
-        document.getElementById('id_longitude').value = pos.coords.longitude;
-        if(gpsIcon) {
-            gpsIcon.className = 'fas fa-map-marker-alt text-emerald-800 text-sm transition-colors duration-300';
-            gpsIcon.title = 'Sinal de GPS capturado com sucesso';
-        }
-    }, () => {
-        if(gpsIcon) {
-            gpsIcon.className = 'fas fa-map-marker-alt text-red-800 text-sm transition-colors duration-300';
-            gpsIcon.title = 'Sinal de GPS indisponível ou permissão negada';
-        }
-    });
+    navigator.geolocation.getCurrentPosition(
+        (pos) => {
+            document.getElementById('id_latitude').value  = pos.coords.latitude;
+            document.getElementById('id_longitude').value = pos.coords.longitude;
+            if(gpsIcon) {
+                gpsIcon.className = 'fas fa-map-marker-alt text-emerald-800 text-sm transition-colors duration-300';
+                gpsIcon.title = 'Sinal de GPS capturado com sucesso';
+            }
+        }, 
+        (err) => {
+            console.warn('Não foi possível obter localização offline. O fluxo seguirá sem as coordenadas.', err);
+            document.getElementById('id_latitude').value  = '';
+            document.getElementById('id_longitude').value = '';
+            
+            if(gpsIcon) {
+                gpsIcon.className = 'fas fa-map-marker-alt text-red-800 text-sm transition-colors duration-300';
+                gpsIcon.title = 'Sinal de GPS indisponível, permissão negada ou timeout';
+            }
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+    );
 }
 
 // ========================================================================
@@ -1208,6 +1216,21 @@ if (btnMain) {
             const payload = new FormData(form);
             payload.set('tipo_acao', 'START'); // Informa o Request que é check-in
 
+            // --- INÍCIO DA BLINDAGEM OFFLINE PARA O CHECK-IN ---
+            if (!navigator.onLine) {
+                if (typeof parseFormData === 'function' && typeof salvarOffline === 'function') {
+                    const dados = parseFormData(payload);
+                    dados._tipo_offline = 'checkin';
+                    salvarOffline(dados, CONFIG.timerStartUrl, 'POST');
+                    exibirToast("Check-in salvo offline. Sincronizará quando a rede voltar.", 'aviso');
+                    setTimeout(() => window.location.href = '/historico', 1500);
+                } else {
+                    exibirToast("Erro: Módulo offline não carregado.", 'erro');
+                }
+                return;
+            }
+            // --- FIM DA BLINDAGEM OFFLINE ---
+
             try {
                 const resp = await fetch(CONFIG.timerStartUrl, { 
                     method: 'POST', 
@@ -1233,7 +1256,17 @@ if (btnMain) {
                     exibirToast(data.error || data.message || 'Erro ao iniciar.', 'erro');
                 }
             } catch (e) {
-                exibirToast('Erro de conexão.', 'erro');
+                // Caiu aqui = falha na rede (net::ERR_INTERNET_DISCONNECTED) ou timeout forçado
+                console.warn("Falha de comunicação no Check-in, jogando para a fila offline. Erro:", e);
+                if (typeof parseFormData === 'function' && typeof salvarOffline === 'function') {
+                    const dados = parseFormData(payload);
+                    dados._tipo_offline = 'checkin';
+                    salvarOffline(dados, CONFIG.timerStartUrl, 'POST');
+                    exibirToast("Conexão instável. Check-in salvo offline e sincronizará depois.", 'aviso');
+                    setTimeout(() => window.location.href = '/historico', 1500);
+                } else {
+                    exibirToast('Erro de conexão.', 'erro');
+                }
             }
         }
     });
@@ -1559,7 +1592,13 @@ document.getElementById('btn-confirm-submit')?.addEventListener('click', functio
         });
     }
 
-    form.submit();
+    // Usamos requestSubmit() ao invés de submit() para disparar o evento 'submit'
+    // permitindo que o nosso offline-sync.js intercepte a chamada (preventDefault).
+    if (typeof form.requestSubmit === 'function') {
+        form.requestSubmit();
+    } else {
+        form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    }
 });
 
 // Abertura do Modal de Notificações
@@ -1931,4 +1970,5 @@ document.addEventListener('DOMContentLoaded', function() {
     aplicarRegraVeiculoObrigatorio();
 });
 </script>
+<script src="{{ asset('js/offline-sync.js') }}"></script>
 @endpush
