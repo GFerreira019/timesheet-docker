@@ -99,6 +99,10 @@ class ConformidadeCLTService
         foreach ($segmentosDoDia as $i => $seg) {
             if ($i === 0) {
                 $blocoContinuo = $seg['duracao'];
+                if ($blocoContinuo > self::INTRAJORNADA_MAXIMA_SEGUNDOS) {
+                    $violaIntrajornada = true;
+                    break;
+                }
                 continue;
             }
 
