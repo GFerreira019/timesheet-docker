@@ -1,57 +1,63 @@
-# Arquivos de sistema Mac
-.DS_Store
-
-# Arquivos de cache e IDE
-.phpactor.json
-.phpunit.result.cache
-/.fleet
-/.idea
-/.nova
-/.phpunit.cache
-/.vscode
-/.zed
-/auth.json
-/storage/pail
-/Homestead.json
-/Homestead.yaml
-/Thumbs.db
-
-# Dependências do Laravel e Node
-/vendor
-/node_modules
-/public/build
-/public/hot
-/public/storage
-
-# Variaveis de ambiente e chaves
-*.env
-.env.*
+# Credenciais e Arquivos Sensíveis (CRÍTICO)
 .env
-.env.backup
-.env.production
+.env.*
 !.env.example
+.env.backup
+*.key
 /storage/*.key
-
-# Banco de Dados Local
-/timesheet.db
-/database/timesheet.db
-database/database.sqlite
-database/database.sqlite-journal
-
-# Logs gerais e do whatsapp
-*.log
-storage/logs/
-storage/logs/whatsapp/
-storage/logs/whatsapp_node.log
-
-# ZAP-SERVER
-/zap-server/node_modules
-/zap-server/package-lock.json
-/zap-server/tokens/
-
-# Credenciais, Backups e Service Accounts
+google-service-account.json
 *service-account*.json
 *credentials*.json
+/storage/app/private/*.json
+/storage/app/firebase-auth.json
+
+# Bancos de Dados e Backups Locais
+*.sqlite
+*.sqlite-journal
+/timesheet.db
+/database/timesheet.db
+/storage/**/*.zip
+/storage/**/*.sql
+/storage/**/*.dump
 /storage/app/backup-temp/
+
+# Dependências do Framework
+/vendor/
+/node_modules/
+/zap-server/node_modules/
+/zap-server/package-lock.json
+
+# Assets e Build do Tailwind/Vite
+/public/build/
+/public/hot
+/public/storage/
+
+# Logs e Caches
+*.log
+/storage/logs/*.log
 /storage/framework/cache/data/*
 !/storage/framework/cache/data/.gitignore
+/storage/framework/sessions/*
+!/storage/framework/sessions/.gitignore
+/storage/framework/views/*
+!/storage/framework/views/.gitignore
+/storage/framework/testing/*
+!/storage/framework/testing/.gitignore
+.phpunit.result.cache
+/.phpunit.cache
+/storage/pail
+/zap-server/tokens/
+
+# Arquivos de IDE e SO
+.vscode/
+.idea/
+.cursor/
+.fleet/
+.nova/
+.zed/
+.DS_Store
+Thumbs.db
+/Homestead.json
+/Homestead.yaml
+.phpactor.json
+/auth.json

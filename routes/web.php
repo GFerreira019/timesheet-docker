@@ -73,6 +73,9 @@ Route::middleware('auth')->group(function () {
     Route::get('/configuracoes', [HomeController::class, 'configuracoes'])->name('configuracoes');
     Route::post('/configuracoes/testar-feriados-api', [\App\Http\Controllers\ConfiguracaoController::class, 'testarFeriadosApi'])->name('configuracoes.testar_feriados_api');
 
+    // Integração FCM Android
+    Route::post('/fcm-token', [\App\Http\Controllers\FcmController::class, 'updateToken'])->name('fcm.update');
+
     // API de Calendário (session-based auth — browser fetch usa cookie, não Bearer Token)
     Route::get('/api/calendario/status', [CalendarioApiController::class, 'status'])->name('calendario.status');
     // Notificações

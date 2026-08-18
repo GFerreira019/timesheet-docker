@@ -140,5 +140,56 @@
         });
     }
 </script>
+<!-- FCM Token Receiver (Android WebView) -->
+<script>
+    /**
+     * Função chamada nativamente pelo Android (WebView)
+     * @param {string} token - O Token do FCM gerado pelo dispositivo Android
+     */
+    window.receiveFcmToken = async function(token) {
+        console.log('⚡ [WebView JS] receiveFcmToken disparada! Token recebido:', token);
+
+        if (!token) {
+            console.error('❌ [WebView JS] O token fornecido pelo Android está vazio ou nulo.');
+            return;
+        }
+
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+        
+        if (!csrfToken) {
+            console.error('❌ [WebView JS] CSRF Token não encontrado no HTML. A requisição será bloqueada com erro 419 pelo Laravel.');
+            return;
+        }
+
+        console.log('📡 [WebView JS] Preparando para enviar Fetch POST para /fcm-token...');
+
+        try {
+            const response = await fetch('/fcm-token', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken 
+                },
+                body: JSON.stringify({ token: token })
+            });
+
+            console.log(`🌐 [WebView JS] Resposta HTTP recebida do Laravel. Status: ${response.status}`);
+
+            if (!response.ok) {
+                // Tenta ler o erro em JSON caso exista
+                const errorData = await response.json().catch(() => ({}));
+                console.error(`❌ [WebView JS] Falha na comunicação (Status ${response.status}):`, errorData);
+                return;
+            }
+
+            const data = await response.json();
+            console.log('✅ [WebView JS] Sucesso! Resposta do Laravel:', data.message);
+
+        } catch (error) {
+            console.error('💥 [WebView JS] Exceção de rede ou erro fatal no Fetch:', error);
+        }
+    }
+</script>
 </body>
 </html>

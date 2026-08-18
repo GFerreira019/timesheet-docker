@@ -94,27 +94,49 @@ class WhatsAppService
             'payload'     => $payload
         ]);
 
-        $response = Http::timeout(10)
-            ->withHeaders(['x-api-token' => $apiToken])
-            ->post($endpoint, $payload);
+        try {
+            $response = Http::timeout(10)
+                ->withHeaders(['x-api-token' => $apiToken])
+                ->post($endpoint, $payload);
 
-        Log::info('Resposta da API WhatsApp', [
-            'status' => $response->status(),
-            'body'   => $response->json()
-        ]);
+            Log::info('Resposta da API WhatsApp', [
+                'status' => $response->status(),
+                'body'   => $response->json()
+            ]);
 
-        if ($response->failed()) {
-            $erroReal = $response->body();
-            throw new \Exception("A API do Node recusou o envio (Status {$response->status()}): {$erroReal}");
+            if ($response->failed()) {
+                $erroReal = $response->body();
+                Log::error('FALHA_WHATSAPP_API', [
+                    'erro' => "A API do Node recusou o envio (Status {$response->status()})",
+                    'detalhe' => $erroReal
+                ]);
+                return false;
+            }
+
+            $json = $response->json();
+            if (isset($json['status']) && $json['status'] === 'error') {
+                $msgErro = $json['message'] ?? json_encode($json);
+                Log::error('FALHA_WHATSAPP_API', [
+                    'erro' => 'Erro interno do WPPConnect',
+                    'detalhe' => $msgErro
+                ]);
+                return false;
+            }
+
+            return true;
+        } catch (\Illuminate\Http\Client\ConnectionException $e) {
+            Log::error('FALHA_WHATSAPP_API', [
+                'erro' => 'Serviço do WhatsApp Node indisponível/offline (ConnectionException).',
+                'detalhe' => $e->getMessage()
+            ]);
+            return false;
+        } catch (\Exception $e) {
+            Log::error('FALHA_WHATSAPP_API', [
+                'erro' => 'Exceção não tratada ao tentar enviar WhatsApp.',
+                'detalhe' => $e->getMessage()
+            ]);
+            return false;
         }
-
-        $json = $response->json();
-        if (isset($json['status']) && $json['status'] === 'error') {
-            $msgErro = $json['message'] ?? json_encode($json);
-            throw new \Exception("Erro interno do WPPConnect: {$msgErro}");
-        }
-
-        return true;
     }
 
     // -------------------------------------------------------------------------

@@ -40,6 +40,7 @@ class User extends Authenticatable
         // da integração de ponto. O Colaborador lê este valor via accessor.
         'solides_id',
         'ignorado_erp',
+        'fcm_token',
     ];
 
     protected $hidden = [

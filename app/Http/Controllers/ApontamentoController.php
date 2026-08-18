@@ -243,7 +243,9 @@ class ApontamentoController extends Controller
             'longitude'              => $apontamento->longitude,
         ];
 
-        $dataHoraEdicao = Carbon::parse($apontamento->data_apontamento . ' ' . ($apontamento->hora_inicio ?: '00:00:00'));
+        $data = \Carbon\Carbon::parse($apontamento->data_apontamento)->format('Y-m-d');
+        $hora = $apontamento->hora_inicio ?: '00:00:00';
+        $dataHoraEdicao = \Carbon\Carbon::parse("{$data} {$hora}");
         $podePlantao = $this->verificarElegibilidadePlantao($user->id, $dataHoraEdicao);
 
         return view('apontamentos.form', [
