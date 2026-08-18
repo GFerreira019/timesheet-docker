@@ -166,14 +166,15 @@
             <div class="text-2xl font-bold text-white mt-1">{{ count($logs) }} <span class="text-sm font-normal text-slate-500">registros</span></div>
         </div>
         
-        {{-- Acessos (Info) --}}
-        <div class="bg-slate-800 p-4 rounded-xl border border-blue-500/30">
+        {{-- Notificações (Info) --}}
+        <a href="{{ request('filtro') === 'notificacoes' ? request()->fullUrlWithQuery(['filtro' => null]) : request()->fullUrlWithQuery(['filtro' => 'notificacoes']) }}" 
+           class="bg-slate-800 p-4 rounded-xl hover:border-blue-400 transition-colors cursor-pointer block {{ request('filtro') === 'notificacoes' ? 'border-2 border-blue-500 bg-blue-500/10' : 'border border-blue-500/30' }}">
             <span class="text-xs text-blue-400 font-bold uppercase flex items-center gap-2">
-                <i class="fas fa-sign-in-alt text-blue-400"></i>
-                Acessos
+                <i class="fas fa-bell text-blue-400"></i>
+                Notificações
             </span>
-            <div class="text-2xl font-bold text-white mt-1">Info</div>
-        </div>
+            <div class="text-2xl font-bold text-white mt-1">{{ $totalNotificacoes ?? 0 }}</div>
+        </a>
 
         {{-- Edições (Warning) --}}
         <div class="bg-slate-800 p-4 rounded-xl border border-yellow-500/30">
@@ -197,8 +198,65 @@
     {{-- ============================================================
          Timeline
          ============================================================ --}}
+    @if(request('filtro') === 'notificacoes')
+        <div class="bg-slate-800 rounded-xl border border-slate-700/50 overflow-hidden shadow-sm fade-in mb-12">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-slate-900/50 border-b border-slate-700/50 text-xs uppercase tracking-wider text-slate-400 font-bold">
+                            <th class="p-4 text-center w-16">Status</th>
+                            <th class="p-4">Colaborador</th>
+                            <th class="p-4">Título / Tipo</th>
+                            <th class="p-4 min-w-[300px]">Mensagem</th>
+                            <th class="p-4 text-right">Data</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-700/50 text-sm">
+                        @forelse($logs as $log)
+                        <tr class="hover:bg-slate-700/20 transition-colors">
+                            <td class="p-4 text-center">
+                                @if($log->lida)
+                                    <i class="fas fa-check-double text-green-500" title="Lida"></i>
+                                @else
+                                    <i class="fas fa-envelope text-slate-500" title="Não lida"></i>
+                                @endif
+                            </td>
+                            <td class="p-4">
+                                <div class="font-bold text-white">{{ $log->colaborador->nome_completo ?? 'Removido' }}</div>
+                            </td>
+                            <td class="p-4">
+                                <div class="font-bold text-slate-300">{{ $log->titulo }}</div>
+                                <div class="text-[10px] font-bold mt-1 px-2 py-0.5 rounded-full uppercase tracking-wider inline-block
+                                    @if($log->tipo == 'ALERTA') bg-yellow-500/20 text-yellow-500 border border-yellow-500/30
+                                    @elseif($log->tipo == 'SUCESSO') bg-green-500/20 text-green-500 border border-green-500/30
+                                    @else bg-blue-500/20 text-blue-400 border border-blue-500/30 @endif">
+                                    {{ $log->tipo }}
+                                </div>
+                            </td>
+                            <td class="p-4 text-slate-400 text-xs">
+                                {!! nl2br(e($log->mensagem)) !!}
+                            </td>
+                            <td class="p-4 text-right whitespace-nowrap">
+                                <div class="text-slate-300 font-mono font-bold">{{ \Carbon\Carbon::parse($log->created_at)->timezone('America/Sao_Paulo')->format('d/m/Y') }}</div>
+                                <div class="text-slate-500 font-mono text-xs">{{ \Carbon\Carbon::parse($log->created_at)->timezone('America/Sao_Paulo')->format('H:i:s') }}</div>
+                            </td>
+                        </tr>
+                        @empty
+                        <tr>
+                            <td colspan="5" class="p-8 text-center text-slate-500">
+                                <i class="fas fa-search text-3xl mb-4 text-slate-600 block"></i>
+                                <p class="text-lg font-medium text-slate-400">Nenhuma notificação encontrada</p>
+                            </td>
+                        </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    @else
     <div class="relative border-l-2 border-slate-700/50 ml-4 space-y-8 pb-12">
         @forelse($logs as $index => $log)
+        {{-- Card de Auditoria Normal --}}
         <div class="relative pl-8 group fade-in" style="animation-delay: {{ ($index + 1) * 100 }}ms">
             
             {{-- Bolinha Conectora --}}
@@ -356,14 +414,15 @@
 
             </div>
         </div>
-        @empty
-        <div class="pl-8 py-12 flex flex-col items-center justify-center text-slate-500 border border-dashed border-slate-700 rounded-xl bg-slate-800/30">
-            <i class="fas fa-search text-3xl mb-4 text-slate-600"></i>
-            <p class="text-lg font-medium text-slate-400">Nenhum registro encontrado</p>
-            <p class="text-sm text-slate-500 mt-1">Tente ajustar os filtros de data ou usuário.</p>
-        </div>
+            @empty
+            <div class="pl-8 py-12 flex flex-col items-center justify-center text-slate-500 border border-dashed border-slate-700 rounded-xl bg-slate-800/30">
+                <i class="fas fa-search text-3xl mb-4 text-slate-600"></i>
+                <p class="text-lg font-medium text-slate-400">Nenhum registro encontrado</p>
+                <p class="text-sm text-slate-500 mt-1">Tente ajustar os filtros de data ou usuário.</p>
+            </div>
         @endforelse
     </div>
+    @endif
 </div>
 
 @push('scripts')
