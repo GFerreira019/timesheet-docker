@@ -333,7 +333,7 @@
                                             <i class="fas fa-edit text-indigo-400 hover:text-indigo-300 text-lg"></i>
                                         </a>
                                     @endif
-                                @elseif(($item['status_aprovacao'] ?? 'EM_ANALISE') != 'SOLICITACAO_AJUSTE' && ($item['registrado_por_id'] == auth()->id() || ($is_owner ?? false)))
+                                @elseif($item['pode_solicitar_ajuste'] ?? false)
                                 <button type="button"
                                         onclick="openAjusteModal({{ $item['id'] }})"
                                         title="Solicitar Ajuste" class="transition-transform hover:scale-110">

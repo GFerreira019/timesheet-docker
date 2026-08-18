@@ -191,7 +191,7 @@ class ApontamentoController extends Controller
         $user        = auth()->user();
 
         // Segurança: só o autor ou Owner pode editar (equivalente ao Django)
-        if (!AcessoHelper::isOwner($user) && $apontamento->registrado_por_id !== $user->id) {
+        if (!AcessoHelper::isAdmin($user) && !AcessoHelper::isOwner($user) && $apontamento->registrado_por_id !== $user->id) {
             session()->flash('error', 'Acesso Negado: Você só pode editar seus próprios apontamentos.');
             return redirect()->route('historico.index');
         }
@@ -212,7 +212,11 @@ class ApontamentoController extends Controller
         }
 
         // Limite de edições (equivalente ao Django: if apontamento.contagem_edicao >= 1)
-        if ($apontamento->contagem_edicao >= 1 && !AcessoHelper::isOwner($user)) {
+        $limiteAtingido = $apontamento->contagem_edicao >= 1;
+        $isAjusteAprovado = $apontamento->status_ajuste === 'APROVADO';
+        $podeBurlarLimite = AcessoHelper::isAdmin($user) || AcessoHelper::isOwner($user) || $isAjusteAprovado;
+
+        if ($limiteAtingido && !$podeBurlarLimite) {
             session()->flash('error', "Limite de edição atingido. Para correções, utilize a opção 'Solicitar Ajuste'.");
             return redirect()->route('historico.index');
         }
@@ -299,7 +303,7 @@ class ApontamentoController extends Controller
         $user        = auth()->user();
 
         // Segurança (mesma da view de edição)
-        if (!AcessoHelper::isOwner($user) && $apontamento->registrado_por_id !== $user->id) {
+        if (!AcessoHelper::isAdmin($user) && !AcessoHelper::isOwner($user) && $apontamento->registrado_por_id !== $user->id) {
             session()->flash('error', 'Acesso Negado.');
             if ($request->expectsJson()) return response()->json(['error' => 'Acesso Negado'], 403);
             return redirect()->route('historico.index');
@@ -313,7 +317,11 @@ class ApontamentoController extends Controller
             }
         }
 
-        if ($apontamento->contagem_edicao >= 1 && !AcessoHelper::isOwner($user)) {
+        $limiteAtingido = $apontamento->contagem_edicao >= 1;
+        $isAjusteAprovado = $apontamento->status_ajuste === 'APROVADO';
+        $podeBurlarLimite = AcessoHelper::isAdmin($user) || AcessoHelper::isOwner($user) || $isAjusteAprovado;
+
+        if ($limiteAtingido && !$podeBurlarLimite) {
             session()->flash('error', 'Limite de edição atingido.');
             if ($request->expectsJson()) return response()->json(['error' => 'Limite de edição atingido'], 403);
             return redirect()->route('historico.index');

@@ -63,8 +63,11 @@ class AprovacaoController extends Controller
                 });
             });
         }
+        // Ajuste no status pendente se for ADMIN
+        $statusPendentes = $isAdmin ? ['EM_ANALISE', 'SOLICITACAO_AJUSTE'] : ['EM_ANALISE'];
+
         // 2. Contagens para os Cards (Usando clone para não afetar a query base)
-        $totalPendentes = (clone $queryBase)->where('status_aprovacao', 'EM_ANALISE')->count();
+        $totalPendentes = (clone $queryBase)->whereIn('status_aprovacao', $statusPendentes)->count();
         $totalAprovados = (clone $queryBase)->where('status_aprovacao', 'APROVADO')->count();
         $totalRecusados = (clone $queryBase)->whereIn('status_aprovacao', ['REJEITADO', 'RECUSADO'])->count();
         // 3. Aplicação de Filtros da Tela (Ex: O utilizador clicou no card de Aprovados ou status pelo form)
@@ -74,6 +77,8 @@ class AprovacaoController extends Controller
             // Se o filtro for REJEITADO, englobamos RECUSADO também (caso haja legado)
             if ($statusFiltro === 'REJEITADO') {
                 $queryBase->whereIn('status_aprovacao', ['REJEITADO', 'RECUSADO']);
+            } elseif ($statusFiltro === 'EM_ANALISE') {
+                $queryBase->whereIn('status_aprovacao', $statusPendentes);
             } elseif ($statusFiltro !== 'TODOS') {
                 $queryBase->where('status_aprovacao', $statusFiltro);
             }
@@ -165,7 +170,11 @@ class AprovacaoController extends Controller
             }
         }
 
-        if (!($apontamento->status_aprovacao === 'EM_ANALISE' || ($apontamento->status_aprovacao === 'APROVADO' && $apontamento->tipo_aprovacao === 'automatica'))) {
+        $isStatusPermitido = $apontamento->status_aprovacao === 'EM_ANALISE' 
+            || ($apontamento->status_aprovacao === 'APROVADO' && $apontamento->tipo_aprovacao === 'automatica')
+            || (AcessoHelper::isAdmin($user) && $apontamento->status_aprovacao === 'SOLICITACAO_AJUSTE');
+
+        if (!$isStatusPermitido) {
             abort(403, 'Ação não permitida para este status.');
         }
 

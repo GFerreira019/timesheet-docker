@@ -41,6 +41,11 @@
         <i class="fas fa-circle text-[8px]"></i>
         EM ANÁLISE
     </span>
+    @elseif($apontamento->status_aprovacao === 'SOLICITACAO_AJUSTE')
+    <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] sm:text-xs font-bold bg-orange-500/20 text-orange-400 border border-orange-500/30">
+        <i class="fas fa-exclamation-circle text-[8px]"></i>
+        AGUARDANDO AJUSTE
+    </span>
     @elseif($apontamento->status_aprovacao === 'APROVADO')
     <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] sm:text-xs font-bold bg-emerald-500/20 text-emerald-500 border border-emerald-500/30">
         <i class="fas fa-check-circle text-[8px]"></i>
@@ -55,6 +60,21 @@
 </div>
 
 <div class="w-full space-y-4 md:space-y-6">
+
+    @if(($apontamento->status_aprovacao === 'SOLICITACAO_AJUSTE' || $apontamento->status_ajuste === 'PENDENTE') && !empty($apontamento->motivo_ajuste))
+    {{-- Callout: Motivo da Solicitação de Ajuste (Adaptado para Dark Mode) --}}
+    <div class="bg-yellow-900/20 border-l-4 border-yellow-500 p-4 md:p-5 rounded-r-xl flex items-start gap-3 md:gap-4">
+        <div class="mt-0.5">
+            <i class="fas fa-comment-dots text-yellow-500 text-lg md:text-xl"></i>
+        </div>
+        <div>
+            <h3 class="text-yellow-400 font-bold text-sm md:text-base mb-1">Motivo da Solicitação de Ajuste:</h3>
+            <p class="text-slate-300 text-xs md:text-sm leading-relaxed italic">
+                "{{ $apontamento->motivo_ajuste }}"
+            </p>
+        </div>
+    </div>
+    @endif
 
     {{-- ============================================================
          BLOCO 1: AUDITORIA — Alterações Identificadas
@@ -100,8 +120,12 @@
 
                     {{-- Seta central: arrow-down no mobile, arrow-right no desktop --}}
                     <div class="flex items-center justify-center flex-shrink-0 py-1 md:py-0">
-                        <i class="fas fa-arrow-down md:hidden text-slate-600 text-sm"></i>
-                        <i class="fas fa-arrow-right hidden md:block text-slate-600"></i>
+                        <span class="md:hidden">
+                            <i class="fas fa-arrow-down text-slate-600 text-sm"></i>
+                        </span>
+                        <span class="hidden md:block">
+                            <i class="fas fa-arrow-right text-slate-600"></i>
+                        </span>
                     </div>
 
                     {{-- Box DEPOIS (verde) --}}
@@ -416,7 +440,12 @@
             </div>
         </div>
 
-        @if($apontamento->status_aprovacao === 'EM_ANALISE' || ($apontamento->status_aprovacao === 'APROVADO' && $apontamento->tipo_aprovacao === 'automatica'))
+        @php
+            $isStatusPermitido = $apontamento->status_aprovacao === 'EM_ANALISE' 
+                || ($apontamento->status_aprovacao === 'APROVADO' && $apontamento->tipo_aprovacao === 'automatica')
+                || (\App\Helpers\AcessoHelper::isAdmin(auth()->user()) && $apontamento->status_aprovacao === 'SOLICITACAO_AJUSTE');
+        @endphp
+        @if($isStatusPermitido)
         <form method="POST" action="{{ route('aprovacoes.processar', $apontamento->id) }}" id="form-analise">
             @csrf
 
@@ -433,19 +462,27 @@
             {{-- Botões de Ação — Seção 5.6
                  MOBILE: flex-col-reverse (Aprovar em cima, Rejeitar embaixo)
                  DESKTOP: flex-row (Rejeitar na esquerda, Aprovar na direita) --}}
-            <div class="flex flex-col-reverse sm:flex-row gap-3">
+            <div class="flex flex-col-reverse lg:flex-row gap-3">
                 
                 {{-- Botão Rejeitar (outline vermelho) --}}
                 <button type="submit" name="acao" value="REJEITAR" id="btn-recusar"
-                        class="w-full @if($apontamento->status_aprovacao === 'EM_ANALISE') sm:w-1/2 @else sm:w-auto sm:px-8 @endif flex items-center justify-center gap-2 px-4 py-3 h-12 text-sm md:text-base font-medium rounded-lg border transition hover:bg-red-500/10 active:bg-red-500/20 border-red-500 text-red-500">
+                        class="w-full flex-1 flex items-center justify-center gap-2 px-4 py-3 h-12 text-sm md:text-base font-medium rounded-lg border transition hover:bg-red-500/10 active:bg-red-500/20 border-red-500 text-red-500">
                     <i class="fas fa-times-circle"></i>
                     Rejeitar Registro
                 </button>
 
-                @if($apontamento->status_aprovacao === 'EM_ANALISE')
+                @if(\App\Helpers\AcessoHelper::isAdmin(auth()->user()))
+                <a href="{{ route('apontamentos.edit', $apontamento->id) }}"
+                   class="w-full flex-1 flex items-center justify-center gap-2 px-4 py-3 h-12 text-sm md:text-base font-bold text-white bg-blue-600 rounded-lg hover:bg-blue-500 active:bg-blue-700 transition shadow-lg shadow-blue-900/20">
+                    <i class="fas fa-edit"></i>
+                    Editar Apontamento
+                </a>
+                @endif
+
+                @if($apontamento->status_aprovacao === 'EM_ANALISE' || $apontamento->status_aprovacao === 'SOLICITACAO_AJUSTE')
                 {{-- Botão Aprovar (solid verde/success) --}}
                 <button type="submit" name="acao" value="APROVAR"
-                        class="w-full sm:w-1/2 flex items-center justify-center gap-2 px-4 py-3 h-12 text-sm md:text-base font-bold text-white bg-green-600 rounded-lg hover:bg-green-500 active:bg-green-700 transition shadow-lg shadow-green-900/20">
+                        class="w-full flex-1 flex items-center justify-center gap-2 px-4 py-3 h-12 text-sm md:text-base font-bold text-white bg-green-600 rounded-lg hover:bg-green-500 active:bg-green-700 transition shadow-lg shadow-green-900/20">
                     <i class="fas fa-check-circle"></i>
                     Aprovar Registro
                 </button>

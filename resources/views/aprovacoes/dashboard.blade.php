@@ -193,7 +193,7 @@
          ============================================================ --}}
     <div class="space-y-3 md:space-y-4">
         @foreach($pendentes as $ap)
-        <div class="approval-card bg-slate-800 rounded-xl border border-slate-700/50 p-3 md:p-5 hover:border-slate-600 transition">
+        <div class="approval-card rounded-xl border border-slate-700/50 p-3 md:p-5 hover:border-slate-600 transition {{ $ap->status_aprovacao === 'SOLICITACAO_AJUSTE' ? 'bg-yellow-900/10 border-yellow-500/30' : 'bg-slate-800' }}">
             <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between md:gap-4">
 
                 {{-- ========================================
@@ -238,6 +238,13 @@
                             <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-900/40 text-amber-400 border border-amber-700/40">
                                 <i class="fas fa-pen text-[8px]"></i>
                                 {{ $ap->contagem_edicao }}x
+                            </span>
+                            @endif
+
+                            @if($ap->status_aprovacao === 'SOLICITACAO_AJUSTE')
+                            <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-yellow-500/20 text-yellow-500 border border-yellow-500/30">
+                                <i class="fas fa-exclamation-circle text-[8px]"></i>
+                                Aguardando Ajuste
                             </span>
                             @endif
                         </div>

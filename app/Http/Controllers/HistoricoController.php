@@ -30,6 +30,7 @@ class HistoricoController extends Controller
     {
         $user = auth()->user();
 
+        $ehAdmin  = AcessoHelper::isAdmin($user);
         $ehOwner  = AcessoHelper::isOwner($user);
         $ehGestor = AcessoHelper::isGerente($user);
         $podeVerAlertas = $ehOwner || $ehGestor;
@@ -208,7 +209,8 @@ class HistoricoController extends Controller
                 'status_ajuste'      => $item->status_ajuste,
                 'status_aprovacao'   => $item->status_aprovacao,
                 'contagem_edicao'    => $item->contagem_edicao,
-                'pode_editar'        => ($item->contagem_edicao < 1) || $ehOwner,
+                'pode_editar'        => $ehAdmin || $ehOwner || (($item->contagem_edicao < 1 || $item->status_ajuste === 'APROVADO') && $item->registrado_por_id === $user->id),
+                'pode_solicitar_ajuste' => ($item->status_aprovacao ?? 'EM_ANALISE') !== 'SOLICITACAO_AJUSTE' && ($item->registrado_por_id === $user->id || $ehOwner),
                 'motivo_rejeicao'    => $item->motivo_rejeicao,
                 'latitude'           => $item->latitude,
                 'longitude'          => $item->longitude,
