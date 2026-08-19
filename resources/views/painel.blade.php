@@ -356,21 +356,6 @@
                 </div>
             </a>
 
-            {{-- Card: Automação WhatsApp --}}
-            <a href="{{ route('whatsapp.index') }}" class="module-card relative theme-bg-card rounded-xl border border-slate-700 p-4 lg:p-6 hover:border-emerald-500/50 transition group">
-                <div class="relative z-10">
-                    <div class="module-icon w-12 h-12 lg:w-14 lg:h-14 bg-emerald-500/20 rounded-xl flex items-center justify-center mb-3 lg:mb-4 transition">
-                        <i class="fab fa-whatsapp text-emerald-500 text-xl lg:text-2xl"></i>
-                    </div>
-                    <h3 class="text-base lg:text-lg font-bold mb-1 lg:mb-2 theme-text-primary">WhatsApp</h3>
-                    <p class="text-xs lg:text-sm theme-text-secondary mb-3 lg:mb-4 line-clamp-2">Gestão do serviço de lembrete de ponto.</p>
-                    
-                    <div class="flex items-center text-emerald-500 group-hover:opacity-80 transition">
-                        <span class="text-xs lg:text-sm font-medium">Acessar</span>
-                        <i class="fas fa-arrow-right ml-2 transform group-hover:translate-x-1 transition-transform"></i>
-                    </div>
-                </div>
-            </a>
 
             {{-- Card: Espelho de Ponto --}}
             <a href="{{ route('pontos.index') }}" class="module-card relative theme-bg-card rounded-xl border border-slate-700 p-4 lg:p-6 hover:border-sky-500/50 transition group">

@@ -130,25 +130,7 @@
                         <span id="status-feriados-text" class="text-xs text-slate-400 font-bold bg-slate-700/50 px-2 py-0.5 rounded-md">Aguardando Teste</span>
                     </li>
 
-                    {{-- WhatsApp Node.js --}}
-                    <li class="flex items-center justify-between">
-                        <div class="flex items-center gap-2">
-                            @if($whatsappHealth['status'] === 'online')
-                            <div class="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse shadow-[0_0_8px_rgba(34,197,94,0.6)]"></div>
-                            @else
-                            <div class="w-2.5 h-2.5 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.6)]"></div>
-                            @endif
-                            <span class="text-sm font-medium text-slate-200">{{ $whatsappHealth['name'] }}</span>
-                            <a href="{{ route('whatsapp.index') }}" class="ml-1 text-[10px] text-blue-400 hover:text-blue-300 underline" title="Ir para Automação">
-                                <i class="fas fa-external-link-alt"></i>
-                            </a>
-                        </div>
-                        @if($whatsappHealth['status'] === 'online')
-                        <span class="text-xs text-green-500 font-bold bg-green-500/10 border border-green-500/20 px-2 py-0.5 rounded-md" title="{{ $whatsappHealth['message'] }}">Online</span>
-                        @else
-                        <span class="text-xs text-red-500 font-bold bg-red-500/10 border border-red-500/20 px-2 py-0.5 rounded-md" title="{{ $whatsappHealth['message'] }}">Falha</span>
-                        @endif
-                    </li>
+
                 </ul>
             </div>
         </div>
@@ -190,22 +172,7 @@
                 </div>
             </div>
 
-            {{-- Bloco Módulo WhatsApp --}}
-            <div class="bg-slate-800 border border-slate-700/50 rounded-xl p-5 shadow-lg">
-                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-2 border-b border-slate-700/50 pb-3">
-                    <h3 class="text-base font-bold text-white flex items-center gap-2">
-                        <i class="fab fa-whatsapp text-green-500 text-lg"></i>
-                        Integração WhatsApp (Node.js)
-                    </h3>
-                    <button type="button" id="btn-testar-whatsapp" class="w-full sm:w-auto px-4 py-1.5 text-xs font-bold border border-green-500/50 bg-green-500/10 hover:bg-green-500/20 text-green-400 rounded-lg transition whitespace-nowrap flex items-center justify-center gap-2 shadow-sm">
-                        <i class="fas fa-plug"></i> Testar Conexão
-                    </button>
-                </div>
-                <div class="text-sm text-slate-400 mt-2">
-                    <p>Valida a comunicação com o servidor Node.js local e o status da sessão do WPPConnect.</p>
-                    <div id="resultado-whatsapp" class="mt-3 p-3 rounded-lg border border-slate-700/50 bg-slate-900/50 hidden text-xs font-medium transition"></div>
-                </div>
-            </div>
+
 
             {{-- Bloco Módulo ERP --}}
             <div class="bg-slate-800 border border-slate-700/50 rounded-xl p-5 shadow-lg">
@@ -333,33 +300,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // WhatsApp API
-    const btnWpp = document.getElementById('btn-testar-whatsapp');
-    const resWpp = document.getElementById('resultado-whatsapp');
-    
-    if (btnWpp) {
-        btnWpp.addEventListener('click', function() {
-            resWpp.classList.remove('hidden');
-            resWpp.classList.remove('bg-green-500/10', 'text-green-400', 'bg-red-500/10', 'text-red-400');
-            resWpp.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Testando conexão...';
-            
-            fetch('{{ route("whatsapp.status") }}')
-                .then(r => r.json())
-                .then(data => {
-                    if (data.status && data.status !== 'OFFLINE') {
-                        resWpp.classList.add('bg-green-500/10', 'text-green-400');
-                        resWpp.innerHTML = '<i class="fas fa-check-circle mr-1"></i> Servidor online. Status da Sessão: ' + data.status;
-                    } else {
-                        resWpp.classList.add('bg-red-500/10', 'text-red-400');
-                        resWpp.innerHTML = '<i class="fas fa-exclamation-circle mr-1"></i> Servidor Node.js está desligado ou inacessível.';
-                    }
-                })
-                .catch(e => {
-                    resWpp.classList.add('bg-red-500/10', 'text-red-400');
-                    resWpp.innerHTML = '<i class="fas fa-exclamation-circle mr-1"></i> Erro interno de comunicação.';
-                });
-        });
-    }
+
 
     // ERP API
     const btnERP = document.getElementById('btn-testar-erp');
@@ -423,7 +364,6 @@ document.addEventListener('DOMContentLoaded', function() {
             if (btnSolides) btnSolides.click();
             if (btnFeriados) btnFeriados.click();
             if (btnERP) btnERP.click();
-            if (btnWpp) btnWpp.click();
 
             // Revert botão principal após 2 segundos (tempo suficiente para requests iniciarem)
             setTimeout(() => {

@@ -10,7 +10,6 @@ use App\Http\Controllers\ConformidadeController;
 use App\Http\Controllers\AuditoriaController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\PontoController;
-use App\Http\Controllers\WhatsappController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\SuporteController;
 use App\Http\Controllers\NotificacaoController;
@@ -132,7 +131,6 @@ Route::middleware('auth')->group(function () {
         Route::get('/configuracoes/health', [\App\Http\Controllers\ConfiguracaoController::class, 'index'])->name('configuracoes.health');
         Route::post('/configuracoes/salvar', [\App\Http\Controllers\ConfiguracaoController::class, 'salvar'])->name('configuracoes.salvar');
         Route::post('/configuracoes/testar-solides-api', [\App\Http\Controllers\ConfiguracaoController::class, 'testarSolidesApi'])->name('configuracoes.testar_solides_api');
-        Route::get('/configuracoes/status-whatsapp', [\App\Http\Controllers\ConfiguracaoController::class, 'statusWhatsapp'])->name('configuracoes.status_whatsapp');
         // Módulo de Gestão de Feriados e Localidades
         Route::prefix('feriados')->name('feriados.')->group(function () {
             Route::get('/', [\App\Http\Controllers\FeriadoController::class, 'index'])->name('index');
@@ -199,22 +197,10 @@ Route::middleware('auth')->group(function () {
 
         Route::prefix('owner')->name('owner.')->group(function () {
             Route::get('/auditoria', [AuditoriaController::class, 'index'])->name('auditoria');
-            
-            // WPPConnect Config
-            Route::get('/wppconnect-config', [\App\Http\Controllers\WppConnectConfigController::class, 'index'])->name('wppconnect.index');
-            Route::post('/wppconnect-config', [\App\Http\Controllers\WppConnectConfigController::class, 'store'])->name('wppconnect.store');
         });
     });
 
-    // Automação WhatsApp
-    Route::prefix('whatsapp')->name('whatsapp.')->group(function () {
-        Route::get('/', [WhatsappController::class, 'index'])->name('index');
-        Route::get('/status', [WhatsappController::class, 'statusSessao'])->name('status');
-        Route::post('/iniciar-node', [WhatsappController::class, 'iniciarServidorNode'])->name('iniciar_node');
-        Route::post('/stop', [WhatsappController::class, 'pararServidorNode'])->name('parar_node');
-        Route::post('/teste', [WhatsappController::class, 'enviarTeste'])->name('enviar_teste');
-        Route::post('/atualizar-wppconnect', [WhatsappController::class, 'atualizarWppConnect'])->name('atualizar_wppconnect');
-    });
+
 
     // Profile (do Laravel Breeze, se mantido para o Colaborador/Usuário)
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');

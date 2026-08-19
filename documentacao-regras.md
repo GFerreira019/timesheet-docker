@@ -17,7 +17,7 @@ O sistema conta com 5 principais perfis de acesso centralizados na classe `App\H
   - **Acesso Total (4 colunas):**
     - **Timesheet:** Apontamentos, Histórico, Aprovações
     - **Gestão:** Controle de Envios, Dashboard, Logs
-    - **Configurações:** Health Check, WhatsApp, Espelho, Feriados
+    - **Configurações:** Health Check, Espelho, Feriados
     - **Movimentações:** Colaboradores, Veículos, Projetos, Setores
 - **Nível de Visibilidade e Acesso Geral (RLS):**
   - **Acesso Global:** Visão irrestrita de todos os dados e setores.

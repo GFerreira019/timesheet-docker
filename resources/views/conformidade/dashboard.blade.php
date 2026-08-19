@@ -53,13 +53,6 @@
 
 <div class="flex flex-wrap items-center justify-end gap-2 sm:gap-3 max-w-7xl mx-auto w-full px-4 sm:px-6 mb-6">
     
-    {{-- Indicador de Status WhatsApp --}}
-    <div id="wpp-status-container" title="Verificando WhatsApp..." class="flex items-center gap-2 bg-slate-800 rounded-lg px-3 py-1.5 border border-slate-700 shadow-sm h-[42px] cursor-help transition">
-        <i id="wpp-status-icon" class="fab fa-whatsapp text-slate-400 text-lg"></i>
-        <span class="text-slate-300 text-sm font-medium hidden sm:inline">API WPP</span>
-        <div id="wpp-status-dot" class="w-2.5 h-2.5 rounded-full bg-slate-500 animate-pulse ml-1"></div>
-    </div>
-
     {{-- Navegação de Data --}}
     <div class="flex items-center bg-slate-800 rounded-lg p-1 border border-slate-700 shadow-sm h-[42px]">
         <a href="?data={{ $prev_date }}" class="px-2 py-1.5 hover:bg-slate-700 rounded-md text-slate-400 hover:text-white transition h-full flex items-center">
@@ -370,10 +363,7 @@
                     Isso enviará notificações para <span class="text-white font-bold bg-slate-700 px-1.5 py-0.5 rounded">{{ count($lista_ausente) + count($lista_incompleto) }}</span> colaboradores com pendência no dia
                     <span class="font-mono font-bold text-indigo-400">{{ \Carbon\Carbon::parse($data_ref)->format('d/m/Y') }}</span>.
                 </p>
-                <div class="mt-4 flex items-start gap-2 bg-slate-900/50 p-3 rounded-lg border border-slate-700/50">
-                    <i class="fab fa-whatsapp text-green-500 mt-0.5"></i>
-                    <p class="text-xs text-slate-400">Cada colaborador receberá automaticamente uma mensagem de cobrança via WhatsApp.</p>
-                </div>
+
             </div>
             
             <form method="POST" action="{{ route('conformidade.notificar_pendencias') }}">
@@ -455,66 +445,7 @@
     </div>
 </div>
 
-{{-- Modal: Falhas de WhatsApp --}}
-@if(session('falhas_wpp'))
-<div id="modal-falhas-wpp" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-    <div class="bg-slate-800 border border-slate-700 rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col fade-in relative">
-        
-        <div class="px-5 py-4 border-b border-slate-700 bg-slate-900/30 flex items-center justify-between">
-            <h3 class="font-bold text-red-400 text-lg flex items-center gap-3">
-                <i class="fas fa-exclamation-triangle"></i> Falhas no Envio (WhatsApp)
-            </h3>
-            <button onclick="document.getElementById('modal-falhas-wpp').style.display='none'" class="text-slate-400 hover:text-white transition">
-                <i class="fas fa-times text-xl"></i>
-            </button>
-        </div>
 
-        <div class="p-5 overflow-y-auto flex-1 custom-scrollbar space-y-4">
-            <p class="text-sm text-slate-300 mb-4">
-                Ocorreram falhas ao tentar notificar os seguintes colaboradores. Você pode copiar as mensagens abaixo para enviar manualmente.
-            </p>
-
-            @foreach(session('falhas_wpp') as $falha)
-                <div class="bg-slate-900/50 border border-slate-700/50 rounded-lg p-4 relative group">
-                    {{-- Botão de Copiar Rápido (Top Left da div) --}}
-                    <button onclick="copiarTextoNotificacao(this, '{{ base64_encode($falha['mensagem']) }}')" class="absolute top-3 right-3 text-slate-500 hover:text-indigo-400 transition" title="Copiar Mensagem">
-                        <i class="far fa-copy text-lg"></i>
-                    </button>
-                    
-                    <p class="font-bold text-white text-sm pr-8">{{ $falha['nome'] }}</p>
-                    <p class="text-xs text-red-400 mt-1 mb-3"><i class="fas fa-info-circle"></i> {{ $falha['erro'] }}</p>
-                    
-                    <div class="bg-slate-800 p-3 rounded text-sm text-slate-300 whitespace-pre-wrap border border-slate-700 font-mono">{{ $falha['mensagem'] }}</div>
-                </div>
-            @endforeach
-        </div>
-
-        <div class="px-5 py-4 border-t border-slate-700 bg-slate-900/30 flex justify-end">
-            <button type="button" onclick="document.getElementById('modal-falhas-wpp').style.display='none'" class="px-4 py-2 bg-slate-700 text-slate-300 text-sm font-medium rounded-lg hover:bg-slate-600 transition border border-slate-600">
-                Fechar
-            </button>
-        </div>
-    </div>
-</div>
-
-<script>
-    function copiarTextoNotificacao(btn, base64Text) {
-        // Decodifica o texto em base64 (para evitar problemas de quebras de linha e aspas no JS)
-        const text = decodeURIComponent(escape(window.atob(base64Text)));
-        navigator.clipboard.writeText(text).then(() => {
-            const icon = btn.querySelector('i');
-            icon.classList.remove('far', 'fa-copy');
-            icon.classList.add('fas', 'fa-check', 'text-green-500');
-            setTimeout(() => {
-                icon.classList.remove('fas', 'fa-check', 'text-green-500');
-                icon.classList.add('far', 'fa-copy');
-            }, 2000);
-        }).catch(err => {
-            console.error('Falha ao copiar:', err);
-        });
-    }
-</script>
-@endif
 
 
 @push('styles')
@@ -586,50 +517,7 @@
         });
     }
 
-document.addEventListener('DOMContentLoaded', function() {
-    const statusContainer = document.getElementById('wpp-status-container');
-    const statusIcon = document.getElementById('wpp-status-icon');
-    const statusDot = document.getElementById('wpp-status-dot');
-    
-    function checkWppStatus() {
-        fetch('{{ route("whatsapp.status") }}')
-            .then(response => {
-                if(!response.ok) throw new Error('Servidor offline');
-                return response.json();
-            })
-            .then(data => {
-                const statusRaw = data.status_raw || data.status || '?';
-                
-                // Reset de classes
-                statusDot.className = 'w-2.5 h-2.5 rounded-full ml-1';
-                statusIcon.className = 'fab fa-whatsapp text-lg';
-                
-                if (data.conectado === true) {
-                    statusDot.classList.add('bg-green-500');
-                    statusIcon.classList.add('text-green-400');
-                    statusContainer.setAttribute('title', 'Conectado (' + statusRaw + ')');
-                } else if (statusRaw === 'qrReadSuccess' || statusRaw === 'QR_CODE') {
-                    statusDot.classList.add('bg-yellow-500', 'animate-pulse');
-                    statusIcon.classList.add('text-yellow-400');
-                    statusContainer.setAttribute('title', 'Sincronizando / Aguardando QR (' + statusRaw + ')');
-                } else {
-                    statusDot.classList.add('bg-red-500');
-                    statusIcon.classList.add('text-red-400');
-                    statusContainer.setAttribute('title', 'Desconectado (' + statusRaw + ')');
-                }
-            })
-            .catch(error => {
-                statusDot.className = 'w-2.5 h-2.5 rounded-full bg-red-500 ml-1';
-                statusIcon.className = 'fab fa-whatsapp text-red-500 text-lg';
-                statusContainer.setAttribute('title', 'Desconectado / Node Offline');
-            });
-    }
 
-    // Executa imediatamente na inicialização
-    checkWppStatus();
-    // Continua verificando a cada 30 segundos
-    setInterval(checkWppStatus, 30000);
-});
 </script>
 
 @endsection

@@ -29,34 +29,9 @@ class ConfiguracaoController extends Controller
         $config = session('configuracoes_sistema', [
             'solides_url' => '',
             'solides_token' => '',
-            'wpp_instancia' => '',
-            'wpp_token' => '',
-            'wpp_ativar' => false,
             'feriados_provedor' => 'brasilapi',
             'feriados_ano' => date('Y'),
         ]);
-
-        $whatsappHealth = [
-            'name' => 'Servidor WhatsApp',
-            'status' => 'offline',
-            'message' => 'Desligado ou Inacessível',
-        ];
-
-        try {
-            $url = config('services.wppconnect.base_url', 'http://localhost:3000') . '/api/status';
-            $response = \Illuminate\Support\Facades\Http::timeout(3)->get($url);
-            
-            if ($response->successful()) {
-                $whatsappHealth['status'] = 'online';
-                $data = $response->json();
-                $statusInterno = $data['status'] ?? 'DESCONHECIDO';
-                $whatsappHealth['message'] = "Online (Sessão: {$statusInterno})";
-            } else {
-                $whatsappHealth['message'] = 'Erro HTTP: ' . $response->status();
-            }
-        } catch (\Exception $e) {
-            $whatsappHealth['message'] = 'Inacessível (Timeout ou Recusa de Conexão)';
-        }
 
         // Teste ERP
         $erpStatus = false;
@@ -75,7 +50,7 @@ class ConfiguracaoController extends Controller
             }
         }
 
-        return view('api.dashboard', compact('dbStatus', 'storageStatus', 'config', 'whatsappHealth', 'erpStatus'));
+        return view('api.dashboard', compact('dbStatus', 'storageStatus', 'config', 'erpStatus'));
     }
 
     public function salvar(Request $request)
@@ -126,19 +101,6 @@ class ConfiguracaoController extends Controller
         }
     }
 
-    public function statusWhatsapp()
-    {
-        // Simulação do Node.js
-        return response()->json([
-            'status' => 'online',
-            'message' => 'Node.js (PM2): Online (Porta 3000)',
-            'logs' => [
-                date('H:i', strtotime('-10 mins')) . ' Mensagem enviada p/ Gabriel (Alerta de Atraso)',
-                date('H:i', strtotime('-45 mins')) . ' Mensagem enviada p/ Alex'
-            ],
-            'qr_code' => false // false = conectado, true = base64 image
-        ]);
-    }
 
     public function testarFeriadosApi()
     {

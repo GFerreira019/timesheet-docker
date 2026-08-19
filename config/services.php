@@ -50,16 +50,6 @@ return [
         'token' => env('FERIADOS_API_TOKEN'),
     ],
 
-    // -------------------------------------------------------------------------
-    // WhatsApp — WPPConnect / Zap-Server
-    // Equivalente às variáveis WPP_* do settings.py do Django
-    // -------------------------------------------------------------------------
-    'wppconnect' => [
-        'base_url' => env('WPP_BASE_URL', 'http://localhost:3000'),
-        'port'     => env('WPP_API_PORT', 3000),
-        'token'    => env('WPP_API_TOKEN'),
-        'session'  => env('WPP_SESSION', 'NOXBOT'),
-    ],
 
     // -------------------------------------------------------------------------
     // API ERP

@@ -248,7 +248,7 @@ class DashboardApiController extends Controller
      * Equivalente ao health_check_view() do Django (apis.py L579-647).
      *
      * GET /api/health
-     * Checa: database, wppconnect, feriados_api.
+     * Checa: database, feriados_api.
      */
     public function health(): JsonResponse
     {
@@ -257,7 +257,6 @@ class DashboardApiController extends Controller
             'timestamp'    => now()->toIso8601String(),
             'dependencies' => [
                 'database'        => 'offline',
-                'wppconnect'      => 'offline',
                 'feriados_api'    => 'offline',
                 'solides_api'     => 'pending_integration',
             ],
@@ -275,27 +274,7 @@ class DashboardApiController extends Controller
             $statusCode                                  = 503;
         }
 
-        // 2. WPPConnect (Node.js) (equivalente ao requests.get(wpp_url/health))
-        $wppUrl = config('services.wppconnect.base_url', 'http://localhost:3000');
-        try {
-            $respWpp = \Illuminate\Support\Facades\Http::timeout(3)->get("{$wppUrl}/health");
-            if ($respWpp->ok()) {
-                $fila = $respWpp->json('queueSize', 0);
-                $healthStatus['dependencies']['wppconnect'] = "online (Fila: {$fila})";
-            } else {
-                $healthStatus['dependencies']['wppconnect'] = 'disconnected_or_starting';
-                if ($healthStatus['status'] === 'healthy') {
-                    $healthStatus['status'] = 'degraded';
-                }
-            }
-        } catch (\Throwable) {
-            $healthStatus['dependencies']['wppconnect'] = 'unreachable';
-            if ($healthStatus['status'] === 'healthy') {
-                $healthStatus['status'] = 'degraded';
-            }
-        }
-
-        // 3. API de Feriados (equivalente ao requests.get(url_ping_feriados) do Django)
+        // 2. API de Feriados (equivalente ao requests.get(url_ping_feriados) do Django)
         try {
             $tokenFeriados = config('services.feriados.token');
             $anoAtual      = now()->year;

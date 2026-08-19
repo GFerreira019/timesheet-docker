@@ -9,7 +9,6 @@ use App\Models\Feriado;
 use App\Models\Notificacao;
 use App\Services\AuditoriaService;
 use App\Services\ControlePontoService;
-use App\Services\WhatsAppService;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
@@ -251,6 +250,8 @@ class ConformidadeController extends Controller
      */
     public function notificarPendencias(Request $request): RedirectResponse
     {
+        \Illuminate\Support\Facades\Log::info("=== INÍCIO NOTIFICAR PENDÊNCIAS ===", ['request' => $request->all()]);
+        
         $dataStr = $request->input('data_ref');
 
         try {
@@ -264,109 +265,137 @@ class ConformidadeController extends Controller
             ->whereHas('setorRelacionamento', fn($q) => $q->where('ativo', true))
             ->get();
 
+        $dataCarbon = Carbon::parse($dataRef);
+        $mes = $dataCarbon->month;
+        $ano = $dataCarbon->year;
+        $mapaEscalas = \App\Services\ControlePontoService::obterEscalasDoMes($colaboradores, $mes, $ano);
+        
+        \Illuminate\Support\Facades\Log::info("Total de colaboradores na base: " . ($colaboradores->count() ?? 0));
+        \Illuminate\Support\Facades\Log::info("Escalas carregadas para o dia: ", (array) $mapaEscalas);
+        
+        $feriadoObj = Feriado::where('data', $dataRef)->first();
+        $isFeriado = (bool) $feriadoObj;
+        $isFimDeSemana = $dataCarbon->isWeekend();
+
         $colaboradoresParaNotificar = [];
         $notificacoesCriar = [];
         $countCriadas      = 0;
 
         foreach ($colaboradores as $colab) {
-            if (!$colab->user_id) {
-                continue;
-            }
+            \Illuminate\Support\Facades\Log::info("Avaliando colaborador: {$colab->nome_completo}");
 
-            // A) Já preencheu timesheet?
-            $temApontamento = Apontamento::where('colaborador_id', $colab->id)
-                ->where('data_apontamento', $dataRef)
-                ->exists();
-
-            \Illuminate\Support\Facades\Log::info("Triagem - {$colab->nome_completo} | Tem apontamento? " . ($temApontamento ? 'SIM' : 'NAO'));
-
-            if ($temApontamento) {
-                continue;
-            }
-
-            // B) Verifica Solides
-            $bateuPonto = false;
-            try {
-                $espelho = \App\Services\SolidesService::buscarEspelhoPonto($colab->id, $dataRef, $dataRef);
-                $registros = $espelho['registros'] ?? [];
-                
-                foreach ($registros as $reg) {
-                    if ($reg['data'] === $dataRef) {
-                        if (!empty($reg['t1_inicio']) && $reg['t1_inicio'] !== '-') {
-                            $bateuPonto = true;
-                            break;
-                        }
-                    }
-                }
-            } catch (\Exception $e) {
-                \Illuminate\Support\Facades\Log::error("Triagem - Erro Sólides - {$colab->nome_completo} | Erro: " . $e->getMessage());
-            }
-
-            \Illuminate\Support\Facades\Log::info("Triagem - {$colab->nome_completo} | Bateu Ponto Sólides? " . ($bateuPonto ? 'SIM' : 'NAO'));
-
-            // C) Não bateu ponto
-            if (!$bateuPonto) {
-                continue;
-            }
-
-            // D) Bateu ponto, adiciona
-            $colaboradoresParaNotificar[] = $colab;
-
-            $dataFmt    = Carbon::parse($dataRef)->format('d/m');
-            $primeiroNome = explode(' ', $colab->nome_completo)[0];
-
-            $notificacoesCriar[] = new Notificacao([
-                'colaborador_id' => $colab->id,
-                'titulo'         => 'Ausência de Registro',
-                'mensagem'       => "Olá {$primeiroNome}, não identificamos apontamentos seus no dia {$dataFmt}. Por favor, verifique.",
-                'tipo'           => 'ALERTA',
-                'data_referencia'=> $dataRef,
-                'remetente_id'   => auth()->id(),
-            ]);
-            $countCriadas++;
-        }
-
-        if (empty($colaboradoresParaNotificar)) {
-            session()->flash('info', 'Nenhuma pendência encontrada para notificar neste dia (Dia ok ou folga/feriado).');
-            return redirect()->route('conformidade.dashboard', ['data' => $dataStr]);
-        }
-        if (!empty($notificacoesCriar)) {
-            foreach ($notificacoesCriar as $novaNotificacao) {
-                $novaNotificacao->save();
-            }
-
-            // Dispara WhatsApp para cada alerta (equivalente ao Django)
-            $wppEnviados = 0;
-            $falhasWpp = [];
-
-            foreach ($notificacoesCriar as $notif) {
-                if ($notif->tipo === 'ALERTA') {
-                    $colab = Colaborador::find($notif->colaborador_id);
-                    if (!$colab) {
-                        continue;
-                    }
-                    $primeiroNome = explode(' ', $colab->nome_completo)[0];
-                    $dataFmtWpp   = Carbon::parse($dataRef)->format('d/m/Y');
-                    $msgWpp = "*⚠️ Atenção*\n\nOlá {$primeiroNome},\nHá notificações no seu Connect-Timesheet referentes ao dia {$dataFmtWpp}.\nPor favor, acesse o sistema para verificar.";
-
-                    try {
-                        if (WhatsAppService::enviarNotificacaoPendencia($colab, $msgWpp)) {
-                            $wppEnviados++;
-                        }
-                    } catch (\Exception $e) {
-                        $falhasWpp[] = [
-                            'nome'     => $colab->nome_completo,
-                            'erro'     => $e->getMessage(),
-                            'mensagem' => $msgWpp,
-                        ];
-                }
-            }
-
-            session()->flash('success', "Sucesso! {$countCriadas} notificações foram salvas. WhatsApp enviado para {$wppEnviados} colaboradores.");
+            // Calcula Totais (SolidesPonto e Apontamento) da mesma forma que o Dashboard
+            $totalSegundosSolides = 0;
+            $qtdRegistrosSolides  = 0;
+            $segundosAbonados = 0;
+            $diaTrabalhado = true;
+            $justificativaAbono = null;
             
-            if (!empty($falhasWpp)) {
-                session()->flash('falhas_wpp', $falhasWpp);
+            $pontosSolides = \App\Models\SolidesPonto::where('colaborador_id', $colab->id)
+                ->whereDate('data', $dataRef)
+                ->get();
+            
+            foreach ($pontosSolides as $ps) {
+                if ($ps->is_ajustado) {
+                    if (!$ps->dia_trabalhado) $diaTrabalhado = false;
+                    if ($ps->justificativa) $justificativaAbono = $ps->justificativa;
+                    if ($ps->horas_abonadas) {
+                        $horasDecimal = (float) $ps->horas_abonadas;
+                        if ($horasDecimal > 100) $horasDecimal = $horasDecimal / 1000;
+                        $segundosAbonados += (int) ($horasDecimal * 3600);
+                    }
+                } elseif ($ps->hora_entrada && $ps->hora_saida) {
+                    $entrada = Carbon::parse($ps->hora_entrada);
+                    $saida = Carbon::parse($ps->hora_saida);
+                    if ($saida->lt($entrada)) $saida->addDay();
+                    $totalSegundosSolides += $entrada->diffInSeconds($saida);
+                    $qtdRegistrosSolides++;
+                }
             }
+
+            $apontamentos = Apontamento::where('colaborador_id', $colab->id)
+                ->whereDate('data_apontamento', $dataRef)
+                ->get();
+                
+            $totalSegundosTimesheet = 0;
+            $qtdApontamentos = 0;
+            foreach ($apontamentos as $ap) {
+                if ($ap->hora_inicio && $ap->hora_termino) {
+                    $inicio = Carbon::parse($ap->hora_inicio);
+                    $fim = Carbon::parse($ap->hora_termino);
+                    if ($fim->lt($inicio)) $fim->addDay();
+                    $totalSegundosTimesheet += $inicio->diffInSeconds($fim);
+                    $qtdApontamentos++;
+                }
+            }
+
+            // Regras de Meta / Escala
+            $dadosPonto = $mapaEscalas[$colab->id][$dataRef] ?? null;
+            if (!$dadosPonto) {
+                $dadosPonto = [
+                    'deve_notificar'      => !$isFeriado && !$isFimDeSemana,
+                    'meta_segundos'       => 31680,
+                    'tolerancia_segundos' => 600,
+                ];
+            }
+
+            $deveNotificar = $dadosPonto['deve_notificar'] ?? true;
+            if (!$deveNotificar || !$diaTrabalhado) {
+                $metaSegundos = 0;
+                $tolerancia   = 0;
+            } else {
+                $metaSegundos = $dadosPonto['meta_segundos'] ?? 31680;
+                $tolerancia   = $dadosPonto['tolerancia_segundos'] ?? 600;
+                if ($segundosAbonados > 0) {
+                    $metaSegundos -= $segundosAbonados;
+                    if ($metaSegundos < 0) $metaSegundos = 0;
+                }
+            }
+            // 1. Preparação das variáveis de texto
+            $primeiroNome = explode(' ', trim($colab->nome_completo))[0];
+            $dataFmt = Carbon::parse($dataRef)->format('d/m/Y');
+
+            \Illuminate\Support\Facades\Log::info("Triagem Notificacao - {$colab->nome_completo}: Esperado: {$metaSegundos}, Solides: {$totalSegundosSolides}, Timesheet: {$totalSegundosTimesheet}, Tolerância: {$tolerancia}");
+
+            // 2. Regra 1: Se Sólides for zero (Folga/Feriado/Isento), ignora.
+            if ($totalSegundosSolides == 0) {
+                \Illuminate\Support\Facades\Log::info("Ignorando {$colab->nome_completo}: Saldo Sólides zerado.");
+                continue;
+            }
+
+            $mensagem = null;
+
+            // 3. Regra 2: Ausência Total no Timesheet
+            if ($totalSegundosTimesheet == 0) {
+                $mensagem = "Olá {$primeiroNome}, não identificamos seus apontamentos no dia {$dataFmt}. Por favor, verifique.";
+                \Illuminate\Support\Facades\Log::info("Ausência detectada para {$colab->nome_completo}.");
+            } 
+            // 4. Regra 3: Divergência fora da tolerância
+            elseif (abs($totalSegundosSolides - $totalSegundosTimesheet) > $tolerancia) {
+                $mensagem = "Olá {$primeiroNome}, notamos divergência entre suas horas registradas e apontadas no dia {$dataFmt}. Por favor, verifique e ajuste o Timesheet.";
+                \Illuminate\Support\Facades\Log::info("Divergência detectada para {$colab->nome_completo}.");
+            }
+
+            // 5. Criação da Notificação
+            if ($mensagem) {
+                \App\Models\Notificacao::create([
+                    'colaborador_id' => $colab->id,
+                    'titulo'         => 'Pendência de Apontamento',
+                    'mensagem'       => $mensagem,
+                    'tipo'           => 'ALERTA',
+                    'data_referencia'=> $dataRef,
+                    'remetente_id'   => auth()->id(),
+                ]);
+                $countCriadas++;
+            } else {
+                \Illuminate\Support\Facades\Log::info("{$colab->nome_completo} está em conformidade. Nenhuma notificação necessária.");
+            }
+        }
+
+        if ($countCriadas === 0) {
+            session()->flash('info', 'Nenhuma pendência encontrada para notificar neste dia (Dia ok ou folga/feriado).');
+        } else {
+            session()->flash('success', "Sucesso! {$countCriadas} notificações foram criadas e disparadas (via Push).");
         }
 
         return redirect()->route('conformidade.dashboard', ['data' => $dataStr]);
@@ -410,25 +439,15 @@ class ConformidadeController extends Controller
             'remetente_id'   => auth()->id(),
         ]);
 
-        $primeiroNome = explode(' ', $colab->nome_completo)[0];
-        $msgWpp = "*⚠️ Atenção*\n\nOlá {$primeiroNome},\nHá notificações no seu Connect-Timesheet referentes ao dia {$dataFormatadaMsg}.\nPor favor, acesse o sistema para verificar.";
-
-        $sucesso      = WhatsAppService::enviarNotificacaoPendencia($colab, $msgWpp);
-        $statusEnvio  = $sucesso ? 'WhatsApp enviado.' : 'Falha ao enviar WhatsApp.';
-
         AuditoriaService::registrar(
             $request,
             'CRIACAO',
             'Notificacao',
             $notificacao->id,
-            "Aviso manual disparado para: {$colab->nome_completo}. Título: '{$titulo}'. Ref: {$dataFormatadaMsg}. Status WhatsApp: {$statusEnvio}."
+            "Aviso manual disparado para: {$colab->nome_completo}. Título: '{$titulo}'. Ref: {$dataFormatadaMsg}."
         );
 
-        if ($sucesso) {
-            session()->flash('success', "Mensagem enviada para {$colab->nome_completo} via WhatsApp. (Ref: {$dataFormatadaMsg})");
-        } else {
-            session()->flash('warning', "Mensagem enviada para {$colab->nome_completo} apenas pelo sistema, falha via WhatsApp.");
-        }
+        session()->flash('success', "Mensagem enviada para {$colab->nome_completo}. (Ref: {$dataFormatadaMsg})");
 
         return redirect()->route('conformidade.dashboard');
     }
