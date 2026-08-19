@@ -2,7 +2,10 @@
 .env
 .env.*
 !.env.example
+.env.deploy
 .env.backup
+.env.github
+.env.prod
 *.key
 /storage/*.key
 google-service-account.json
@@ -61,3 +64,8 @@ Thumbs.db
 /Homestead.yaml
 .phpactor.json
 /auth.json
+
+# Documentação e Scripts Auxiliares do Docker
+/md-files-docker/
+build-and-push.ps1
+ssh_out.txt

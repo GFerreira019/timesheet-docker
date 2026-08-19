@@ -1,50 +1,50 @@
-version: '3.8'
-
 services:
-  app:
+  timesheet-app:
     build:
       context: .
       dockerfile: Dockerfile
-    image: timesheet-app
-    restart: unless-stopped
-    working_dir: /var/www
-    volumes:
-      - ./:/var/www
-    networks:
-      - timesheet-network
-    depends_on:
-      - db
-
-  webserver:
-    image: nginx:alpine
+    image: timesheet-app:latest
+    container_name: timesheet-app
     restart: unless-stopped
     ports:
-      - "80:80"
-    volumes:
-      - ./:/var/www
-      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf
-    networks:
-      - timesheet-network
+      - "8000:80"
+    environment:
+      - DB_HOST=timesheet-db
+      - DB_PORT=5432
+      - DB_DATABASE=${DB_DATABASE:-timesheet}
+      - DB_USERNAME=${DB_USERNAME:-postgres}
+      - DB_PASSWORD=${DB_PASSWORD:-postgres}
+      - APP_ENV=${APP_ENV:-local}
     depends_on:
-      - app
+      timesheet-db:
+        condition: service_healthy
+    networks:
+      - timesheet_network
 
-  db:
-    image: postgres:15-alpine
+  timesheet-db:
+    image: postgres:16-alpine
+    container_name: timesheet-db
     restart: unless-stopped
     environment:
+      POSTGRES_USER: ${DB_USERNAME:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
       POSTGRES_DB: ${DB_DATABASE:-timesheet}
-      POSTGRES_USER: ${DB_USERNAME:-timesheet}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-secret}
-    volumes:
-      - dbdata:/var/lib/postgresql/data
     ports:
       - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-postgres} -d ${DB_DATABASE:-timesheet}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
     networks:
-      - timesheet-network
-
-networks:
-  timesheet-network:
-    driver: bridge
+      - timesheet_network
 
 volumes:
-  dbdata:
+  postgres_data:
+    driver: local
+
+networks:
+  timesheet_network:
+    driver: bridge
