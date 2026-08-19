@@ -35,11 +35,7 @@ class NotificacaoObserver
             }
         } catch (\Exception $e) {
             // Regra de Ouro (Blindagem): Loga o erro mas não quebra o fluxo de criação da notificação
-            Log::error('FALHA_OBSERVER_FCM', [
-                'notificacao_id' => $notificacao->id,
-                'colaborador' => $notificacao->colaborador?->nome_completo,
-                'erro' => $e->getMessage()
-            ]);
+            report($e);
         }
     }
 }

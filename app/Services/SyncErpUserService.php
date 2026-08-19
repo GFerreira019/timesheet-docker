@@ -96,7 +96,6 @@ class SyncErpUserService
             );
 
             if ($colaborador->wasRecentlyCreated) {
-                Log::info("[SyncErpUserService] Rascunho de colaborador criado (id_colaborador={$idColaborador}).", [
                     // PK interna gerada pelo banco — é este valor que vai em users.produtividade_colaborador_id
                     'colaborador_pk' => $colaborador->id,
                     'nome_completo'  => $colaborador->nome_completo,
@@ -140,7 +139,6 @@ class SyncErpUserService
                 ]
             );
 
-            Log::info("[SyncErpUserService] Usuário sincronizado e liberado para acesso: id={$user->id}, email={$user->email}", [
                 'user_id'                      => $user->id,
                 'produtividade_colaborador_id' => $colaborador->id,
                 // Código de 11 dígitos — armazenado em produtividade_colaborador.id_colaborador
@@ -175,11 +173,7 @@ class SyncErpUserService
                     'payload' => $payload,
                     'error'   => $e->getMessage(),
                 ];
-                Log::error("[SyncErpUserService] Erro ao processar payload #{$index}: {$e->getMessage()}", [
-                    'payload' => $payload,
-                ]);
-            }
-        }
+                report($e);  }
 
         return compact('synced', 'errors');
     }

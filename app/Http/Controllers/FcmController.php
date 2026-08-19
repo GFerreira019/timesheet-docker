@@ -13,7 +13,6 @@ class FcmController extends Controller
      */
     public function updateToken(Request $request): JsonResponse
     {
-        Log::info('Requisição FCM recebida no backend.', ['payload' => $request->all()]);
 
         try {
             $request->validate([
@@ -25,7 +24,6 @@ class FcmController extends Controller
                     'fcm_token' => $request->token,
                 ]);
 
-                Log::info("FCM Token vinculado com sucesso ao usuário ID: {$user->id}");
                 return response()->json(['message' => 'FCM Token armazenado com sucesso.'], 200);
             }
 
@@ -33,7 +31,7 @@ class FcmController extends Controller
             return response()->json(['message' => 'Não autorizado.'], 401);
 
         } catch (\Exception $e) {
-            Log::error('Erro ao salvar token FCM: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
+            report($e);
             return response()->json(['message' => 'Erro interno do servidor.'], 500);
         }
     }

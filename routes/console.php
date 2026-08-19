@@ -17,3 +17,6 @@ Schedule::command('erp:sync-usuarios')->dailyAt('01:30');
 // Rotinas de Backup (Spatie)
 Schedule::command('backup:run')->dailyAt('00:30');
 Schedule::command('backup:clean')->dailyAt('02:00');
+
+// Database Archiving (Cold Storage)
+Schedule::job(new \App\Jobs\ArchiveOldRecordsJob)->monthlyOn(1, '03:00');

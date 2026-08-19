@@ -42,7 +42,7 @@ class RegistrarLogout
                 detalhes: 'Logout efetuado com sucesso.'
             );
         } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\Log::error("FALHA AUDITORIA (LOGOUT): {$e->getMessage()}");
+            report($e);
         }
     }
 }

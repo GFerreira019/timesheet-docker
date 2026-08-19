@@ -67,7 +67,7 @@ class ErpIntegrationService
                     'total_obras' => $count
                 ];
             } else {
-                Log::error("Falha ao sincronizar obras do ERP (Chamada única)", [
+                Log::warning("ErpIntegration: Falha ao sincronizar obras do ERP (Chamada única)", [
                     'status' => $response->status(),
                     'body' => $response->body()
                 ]);
@@ -80,7 +80,7 @@ class ErpIntegrationService
             }
 
         } catch (\Exception $e) {
-            Log::error('Exceção ao sincronizar obras do ERP: ' . $e->getMessage());
+            report($e);
             
             return [
                 'success' => false,
@@ -159,7 +159,7 @@ class ErpIntegrationService
                     'total_usuarios' => $count
                 ];
             } else {
-                Log::error("Falha ao sincronizar usuários do ERP", [
+                Log::warning("ErpIntegration: Falha ao sincronizar usuários do ERP", [
                     'status' => $response->status(),
                     'body' => $response->body()
                 ]);
@@ -172,7 +172,7 @@ class ErpIntegrationService
             }
 
         } catch (\Exception $e) {
-            Log::error('Exceção ao sincronizar usuários do ERP: ' . $e->getMessage());
+            report($e);
             
             return [
                 'success' => false,

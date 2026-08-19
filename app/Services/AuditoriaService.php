@@ -54,7 +54,7 @@ class AuditoriaService
             ]);
         } catch (\Throwable $e) {
             // Log de auditoria nunca deve derrubar a requisição
-            Log::error("AuditoriaService: Falha ao registrar log. Acao={$acao}, Modelo={$modelo}. Erro: {$e->getMessage()}");
+            report($e);
         }
     }
 
@@ -86,7 +86,7 @@ class AuditoriaService
                 'data_hora'      => now(),
             ]);
         } catch (\Throwable $e) {
-            Log::error("AuditoriaService: Falha ao registrar log do sistema. {$e->getMessage()}");
+            report($e);
         }
     }
 

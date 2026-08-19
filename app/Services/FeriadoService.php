@@ -398,14 +398,14 @@ class FeriadoService
 
             // 1. Verifica se a requisição deu erro ou é um HTML perdido (Parking page)
             if ($response->failed() || stripos($bodyStr, '<!DOCTYPE') === 0 || stripos($bodyStr, '<html') === 0) {
-                \Illuminate\Support\Facades\Log::error("A API retornou erro ou um formato HTML inválido para {$cidade}.");
+                \Illuminate\Support\Facades\Log::warning("FeriadoService: A API retornou erro ou um formato HTML inválido para {$cidade}.");
                 return false;
             }
 
             // 2. Verifica se o conteúdo retornado é realmente um JSON válido e não um HTML perdido
             $contentType = $response->header('Content-Type');
             if (!str_contains($contentType ?? '', 'application/json')) {
-                \Illuminate\Support\Facades\Log::error("A API retornou um formato inválido (não-JSON) para {$cidade}. Verifique a URL do endpoint.");
+                \Illuminate\Support\Facades\Log::warning("FeriadoService: A API retornou um formato inválido (não-JSON) para {$cidade}. Verifique a URL do endpoint.");
                 return false;
             }
 

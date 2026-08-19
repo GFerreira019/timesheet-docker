@@ -327,8 +327,6 @@ class ApontamentoController extends Controller
             return redirect()->route('historico.index');
         }
 
-        \Log::info('Dados recebidos no Update:', $request->all());
-
         $dados = $request->dadosLimpos();
 
         DB::transaction(function () use ($apontamento, $dados, $user, $request) {
@@ -909,7 +907,7 @@ class ApontamentoController extends Controller
                     \App\Services\SolidesService::buscarEspelhoPonto($colab->id, $dataHoje, $dataHoje);
                     return true;
                 } catch (\Exception $e) {
-                    \Illuminate\Support\Facades\Log::error("Erro JIT Solides [ID: {$colab->id}]: " . $e->getMessage() . " na linha " . $e->getLine());
+                    report($e);
                     \Illuminate\Support\Facades\Cache::forget($cacheKey); // Força esquecer em caso de erro
                     return false;
                 }
@@ -1075,7 +1073,7 @@ class ApontamentoController extends Controller
                     return $response->json();
                 }
             } catch (\Exception $e) {
-                \Illuminate\Support\Facades\Log::error('Erro ao consultar API de Plantão: ' . $e->getMessage());
+                report($e);
             }
             return null;
         });

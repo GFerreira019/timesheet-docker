@@ -529,8 +529,6 @@ class ApontamentoRequest extends FormRequest
             $apontInicioFmt = $apInicio->format('H:i');
             $apontFimFmt    = $apTermino->format('H:i');
 
-            Log::info("Validando Sólides - Apontamento: {$apontInicioFmt} às {$apontFimFmt} | Intervalo Banco: {$inicioFmt} às {$fimFmt}");
-
             // 5. Fórmula Universal de Sobreposição: (A_ini < B_fim) && (A_fim > B_ini)
             if ($apInicio->lt($fimIntervaloObj) && $apTermino->gt($inicioIntervaloObj)) {
                 session()->flash('conflito_details', [

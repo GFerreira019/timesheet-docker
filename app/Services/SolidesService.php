@@ -52,9 +52,6 @@ class SolidesService
                     $queryParams['endDateInMillis'] = $fimCarbon->endOfDay()->valueOf();
                 }
 
-                // Log para Debug antes da requisição
-                Log::info("Parâmetros enviados Sólides:", $queryParams);
-
                 // Requisição HTTP conforme regras (Headers estritos)
                 $response = Http::withHeaders([
                     'Authorization' => $token,
@@ -168,7 +165,7 @@ class SolidesService
 
         } catch (\Exception $e) {
             // Envolva a requisição da API em um bloco try...catch capturando as exceções e registrando os erros no Log::error.
-            Log::error("Erro no SolidesService@buscarEspelhoPonto: " . $e->getMessage());
+            report($e);
             throw $e;
         }
     }

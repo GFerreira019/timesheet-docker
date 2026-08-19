@@ -36,7 +36,7 @@ class SsoController extends Controller
                 ]);
 
             if ($response->failed()) {
-                Log::error('Erro ao validar ticket no ERP.', ['status' => $response->status(), 'body' => $response->body()]);
+                Log::warning('SSO: Erro HTTP ao validar ticket no ERP.', ['status' => $response->status()]);
                 return redirect()->route('login')->withErrors(['error' => 'Acesso negado pelo ERP (Falha de comunicação).']);
             }
 
@@ -50,7 +50,7 @@ class SsoController extends Controller
             $dadosUsuario = $data['data'] ?? $data; // Handle structure variation (data wrap vs root)
 
             if (!isset($dadosUsuario['id_usuario'])) {
-                Log::error('Dados do usuário incompletos retornados pelo ERP.', ['dados' => $dadosUsuario]);
+                Log::warning('SSO: Dados do usuário incompletos retornados pelo ERP.');
                 return redirect()->route('login')->withErrors(['error' => 'Dados de usuário inválidos retornados pelo ERP.']);
             }
 
@@ -88,7 +88,7 @@ class SsoController extends Controller
             return redirect()->route('painel');
 
         } catch (\Exception $e) {
-            Log::error('Exceção ao validar ticket SSO: ' . $e->getMessage());
+            report($e);
             return redirect()->route('login')->withErrors(['error' => 'Erro interno ao validar o acesso.']);
         }
     }

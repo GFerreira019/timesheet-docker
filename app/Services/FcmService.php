@@ -47,10 +47,7 @@ class FcmService
             
         } catch (\Throwable $e) {
             // Em caso de erro (ex: credenciais falhas ou token expirado), deixamos um Log limpo
-            Log::error('FALHA_ENVIO_FCM', [
-                'token' => $token,
-                'message' => $e->getMessage()
-            ]);
+            report($e);
 
             return null;
         }

@@ -42,7 +42,7 @@ class RegistrarLogin
             );
         } catch (\Throwable $e) {
             // Nunca deve derrubar o fluxo de login — equivalente ao try/except do Django
-            \Illuminate\Support\Facades\Log::error("FALHA AUDITORIA (LOGIN): {$e->getMessage()}");
+            report($e);
         }
     }
 }

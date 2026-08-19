@@ -54,7 +54,7 @@ class RegistrarFalhaLogin
                 'data_hora'      => now(),
             ]);
         } catch (\Throwable $e) {
-            Log::error("FALHA AUDITORIA (LOGIN FAILED): {$e->getMessage()}");
+            report($e);
         }
     }
 }

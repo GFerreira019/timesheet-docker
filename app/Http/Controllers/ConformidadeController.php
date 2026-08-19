@@ -250,7 +250,7 @@ class ConformidadeController extends Controller
      */
     public function notificarPendencias(Request $request): RedirectResponse
     {
-        \Illuminate\Support\Facades\Log::info("=== INÍCIO NOTIFICAR PENDÊNCIAS ===", ['request' => $request->all()]);
+        \Illuminate\Support\Facades\Log::info("=== INÍCIO ROTINA DE CONFORMIDADE (Notificar Pendências) ===");
         
         $dataStr = $request->input('data_ref');
 
@@ -270,8 +270,7 @@ class ConformidadeController extends Controller
         $ano = $dataCarbon->year;
         $mapaEscalas = \App\Services\ControlePontoService::obterEscalasDoMes($colaboradores, $mes, $ano);
         
-        \Illuminate\Support\Facades\Log::info("Total de colaboradores na base: " . ($colaboradores->count() ?? 0));
-        \Illuminate\Support\Facades\Log::info("Escalas carregadas para o dia: ", (array) $mapaEscalas);
+        // Logs removidos (Higiene: debug transiente)
         
         $feriadoObj = Feriado::where('data', $dataRef)->first();
         $isFeriado = (bool) $feriadoObj;
@@ -282,7 +281,6 @@ class ConformidadeController extends Controller
         $countCriadas      = 0;
 
         foreach ($colaboradores as $colab) {
-            \Illuminate\Support\Facades\Log::info("Avaliando colaborador: {$colab->nome_completo}");
 
             // Calcula Totais (SolidesPonto e Apontamento) da mesma forma que o Dashboard
             $totalSegundosSolides = 0;
@@ -355,11 +353,8 @@ class ConformidadeController extends Controller
             $primeiroNome = explode(' ', trim($colab->nome_completo))[0];
             $dataFmt = Carbon::parse($dataRef)->format('d/m/Y');
 
-            \Illuminate\Support\Facades\Log::info("Triagem Notificacao - {$colab->nome_completo}: Esperado: {$metaSegundos}, Solides: {$totalSegundosSolides}, Timesheet: {$totalSegundosTimesheet}, Tolerância: {$tolerancia}");
-
             // 2. Regra 1: Se Sólides for zero (Folga/Feriado/Isento), ignora.
             if ($totalSegundosSolides == 0) {
-                \Illuminate\Support\Facades\Log::info("Ignorando {$colab->nome_completo}: Saldo Sólides zerado.");
                 continue;
             }
 
@@ -368,12 +363,10 @@ class ConformidadeController extends Controller
             // 3. Regra 2: Ausência Total no Timesheet
             if ($totalSegundosTimesheet == 0) {
                 $mensagem = "Olá {$primeiroNome}, não identificamos seus apontamentos no dia {$dataFmt}. Por favor, verifique.";
-                \Illuminate\Support\Facades\Log::info("Ausência detectada para {$colab->nome_completo}.");
             } 
             // 4. Regra 3: Divergência fora da tolerância
             elseif (abs($totalSegundosSolides - $totalSegundosTimesheet) > $tolerancia) {
                 $mensagem = "Olá {$primeiroNome}, notamos divergência entre suas horas registradas e apontadas no dia {$dataFmt}. Por favor, verifique e ajuste o Timesheet.";
-                \Illuminate\Support\Facades\Log::info("Divergência detectada para {$colab->nome_completo}.");
             }
 
             // 5. Criação da Notificação
@@ -388,7 +381,6 @@ class ConformidadeController extends Controller
                 ]);
                 $countCriadas++;
             } else {
-                \Illuminate\Support\Facades\Log::info("{$colab->nome_completo} está em conformidade. Nenhuma notificação necessária.");
             }
         }
 
@@ -472,7 +464,7 @@ class ConformidadeController extends Controller
             try {
                 \App\Services\SolidesService::buscarEspelhoPonto($colab->id, $dataInicio, $dataFim);
             } catch (\Exception $e) {
-                \Illuminate\Support\Facades\Log::error("Erro na sinc. Sólides (7 dias) para Colaborador {$colab->id}: " . $e->getMessage());
+                report($e);
             }
         }
 

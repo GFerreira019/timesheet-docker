@@ -55,7 +55,7 @@ class NotificacaoController extends Controller
                         ]);
                     }
                 } catch (\Exception $e) {
-                    Log::error("Erro ao enviar notificação para o remetente: " . $e->getMessage());
+                    report($e);
                     // Continua a execução normalmente (ação secundária isolada)
                 }
             }
@@ -75,7 +75,7 @@ class NotificacaoController extends Controller
 
             return response()->json(['success' => true]);
         } catch (\Exception $e) {
-            Log::error("Erro ao responder notificação: " . $e->getMessage());
+            report($e);
             return response()->json(['success' => false, 'message' => 'Erro interno do servidor.'], 500);
         }
     }
@@ -99,7 +99,7 @@ class NotificacaoController extends Controller
 
             return response()->json(['success' => true]);
         } catch (\Exception $e) {
-            Log::error("Erro ao marcar notificação como lida: " . $e->getMessage());
+            report($e);
             return response()->json(['success' => false, 'message' => 'Erro interno do servidor.'], 500);
         }
     }
@@ -122,7 +122,7 @@ class NotificacaoController extends Controller
 
             return back()->with('success', 'Todas as notificações foram marcadas como lidas.');
         } catch (\Exception $e) {
-            Log::error("Erro ao marcar todas notificações como lidas: " . $e->getMessage());
+            report($e);
             return back()->with('error', 'Erro ao atualizar notificações.');
         }
     }
