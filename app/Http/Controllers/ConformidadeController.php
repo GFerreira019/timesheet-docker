@@ -10,7 +10,6 @@ use App\Models\Notificacao;
 use App\Services\AuditoriaService;
 use App\Services\ControlePontoService;
 use App\Services\WhatsAppService;
-use App\Services\FcmService;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
@@ -30,9 +29,6 @@ use Illuminate\View\View;
  */
 class ConformidadeController extends Controller
 {
-    public function __construct(
-        protected FcmService $fcmService
-    ) {}
     /**
      * Dashboard de monitoramento de conformidade do dia.
      * Equivalente ao dashboard_conformidade_view() do Django.
@@ -363,25 +359,6 @@ class ConformidadeController extends Controller
                             'erro'     => $e->getMessage(),
                             'mensagem' => $msgWpp,
                         ];
-                    }
-
-                    // Disparo Simultâneo via FCM
-                    try {
-                        $userRelacionado = $colab->user;
-                        if ($userRelacionado && !empty($userRelacionado->fcm_token)) {
-                            $this->fcmService->sendNotification(
-                                $userRelacionado->fcm_token,
-                                'Atenção! Pendências no Timesheet ⚠️',
-                                "Olá {$primeiroNome}, há notificações no seu Connect-Timesheet referentes ao dia {$dataFmtWpp}.",
-                                ['screen' => 'dashboard', 'data' => $dataFmtWpp]
-                            );
-                        }
-                    } catch (\Exception $e) {
-                        Log::error('FALHA_FCM_LOTE', [
-                            'colaborador' => $colab->nome_completo,
-                            'erro'        => $e->getMessage()
-                        ]);
-                    }
                 }
             }
 
@@ -438,26 +415,6 @@ class ConformidadeController extends Controller
 
         $sucesso      = WhatsAppService::enviarNotificacaoPendencia($colab, $msgWpp);
         $statusEnvio  = $sucesso ? 'WhatsApp enviado.' : 'Falha ao enviar WhatsApp.';
-
-        // Disparo Simultâneo via FCM
-        try {
-            $userRelacionado = $colab->user;
-            if ($userRelacionado && !empty($userRelacionado->fcm_token)) {
-                $this->fcmService->sendNotification(
-                    $userRelacionado->fcm_token,
-                    $titulo,
-                    $msg,
-                    ['screen' => 'notificacoes']
-                );
-                $statusEnvio .= ' Push (FCM) acionado.';
-            }
-        } catch (\Exception $e) {
-            Log::error('FALHA_FCM_MANUAL', [
-                'colaborador' => $colab->nome_completo,
-                'erro'        => $e->getMessage()
-            ]);
-            $statusEnvio .= ' Push (FCM) falhou.';
-        }
 
         AuditoriaService::registrar(
             $request,

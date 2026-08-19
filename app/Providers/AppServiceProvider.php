@@ -19,6 +19,7 @@ use App\Models\Projeto;
 use App\Observers\CentroCustoObserver;
 use App\Observers\ColaboradorObserver;
 use App\Observers\FeriadoObserver;
+use App\Observers\NotificacaoObserver;
 use App\Observers\ProjetoObserver;
 use Illuminate\Auth\Events\Failed;
 use Illuminate\Auth\Events\Login;
@@ -116,6 +117,11 @@ class AppServiceProvider extends ServiceProvider
          * Bônus Laravel: também invalida a chave ANTIGA se data/cidade/uf mudaram.
          */
         Feriado::observe(FeriadoObserver::class);
+
+        /**
+         * Notificacao: Dispara Push Notification via Firebase ao criar uma notificação.
+         */
+        \App\Models\Notificacao::observe(NotificacaoObserver::class);
 
         // ─────────────────────────────────────────────────────────────
         // LISTENERS — Auditoria de Autenticação (equivalente aos signals Django)

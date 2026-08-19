@@ -26,14 +26,12 @@ class AuditoriaController extends Controller
     public function index(Request $request): View
     {
         $totalNotificacoes = \App\Models\Notificacao::count();
+        $colaboradores = \App\Models\Colaborador::orderBy('nome_completo')->get();
 
         if ($request->query('filtro') === 'notificacoes') {
             $query = \App\Models\Notificacao::with('colaborador')
-                ->when($request->filled('search'), function ($q) use ($request) {
-                    $search = $request->query('search');
-                    $q->whereHas('colaborador', function ($sub) use ($search) {
-                        $sub->where('nome_completo', 'LIKE', "%{$search}%");
-                    });
+                ->when($request->filled('colaborador_id'), function ($q) use ($request) {
+                    $q->where('colaborador_id', $request->query('colaborador_id'));
                 })
                 ->when($request->filled('data'), function ($q) use ($request) {
                     $q->whereDate('created_at', $request->query('data'));
@@ -70,6 +68,7 @@ class AuditoriaController extends Controller
             'titulo'       => 'Trilha de Auditoria',
             'logs'         => $logs,
             'usuarios'     => $usuarios,
+            'colaboradores'=> $colaboradores,
             'filtro_user'  => $request->query('user') ? (int) $request->query('user') : '',
             'filtro_acao'  => $request->query('acao'),
             'filtro_data'  => $request->query('data'),
