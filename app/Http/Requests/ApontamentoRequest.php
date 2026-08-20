@@ -123,7 +123,7 @@ class ApontamentoRequest extends FormRequest
 
             // Rateio
             'registrar_multiplas_obras' => ['nullable', 'boolean'],
-            'obras_extras_list'         => ['nullable', 'string'],
+            'obras_extras_list'         => ['nullable'],
 
             // Controle
             'tipo_acao'   => ['nullable', 'string'],
@@ -196,7 +196,7 @@ class ApontamentoRequest extends FormRequest
             // ==================================================================
             if ($user && !AcessoHelper::podeFazerRateio($user)) {
                 $data['registrar_multiplas_obras'] = false;
-                $data['obras_extras_list']         = '';
+                $data['obras_extras_list']         = is_array($data['obras_extras_list'] ?? null) ? [] : '';
             }
 
             // ==================================================================
@@ -304,7 +304,8 @@ class ApontamentoRequest extends FormRequest
             // ==================================================================
             if (filter_var($data['registrar_multiplas_obras'] ?? false, FILTER_VALIDATE_BOOLEAN)) {
                 $extras = $data['obras_extras_list'] ?? '';
-                if (empty(trim((string) $extras))) {
+                $hasExtras = is_array($extras) ? count($extras) > 0 : !empty(trim((string) $extras));
+                if (!$hasExtras) {
                     $validator->errors()->add(
                         'registrar_multiplas_obras',
                         'Erro de processamento: Nenhuma obra adicional foi detectada para o rateio.'
@@ -740,7 +741,7 @@ class ApontamentoRequest extends FormRequest
         // Remove campos de rateio se sem permissão
         if ($user && !AcessoHelper::podeFazerRateio($user)) {
             $data['registrar_multiplas_obras'] = false;
-            $data['obras_extras_list']         = '';
+            $data['obras_extras_list']         = is_array($data['obras_extras_list'] ?? null) ? [] : '';
         }
 
         // Limpa campos de local contrários ao local_execucao selecionado

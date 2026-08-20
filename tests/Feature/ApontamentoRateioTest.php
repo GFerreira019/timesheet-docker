@@ -17,6 +17,8 @@ class ApontamentoRateioTest extends TestCase
     {
         // Setup: Usuário nativo com privilégios de rateio
         $user = User::factory()->create();
+        $role = \Spatie\Permission\Models\Role::firstOrCreate(['name' => 'COORDENADOR', 'guard_name' => 'web']);
+        $user->assignRole($role);
 
         // Setup: Colaborador inserido manualmente (sem factory)
         $colaborador = Colaborador::create([
@@ -38,6 +40,7 @@ class ApontamentoRateioTest extends TestCase
         $projeto1 = Projeto::create(['codigo' => 'OBR001', 'nome' => 'Edifício Alpha', 'ativo' => true]);
         $projeto2 = Projeto::create(['codigo' => 'OBR002', 'nome' => 'Residencial Beta', 'ativo' => true]);
         $projeto3 = Projeto::create(['codigo' => 'OBR003', 'nome' => 'Condomínio Gama', 'ativo' => true]);
+        $centroCusto = \App\Models\CentroCusto::create(['codigo' => 'CC001', 'nome' => 'Administrativo', 'ativo' => true, 'permite_alocacao' => true]);
 
         $dados = [
             'colaborador_id' => $colaborador->id,
@@ -47,8 +50,8 @@ class ApontamentoRateioTest extends TestCase
             'hora_inicio' => '08:00',
             'hora_termino' => '17:00',
             'registrar_multiplas_obras' => true,
-            'obras_extras_list' => json_encode([$projeto1->id, $projeto2->id, $projeto3->id]),
-            'centro_custo_id' => null,
+            'obras_extras_list' => [$projeto1->id, $projeto2->id, $projeto3->id],
+            'centro_custo_id' => $centroCusto->id,
             'descricao' => 'Trabalho rateado nas 3 obras',
             'acao' => 'STOP',
         ];

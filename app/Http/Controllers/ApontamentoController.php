@@ -157,9 +157,12 @@ class ApontamentoController extends Controller
             $response = $this->criarCheckIn($dados, $user);
         } else {
             // Verifica se é rateio
+            $obrasExtras = $dados['obras_extras_list'] ?? null;
+            $hasObrasExtras = is_array($obrasExtras) ? count($obrasExtras) > 0 : !empty(trim((string)$obrasExtras));
+
             $isRateio = AcessoHelper::podeFazerRateio($user)
                 && filter_var($dados['registrar_multiplas_obras'] ?? false, FILTER_VALIDATE_BOOLEAN)
-                && !empty(trim($dados['obras_extras_list'] ?? ''));
+                && $hasObrasExtras;
 
             if ($isRateio) {
                 $response = $this->criarComRateio($dados, $request, $user);
@@ -604,16 +607,20 @@ class ApontamentoController extends Controller
 
         $extrasStr   = $dados['obras_extras_list'] ?? '';
         
-        if (str_starts_with(trim($extrasStr), '[')) {
+        $listaExtras = [];
+        if (is_array($extrasStr)) {
+            foreach ($extrasStr as $item) {
+                $listaExtras[] = is_numeric($item) ? "P_{$item}" : (string)$item;
+            }
+        } elseif (str_starts_with(trim((string)$extrasStr), '[')) {
             $arr = json_decode($extrasStr, true);
-            $listaExtras = [];
             if (is_array($arr)) {
                 foreach ($arr as $item) {
                     $listaExtras[] = is_numeric($item) ? "P_{$item}" : (string)$item;
                 }
             }
         } else {
-            $listaExtras = array_filter(array_map('trim', explode(',', $extrasStr)));
+            $listaExtras = array_filter(array_map('trim', explode(',', (string)$extrasStr)));
         }
 
         $todasObras  = $principalStr

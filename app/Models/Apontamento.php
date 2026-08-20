@@ -252,8 +252,8 @@ class Apontamento extends Model
         }
 
         $base    = '2000-01-01';
-        $inicio  = \Carbon\Carbon::parse("{$baseDate} {$this->hora_inicio}");
-        $termino = \Carbon\Carbon::parse("{$baseDate} {$this->hora_termino}");
+        $inicio  = \Carbon\Carbon::parse("{$base} {$this->hora_inicio}");
+        $termino = \Carbon\Carbon::parse("{$base} {$this->hora_termino}");
 
         if ($termino->lt($inicio)) {
             $termino->addDay();
