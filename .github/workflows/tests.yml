@@ -42,6 +42,11 @@ jobs:
     - name: Generate key
       run: php artisan key:generate
 
+    - name: Prepare Storage Directories
+      run: |
+        mkdir -p storage/framework/{sessions,views,cache/data}
+        chmod -R 777 storage
+
     - name: Execute tests
       env:
         DB_CONNECTION: sqlite
