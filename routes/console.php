@@ -20,3 +20,6 @@ Schedule::command('backup:clean')->dailyAt('02:00');
 
 // Database Archiving (Cold Storage)
 Schedule::job(new \App\Jobs\ArchiveOldRecordsJob)->monthlyOn(1, '03:00');
+
+// Notificação de Apontamentos Pendentes de Aprovação (Dias úteis às 08:00)
+Schedule::command('app:notify-pending-approvals')->dailyAt('08:00')->weekdays();
