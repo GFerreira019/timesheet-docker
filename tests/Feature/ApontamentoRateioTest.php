@@ -42,7 +42,7 @@ class ApontamentoRateioTest extends TestCase
         $dados = [
             'colaborador_id' => $colaborador->id,
             'data_apontamento' => '2026-06-25',
-            'local_execucao' => 'INT',
+            'local_execucao' => 'INTERNO',
             'projeto_id' => $projeto1->id,
             'hora_inicio' => '08:00',
             'hora_termino' => '17:00',

@@ -11,6 +11,7 @@ use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Tests\TestCase;
+use PHPUnit\Framework\Attributes\Test;
 
 class SobreposicaoHorasTest extends TestCase
 {
@@ -49,7 +50,7 @@ class SobreposicaoHorasTest extends TestCase
         ]);
     }
 
-    /** @test */
+    #[Test]
     public function bloqueia_sobreposicao_no_mesmo_dia()
     {
         Apontamento::create([
@@ -77,7 +78,7 @@ class SobreposicaoHorasTest extends TestCase
         $this->assertEquals(1, Apontamento::count()); 
     }
 
-    /** @test */
+    #[Test]
     public function bloqueia_conflito_de_interjornada_overnight()
     {
         Apontamento::create([
@@ -105,7 +106,7 @@ class SobreposicaoHorasTest extends TestCase
         $this->assertEquals(1, Apontamento::count());
     }
 
-    /** @test */
+    #[Test]
     public function bloqueia_conflito_com_intervalo_da_solides()
     {
         SolidesPonto::create([
@@ -140,7 +141,7 @@ class SobreposicaoHorasTest extends TestCase
         $this->assertEquals(0, Apontamento::count());
     }
 
-    /** @test */
+    #[Test]
     public function permite_edicao_do_proprio_registro_sem_conflito()
     {
         $ap = Apontamento::create([
@@ -168,7 +169,7 @@ class SobreposicaoHorasTest extends TestCase
         $this->assertEquals('09:00', date('H:i', strtotime($ap->fresh()->hora_inicio)));
     }
 
-    /** @test */
+    #[Test]
     public function bloqueia_novo_apontamento_se_check_in_ativo()
     {
         Apontamento::create([
