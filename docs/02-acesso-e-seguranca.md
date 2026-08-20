@@ -3,7 +3,14 @@
 > [!NOTE]
 > Este documento reflete as regras oficiais e atualizadas do sistema de Timesheet, mapeadas com base no uso do `spatie/laravel-permission` (`model_has_roles`), middlewares de rota e permissões de visibilidade. Serve como a Fonte de Verdade para permissões, visibilidade de dados e navegação.
 
-## 1. Mapeamento de Perfis, Dashboards e Visibilidade (RLS)
+## 1. Arquitetura de Autenticação (SSO e Passwordless)
+
+Esta aplicação atua exclusivamente sob um regime de **Single Sign-On (SSO)** integrado ao ERP corporativo. Não existe registro, recuperação ou validação de senha local.
+
+- **Passwordless**: A model `User` e a tabela `users` **não possuem** os campos `password` ou `remember_token`. Futuros desenvolvedores não devem tentar reativar ou usar os traits nativos de autenticação padrão do Laravel (como `Illuminate\Auth\Passwords\CanResetPassword`).
+- **Ciclo de Login**: O usuário faz login no ERP. O ERP redireciona para a rota de callback do Timesheet com um token temporário (JWT/Ticket). O sistema valida o token na API do ERP e, se válido, autentica o usuário localmente via `Auth::login()`.
+
+## 2. Mapeamento de Perfis, Dashboards e Visibilidade (RLS)
 
 O sistema conta com 5 principais perfis de acesso centralizados na classe `App\Helpers\AcessoHelper`. A visibilidade do Dashboard e dos dados (Row Level Security) varia de acordo com o papel.
 
@@ -49,7 +56,7 @@ O sistema conta com 5 principais perfis de acesso centralizados na classe `App\H
 
 ---
 
-## 2. Regras de Timesheet (Apontamentos e Edição)
+## 3. Regras de Timesheet (Apontamentos e Edição)
 
 ### A. Fluxo de Criação (Lançamentos por Terceiros)
 
@@ -71,7 +78,7 @@ O Insecure Direct Object Reference (IDOR) é uma vulnerabilidade grave mitigada 
 
 ---
 
-## 3. Fluxo de Aprovação, Ajustes e Trava de Autoaprovação
+## 4. Fluxo de Aprovação, Ajustes e Trava de Autoaprovação
 
 ### A. Status dos Registros
 
@@ -87,7 +94,7 @@ Os apontamentos passam pelos seguintes estados no model `Apontamento`:
 
 ---
 
-## 4. Prevenção a Mass Assignment e Rate Limiting
+## 5. Prevenção a Mass Assignment e Rate Limiting
 
 Para garantir integridade:
 - **Mass Assignment Blindado**: Colunas vitais de privilégio (`is_superuser` no Model `User` e `nivel_acesso` no Model `Colaborador`) não existem na propriedade `$fillable`. Qualquer tentativa de injeção destas colunas via POST/PUT form-data é ignorada silenciosamente pelo Eloquent. Elas são manuseadas apenas de forma programática.

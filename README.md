@@ -9,12 +9,25 @@ Ao invés de operar como uma ilha de dados, este sistema atua em simbiose com o 
 
 ## 🛠 Stack Tecnológica
 
-- **Framework Core**: Laravel 11 (PHP 8)
+- **Framework Core**: Laravel 12 (PHP 8.3+)
 - **Frontend / UI**: Blade Templates, TailwindCSS, Livewire (para dashboards dinâmicos) e JavaScript.
 - **Banco de Dados**: SQL Relacional.
 - **Autenticação & Autorização**: Single Sign-On (SSO) com JWT/Tickets de sessão, complementado pelo `spatie/laravel-permission` (RBAC).
 - **Monitoramento de Erros**: Sentry (`sentry/sentry-laravel`).
 - **Performance & Cache**: Driver de Cache configurado como `file` para rápida resposta na avaliação de jornadas (TTL em Plantões), Eager Loading robusto e índices compostos no banco de dados.
+
+## 🚀 Integração Contínua e Testes (CI/CD)
+
+O projeto possui uma esteira automatizada rodando via **GitHub Actions** (`.github/workflows/`). A cada push/pull request:
+1. O ambiente é montado com a versão correta do PHP (8.3+).
+2. As dependências são resolvidas via `composer update`.
+3. Os testes são executados em um banco **SQLite em memória**, garantindo isolamento total e rapidez.
+
+**Para rodar os testes localmente:**
+Certifique-se de ter o PHPUnit instalado via Composer e execute o comando nativo do Artisan na raiz do projeto:
+```bash
+php artisan test
+```
 
 ## 📚 Índice da Documentação
 

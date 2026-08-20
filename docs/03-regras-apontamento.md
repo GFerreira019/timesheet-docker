@@ -17,6 +17,12 @@ A validação de elegibilidade para ocorrências especiais, como **Plantão**, �
 Quando o usuário seleciona que um apontamento é de "Plantão", a API cruza os dados com o ERP. A janela padrão de Plantão começa às `17:00:00` do dia vigente e vai até às `07:30:00` do dia seguinte. 
 Se a tentativa de apontamento cair fora desta janela, ele é invalidado.
 
+### Bypass de Final de Semana e Feriados (24h)
+O sistema aplica uma exceção/bypass ignorando a trava de horários (liberando as 24 horas do dia) sob as seguintes condições:
+- O dia é um **Final de Semana** (Sábado ou Domingo);
+- OU o dia é um **Feriado**, validado contra a tabela `produtividade_feriado` para a exata cidade de trabalho do colaborador (tratando strings no padrão `CIDADE - UF` e ignorando case sensitivity).
+- **Importante:** Mesmo nestas exceções, o colaborador **precisa estar escalado no ERP** para a respectiva data.
+
 ### A Matemática da Madrugada
 Para contemplar apontamentos que ocorrem depois da meia-noite (ex: entrada às 02h00), o sistema executa um "Ajuste de Madrugada":
 - Se a *hora* do apontamento for **menor que 07:30**, o algoritmo compreende que o turno ainda pertence à escala do dia anterior. 
@@ -26,10 +32,20 @@ Para contemplar apontamentos que ocorrem depois da meia-noite (ex: entrada às 0
 Como a checagem da escala de plantão exige um Request assíncrono para a matriz do ERP, utilizamos a camada de **Cache File** do Laravel (`Cache::remember`).
 A resposta da API do ERP sobre o plantão vigente (chave genérica: `api_plantao_data`) é salva em cache por **1 hora** (`60 * 60` segundos). Isso impede o sobreaquecimento da API externa durante salvamentos massivos nas viradas de turno e na edição de apontamentos na Controller e Livewire. A elegibilidade individual é então validada em memória buscando o `id_usuario_erp` na resposta cacheada.
 
-## 3. Reatividade no Frontend
+## 3. Rateio de Apontamentos (Múltiplas Obras)
+
+O sistema permite o fracionamento proporcional de horas trabalhadas em um único apontamento para múltiplos projetos/obras, ideal para colaboradores (como supervisores ou fiscais) que atendem diversas frentes em um só período.
+
+### Funcionamento do Rateio
+1. **Ativação**: O rateio ocorre se o payload contiver a flag `registrar_multiplas_obras = true` e o usuário possuir o privilégio para rateio.
+2. **Distribuição**: Os IDs das obras (ou Centros de Custo) extras devem ser fornecidos no array `obras_extras_list` (junto à obra principal do apontamento).
+3. **Divisão de Tempo**: O sistema calcula a duração total do apontamento (ex: de `08:00` às `17:00` = 9 horas) e divide igualmente pelo número de projetos listados (ex: 3 projetos = 3 horas para cada).
+4. **Registro Único vs Rateado**: Se a flag não for ativada ou falhar na validação, o backend cria o apontamento como "Registro Único" (`criarRegistroUnico`), mantendo as horas concentradas no projeto principal. Se aprovado, o controlador processa via `criarComRateio`, gerando N apontamentos separados.
+
+## 4. Reatividade no Frontend
 Nos formulários de novos apontamentos, o preenchimento da `data` ou `hora` dispara callbacks no frontend (Javascript/AlpineJS) ou requisições AJAX (`api.timer.status`) que reavaliam os inputs e escondem/exibem campos como "Ocorrências de Plantão" caso o horário cruze a regra de negócios descrita acima.
 
-## 4. Fluxo de Aprovação, Reprovação e Ajustes
+## 5. Fluxo de Aprovação, Reprovação e Ajustes
 
 Para entender o processo de aprovação de apontamentos por parte de terceiros ou pelo próprio usuário que requer edição extra, o diagrama abaixo ilustra todo o ciclo de vida.
 
