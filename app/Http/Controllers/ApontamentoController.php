@@ -1044,29 +1044,78 @@ class ApontamentoController extends Controller
 
     /**
      * Verifica se o colaborador tem permissão para usar o checkbox de "Plantão"
-     * baseado na escala do ERP. A janela de plantão é das 17:00 do dia D até as 08:00 do dia D+1.
+     * baseado na escala do ERP. A janela de plantão é das 17:00 do dia D até as 07:30 do dia D+1.
+     * Sofre BYPASS (ignora trava de horário) em Finais de Semana e Feriados.
      */
     public function verificarElegibilidadePlantao($idUsuarioErp, \Carbon\Carbon $dataHoraApontamento): bool
     {
-        $dataReferencia = $dataHoraApontamento->copy();
+        // 1. Verificação de Final de Semana
+        $isWeekend = $dataHoraApontamento->isWeekend();
+
+        // 2. Verificação de Feriado
+        $user = \App\Models\User::where('id_usuario_erp', $idUsuarioErp)
+            ->orWhere('id', $idUsuarioErp)
+            ->first();
+            
+        $cidadeTrabalho = $user?->colaborador?->cidade_trabalho ?? $user?->colaborador?->cidade;
         
-        // Se o apontamento for na madrugada (antes das 08:00), pertence à escala do dia anterior
-        if ($dataHoraApontamento->hour < 8) {
-            $dataReferencia->subDay();
+        $isFeriado = false;
+        if ($cidadeTrabalho) {
+            // O banco salva "CAMPINAS - SP". Separamos pelo traço e pegamos o nome limpo.
+            $partes = explode(' - ', $cidadeTrabalho);
+            $cidadeLimpa = trim($partes[0]);
+
+            // Faz uma busca robusta ignorando maiúsculas/minúsculas
+            $isFeriado = \App\Models\Feriado::whereDate('data', $dataHoraApontamento->format('Y-m-d'))
+                ->whereRaw('LOWER(cidade) = ?', [strtolower($cidadeLimpa)])
+                ->exists();
         }
 
-        $dataStr = $dataReferencia->format('Y-m-d');
+        $dataAtual = $dataHoraApontamento->format('Y-m-d');
+        $hora = $dataHoraApontamento->hour;
+
+        // Verifica se o colaborador está na escala para a DATA ATUAL
+        $escaladoHoje = $this->usuarioEstaNaEscala($idUsuarioErp, $dataAtual);
+
+        // 3. Aplicação do Bypass (Final de Semana ou Feriado)
+        // Se for fim de semana/feriado E ele está na escala de hoje: Liberado 24h!
+        if (($isWeekend || $isFeriado) && $escaladoHoje) {
+            return true;
+        }
+
+        // 4. Fluxos Normais (Dias úteis)
+        // Regra A: Pertence à escala de HOJE e o horário é a partir das 17h
+        if ($escaladoHoje && $hora >= 17) {
+            return true;
+        }
+
+        // Regra B: Pertence à escala de ONTEM (madrugada de hoje)
+        if ($dataHoraApontamento->format('H:i') <= '07:30') {
+            $dataOntem = $dataHoraApontamento->copy()->subDay()->format('Y-m-d');
+            $escaladoOntem = $this->usuarioEstaNaEscala($idUsuarioErp, $dataOntem);
+
+            // Se ele estava na escala de ontem e ainda é até as 07:30 de hoje
+            if ($escaladoOntem) {
+                return true;
+            }
+        }
+        
+        return false;
+    }
+
+    /**
+     * Método auxiliar privado para isolar a consulta ao ERP com Cache.
+     */
+    private function usuarioEstaNaEscala($idUsuarioErp, $dataStr): bool
+    {
         $cacheKey = 'plantao_' . $dataStr;
 
-        // Cacheia a resposta da API por 1 hora (3600 segundos) atrelada à data do apontamento
         $plantaoData = \Illuminate\Support\Facades\Cache::remember($cacheKey, 3600, function () use ($dataStr) {
             try {
                 $baseUrl = env('ERP_API_URL', 'https://atgbconnect.com.br/api/v1');
 
                 $response = \Illuminate\Support\Facades\Http::timeout(5)
-                    ->withHeaders([
-                        'X-Api-Key' => env('ERP_API_KEY')
-                    ])
+                    ->withHeaders(['X-Api-Key' => env('ERP_API_KEY')])
                     ->get("{$baseUrl}/plantao.php?data={$dataStr}");
 
                 if ($response->successful()) {
@@ -1080,28 +1129,13 @@ class ApontamentoController extends Controller
 
         if ($plantaoData && isset($plantaoData['success']) && $plantaoData['success'] === true) {
             $data = $plantaoData['data'] ?? [];
+            $profissionais = array_merge($data['tecnicos'] ?? [], $data['coordenadores'] ?? []);
             
-            $tecnicos = $data['tecnicos'] ?? [];
-            $coordenadores = $data['coordenadores'] ?? [];
-            
-            $profissionais = array_merge($tecnicos, $coordenadores);
-            
-            // Busca robusta garantindo que a tipagem não atrapalhe (int vs string)
-            $isEscalado = collect($profissionais)->contains(function ($item) use ($idUsuarioErp) {
+            return collect($profissionais)->contains(function ($item) use ($idUsuarioErp) {
                 return (string) $item['id_usuario'] === (string) $idUsuarioErp;
             });
-            
-            if ($isEscalado && !empty($data['data_plantao'])) {
-                $dataPlantao = \Carbon\Carbon::parse($data['data_plantao']);
-                
-                // Janela de Tempo: 17h do dia do plantão até 8h do dia seguinte
-                $inicioJanela = $dataPlantao->copy()->setTime(17, 0, 0);
-                $fimJanela = $dataPlantao->copy()->addDay()->setTime(8, 0, 0);
-                
-                return $dataHoraApontamento->between($inicioJanela, $fimJanela);
-            }
         }
-        
+
         return false;
     }
 

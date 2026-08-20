@@ -163,7 +163,7 @@ class RegrasCltTest extends TestCase
 
         $this->actingAs($this->user);
 
-        // Apontamento como plantão dentro da janela de 17h as 08h do dia seguinte
+        // Apontamento como plantão dentro da janela de 17h as 07:30 do dia seguinte
         $response = $this->postJson(route('apontamentos.store'), [
             'colaborador_id' => $this->colaborador->id,
             'data_apontamento' => '2023-10-15',

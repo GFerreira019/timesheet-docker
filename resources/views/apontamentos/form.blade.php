@@ -589,7 +589,7 @@
                             <label for="id_em_plantao" class="text-sm text-gray-300 cursor-pointer select-none hover:text-white">Atividade em Plantão?</label>
                         </div>
                         <small id="plantao-lock-msg" class="text-slate-500 text-[10px] ml-7 items-center gap-1 {{ (isset($podePlantao) && $podePlantao) ? 'hidden' : 'flex block' }}">
-                            <i class="fas fa-lock text-slate-400"></i> Disponível apenas para horários de plantão escalado (17h às 08h).
+                            <i class="fas fa-lock text-slate-400"></i> Disponível apenas para horários de plantão escalado (17h às 07:30h).
                         </small>
                         <p id="data-plantao-feedback" class="text-xs text-red-400 hidden ml-7">
                             Data Plantão: <span id="data-plantao-display" class="font-bold">--/--/--</span>

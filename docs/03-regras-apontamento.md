@@ -13,13 +13,13 @@ O fluxo de Apontamento atua como o registro oficial para cálculo de horas da em
 
 A validação de elegibilidade para ocorrências especiais, como **Plantão**, é processada de forma severa para evitar fraudes ou preenchimentos indevidos da folha. A elegibilidade é validada contra o ERP e possui a seguinte arquitetura de tempo:
 
-### A Janela Oficial (17h às 08h)
-Quando o usuário seleciona que um apontamento é de "Plantão", a API cruza os dados com o ERP. A janela padrão de Plantão começa às `17:00:00` do dia vigente e vai até às `08:00:00` do dia seguinte. 
+### A Janela Oficial (17h às 07:30h)
+Quando o usuário seleciona que um apontamento é de "Plantão", a API cruza os dados com o ERP. A janela padrão de Plantão começa às `17:00:00` do dia vigente e vai até às `07:30:00` do dia seguinte. 
 Se a tentativa de apontamento cair fora desta janela, ele é invalidado.
 
 ### A Matemática da Madrugada
 Para contemplar apontamentos que ocorrem depois da meia-noite (ex: entrada às 02h00), o sistema executa um "Ajuste de Madrugada":
-- Se a *hora* do apontamento for **menor que 08:00**, o algoritmo compreende que o turno ainda pertence à escala do dia anterior. 
+- Se a *hora* do apontamento for **menor que 07:30**, o algoritmo compreende que o turno ainda pertence à escala do dia anterior. 
 - O sistema decresce 1 dia da data atual para realizar a consulta da escala no ERP.
 
 ### Desempenho (Cacheamento TTL 1 Hora)
