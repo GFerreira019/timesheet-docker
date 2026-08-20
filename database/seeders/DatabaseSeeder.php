@@ -5,7 +5,6 @@ namespace Database\Seeders;
 use App\Models\Colaborador;
 use App\Models\User;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\Hash;
 
 /**
  * DatabaseSeeder — Popula o banco com dados iniciais para desenvolvimento/produção.
@@ -43,7 +42,6 @@ class DatabaseSeeder extends Seeder
             ['email' => env('ADMIN_DEFAULT_EMAIL', 'suporte@timesheet.com')],
             [
                 'name'                         => 'Super Admin Resgate',
-                'password'                     => Hash::make(env('ADMIN_DEFAULT_PASSWORD', 'SenhaSegura123!')),
                 'produtividade_colaborador_id' => $colaboradorSuperAdmin->id,
             ]
         );

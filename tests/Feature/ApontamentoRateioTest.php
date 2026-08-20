@@ -16,7 +16,7 @@ class ApontamentoRateioTest extends TestCase
     public function test_deve_criar_apontamentos_rateados_para_multiplas_obras()
     {
         // Setup: Usuário nativo com privilégios de rateio
-        $user = User::factory()->create(['is_superuser' => true]);
+        $user = User::factory()->create();
 
         // Setup: Colaborador inserido manualmente (sem factory)
         $colaborador = Colaborador::create([

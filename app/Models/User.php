@@ -43,16 +43,12 @@ class User extends Authenticatable
         'fcm_token',
     ];
 
-    protected $hidden = [
-        'password',
-        'remember_token',
-    ];
+    protected $hidden = [];
 
     protected function casts(): array
     {
         return [
             'email_verified_at' => 'datetime',
-            'password'          => 'hashed',
             'is_superuser'      => 'boolean',
         ];
     }
