@@ -627,8 +627,8 @@
                     <div class="relative group">
                         <label class="block text-xs font-medium mb-1 text-slate-400">Nome Completo *</label>
                         <input type="text" name="nome_completo" disabled required class="w-full bg-slate-900/50 border border-slate-700 text-slate-400 rounded-lg p-3 pr-10 focus:ring-2 focus:ring-indigo-500 outline-none transition-all">
-                        <button type="button" onclick="desbloquearCampo(this)" class="absolute right-3 top-[28px] text-slate-500 hover:text-indigo-400 transition-colors opacity-50 hover:opacity-100" title="Editar informação">
-                            <i class="fas fa-pencil-alt"></i>
+                        <button type="button" onclick="desbloquearCampo(this)" class="absolute right-1.5 top-[22px] p-1 text-slate-500 hover:text-indigo-400 transition-colors opacity-50 hover:opacity-100 z-10" title="Editar informação">
+                            <i class="fas fa-pencil-alt text-[10px]"></i>
                         </button>
                     </div>
 
@@ -673,8 +673,8 @@
                                 <option value="{{ $cargo }}">{{ $cargo }}</option>
                             @endforeach
                         </select>
-                        <button type="button" onclick="desbloquearCampo(this)" class="absolute right-3 top-[28px] text-slate-500 hover:text-indigo-400 transition-colors opacity-50 hover:opacity-100" title="Editar informação">
-                            <i class="fas fa-pencil-alt"></i>
+                        <button type="button" onclick="desbloquearCampo(this)" class="absolute right-1.5 top-[22px] p-1 text-slate-500 hover:text-indigo-400 transition-colors opacity-50 hover:opacity-100 z-10" title="Editar informação">
+                            <i class="fas fa-pencil-alt text-[10px]"></i>
                         </button>
                     </div>
 
@@ -687,8 +687,8 @@
                                 <option value="{{ $setor->id }}">{{ $setor->nome }}</option>
                             @endforeach
                         </select>
-                        <button type="button" onclick="desbloquearCampo(this)" class="absolute right-3 top-[28px] text-slate-500 hover:text-indigo-400 transition-colors opacity-50 hover:opacity-100" title="Editar informação">
-                            <i class="fas fa-pencil-alt"></i>
+                        <button type="button" onclick="desbloquearCampo(this)" class="absolute right-1.5 top-[22px] p-1 text-slate-500 hover:text-indigo-400 transition-colors opacity-50 hover:opacity-100 z-10" title="Editar informação">
+                            <i class="fas fa-pencil-alt text-[10px]"></i>
                         </button>
                     </div>
 
@@ -696,8 +696,8 @@
                     <div class="relative group container-cidade-uf">
                         <label class="block text-xs font-medium mb-1 text-slate-400">Cidade de Moradia</label>
                         <input type="text" name="cidade_moradia" disabled autocomplete="off" class="input-autocomplete-cidade w-full bg-slate-900/50 border border-slate-700 text-slate-400 rounded-lg p-3 pr-10 focus:ring-2 focus:ring-indigo-500 outline-none transition-all">
-                        <button type="button" onclick="desbloquearCampo(this)" class="absolute right-3 top-[28px] text-slate-500 hover:text-indigo-400 transition-colors opacity-50 hover:opacity-100 z-10" title="Editar informação">
-                            <i class="fas fa-pencil-alt"></i>
+                        <button type="button" onclick="desbloquearCampo(this)" class="absolute right-1.5 top-[22px] p-1 text-slate-500 hover:text-indigo-400 transition-colors opacity-50 hover:opacity-100 z-10" title="Editar informação">
+                            <i class="fas fa-pencil-alt text-[10px]"></i>
                         </button>
                         <div class="div-dropdown-cidades absolute z-[99999] w-full mt-1 bg-slate-800 border border-slate-600 rounded-lg shadow-xl hidden max-h-48 overflow-y-auto"></div>
                         <input type="hidden" name="uf_moradia" class="input-uf-estado" disabled>
@@ -707,8 +707,8 @@
                     <div class="relative group container-cidade-uf">
                         <label class="block text-xs font-medium mb-1 text-slate-400">Cidade de Trabalho</label>
                         <input type="text" name="cidade_trabalho" disabled autocomplete="off" class="input-autocomplete-cidade w-full bg-slate-900/50 border border-slate-700 text-slate-400 rounded-lg p-3 pr-10 focus:ring-2 focus:ring-indigo-500 outline-none transition-all">
-                        <button type="button" onclick="desbloquearCampo(this)" class="absolute right-3 top-[28px] text-slate-500 hover:text-indigo-400 transition-colors opacity-50 hover:opacity-100 z-10" title="Editar informação">
-                            <i class="fas fa-pencil-alt"></i>
+                        <button type="button" onclick="desbloquearCampo(this)" class="absolute right-1.5 top-[22px] p-1 text-slate-500 hover:text-indigo-400 transition-colors opacity-50 hover:opacity-100 z-10" title="Editar informação">
+                            <i class="fas fa-pencil-alt text-[10px]"></i>
                         </button>
                         <div class="div-dropdown-cidades absolute z-[99999] w-full mt-1 bg-slate-800 border border-slate-600 rounded-lg shadow-xl hidden max-h-48 overflow-y-auto"></div>
                         <input type="hidden" name="uf_trabalho" class="input-uf-estado" disabled>
@@ -718,8 +718,8 @@
                     <div class="relative group">
                         <label class="block text-xs font-medium mb-1 text-slate-400">Telefone</label>
                         <input type="text" name="telefone" disabled class="w-full bg-slate-900/50 border border-slate-700 text-slate-400 rounded-lg p-3 pr-10 focus:ring-2 focus:ring-indigo-500 outline-none transition-all">
-                        <button type="button" onclick="desbloquearCampo(this)" class="absolute right-3 top-[28px] text-slate-500 hover:text-indigo-400 transition-colors opacity-50 hover:opacity-100" title="Editar informação">
-                            <i class="fas fa-pencil-alt"></i>
+                        <button type="button" onclick="desbloquearCampo(this)" class="absolute right-1.5 top-[22px] p-1 text-slate-500 hover:text-indigo-400 transition-colors opacity-50 hover:opacity-100 z-10" title="Editar informação">
+                            <i class="fas fa-pencil-alt text-[10px]"></i>
                         </button>
                     </div>
 
@@ -733,8 +733,8 @@
                     <div class="relative group">
                         <label class="block text-xs font-medium mb-1 text-slate-400">Data de Demissão</label>
                         <input type="date" name="data_demissao" disabled class="w-full bg-slate-900/50 border border-slate-700 text-slate-400 rounded-lg p-3 pr-10 focus:ring-2 focus:ring-indigo-500 outline-none transition-all [color-scheme:dark]">
-                        <button type="button" onclick="desbloquearCampo(this)" class="absolute right-3 top-[28px] text-slate-500 hover:text-indigo-400 transition-colors opacity-50 hover:opacity-100" title="Editar informação">
-                            <i class="fas fa-pencil-alt"></i>
+                        <button type="button" onclick="desbloquearCampo(this)" class="absolute right-1.5 top-[22px] p-1 text-slate-500 hover:text-indigo-400 transition-colors opacity-50 hover:opacity-100 z-10" title="Editar informação">
+                            <i class="fas fa-pencil-alt text-[10px]"></i>
                         </button>
                     </div>
                 </div>
@@ -923,6 +923,26 @@
         } else {
             badge.classList.add('hidden');
         }
+
+        // Se a alteração foi feita na Ficha do Colaborador, exibe o rodapé com botão salvar e campo de vigência
+        if (contextVincularSetores === 'ficha') {
+            const rodape = document.getElementById('rodape-edicao');
+            if (rodape) rodape.classList.remove('hidden');
+
+            const containerVigencia = document.getElementById('container-vigencia');
+            if (containerVigencia) containerVigencia.classList.remove('hidden');
+
+            const vigencia = document.getElementById('ficha-data-vigencia');
+            if (vigencia) {
+                vigencia.required = true;
+                if (!vigencia.value) {
+                    const hoje = new Date();
+                    const ano = hoje.getFullYear();
+                    const mes = String(hoje.getMonth() + 1).padStart(2, '0');
+                    vigencia.value = `${ano}-${mes}`;
+                }
+            }
+        }
         
         fecharModalVincularSetores();
     }
@@ -1095,7 +1115,16 @@
 
             if (precisaVigencia) {
                 document.getElementById('container-vigencia').classList.remove('hidden');
-                document.getElementById('ficha-data-vigencia').required = true;
+                const vigencia = document.getElementById('ficha-data-vigencia');
+                if (vigencia) {
+                    vigencia.required = true;
+                    if (!vigencia.value) {
+                        const hoje = new Date();
+                        const ano = hoje.getFullYear();
+                        const mes = String(hoje.getMonth() + 1).padStart(2, '0');
+                        vigencia.value = `${ano}-${mes}`;
+                    }
+                }
             } else {
                 document.getElementById('container-vigencia').classList.add('hidden');
                 document.getElementById('ficha-data-vigencia').required = false;

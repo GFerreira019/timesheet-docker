@@ -127,6 +127,7 @@
                     <th class="py-3 px-4 text-center text-xs font-bold text-slate-400 uppercase tracking-wider">Info</th>
                     <th class="py-3 px-4 text-center text-xs font-bold text-slate-400 uppercase tracking-wider">Ações</th>
                     <th class="py-3 px-4 text-center text-xs font-bold text-slate-400 uppercase tracking-wider">Status</th>
+                    <th class="py-3 px-4 text-center text-xs font-bold text-slate-400 uppercase tracking-wider">RDO</th>
                 </tr>
             </thead>
             @if(empty($apontamentos_lista))
@@ -400,6 +401,17 @@
                                 <span class="text-slate-700 text-xs">-</span>
                             @endif
                         </td>
+
+                        {{-- RDO (Diário de Obra) --}}
+                        <td class="py-3 px-4 text-center">
+                            @if(!$item['is_auxiliar'])
+                            <a href="#" title="Diário de Obra (Em breve)" class="inline-block transition-transform hover:scale-110">
+                                <i class="fas fa-clipboard-list text-emerald-500 hover:text-emerald-400 text-lg"></i>
+                            </a>
+                            @else
+                                <span class="text-slate-700 text-xs">-</span>
+                            @endif
+                        </td>
                     </tr>
                     @if($loop->last)
                         </tbody>
@@ -461,7 +473,14 @@
                     <i class="fas fa-calendar-day text-slate-400"></i>
                     <span class="font-bold text-white text-sm">{{ \Carbon\Carbon::parse($item['data'])->format('d/m/Y') }}</span>
                 </div>
-                <span class="{{ $s['class'] }}">{{ $s['text'] }}</span>
+                <div class="flex items-center gap-3">
+                    @if(!$item['is_auxiliar'])
+                    <a href="#" title="Diário de Obra (Em breve)" class="transition-transform hover:scale-110 flex items-center">
+                        <i class="fas fa-clipboard-list text-emerald-500 hover:text-emerald-400 text-lg"></i>
+                    </a>
+                    @endif
+                    <span class="{{ $s['class'] }}">{{ $s['text'] }}</span>
+                </div>
             </div>
 
             {{-- Corpo do Card --}}

@@ -212,15 +212,32 @@
                             </span>
                         </div>
 
-                        <div class="flex justify-center" 
-                            title="{{ $ap->tipo_aprovacao === 'automatica' ? 'Aprovação Automática (Sistema)' : ($ap->tipo_aprovacao === 'manual' ? 'Aprovação Manual (Gestor)' : 'Origem não identificada') }}">
-                            
-                            @if($ap->tipo_aprovacao === 'automatica')
-                                <i class="fas fa-gears text-blue-400 w-5 text-center text-sm cursor-help"></i>
-                            @elseif($ap->tipo_aprovacao === 'manual')
-                                <i class="fas fa-pen-to-square text-blue-400 w-5 text-center text-sm cursor-help"></i>
-                            @else
-                                <i class=""></i>
+                        @php
+                            $textoOrigem = 'Origem não identificada';
+                            $iconeOrigem = '';
+                            $corOrigem = 'text-blue-400';
+
+                            $acaoNome = 'Análise';
+                            if ($ap->status_aprovacao === 'APROVADO') {
+                                $acaoNome = 'Aprovação';
+                                $corOrigem = 'text-emerald-400';
+                            } elseif ($ap->status_aprovacao === 'REJEITADO') {
+                                $acaoNome = 'Rejeição';
+                                $corOrigem = 'text-red-400';
+                            }
+
+                            if ($ap->tipo_aprovacao === 'automatica') {
+                                $textoOrigem = $acaoNome . ' Automática (Sistema)';
+                                $iconeOrigem = 'fas fa-gears';
+                            } elseif ($ap->tipo_aprovacao === 'manual') {
+                                $textoOrigem = $acaoNome . ' Manual (Gestor)';
+                                $iconeOrigem = 'fas fa-pen-to-square';
+                            }
+                        @endphp
+
+                        <div class="flex justify-center" title="{{ $textoOrigem }}">
+                            @if($iconeOrigem)
+                                <i class="{{ $iconeOrigem }} {{ $corOrigem }} w-5 text-center text-sm cursor-help"></i>
                             @endif
                         </div>
                     </div>

@@ -1,3 +1,8 @@
+@section('title', 'Acesso Restrito')
+
+@vite(['resources/css/app.css', 'resources/js/app.js'])
+
+@push('head')
 <!DOCTYPE html>
 <html lang="pt-BR" class="h-full bg-slate-900">
 <head>
@@ -6,7 +11,7 @@
     <title>Acesso Restrito - Timesheet | ATGB</title>
     
     <!-- Favicon -->
-    <link rel="icon" type="image/png" href="{{ asset('img/favicon.png') }}">
+    <link rel="icon" type="image/png" href="{{ asset('storage/suporte/anexos/icon-192x192.png') }}">
 
     <!-- Google Fonts: Inter -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
