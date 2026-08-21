@@ -53,7 +53,7 @@ class CriacaoEdicaoTest extends TestCase
 
         $dados = [
             'colaborador_id' => $this->colaborador->id,
-            'data_apontamento' => now()->format('Y-m-d'),
+            'data_apontamento' => now()->subDay()->format('Y-m-d'),
             'hora_inicio' => '08:00',
             'hora_termino' => '12:00',
             'local_execucao' => 'INTERNO',
