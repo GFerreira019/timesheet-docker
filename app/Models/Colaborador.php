@@ -54,6 +54,7 @@ class Colaborador extends Model
         'data_admissao',
         'data_demissao',
         'data_vigencia',
+        'recebe_notificacao',
     ];
 
     // -------------------------------------------------------------------------
@@ -69,6 +70,7 @@ class Colaborador extends Model
     }
 
     protected $casts = [
+        'recebe_notificacao' => 'boolean',
     ];
 
     /**

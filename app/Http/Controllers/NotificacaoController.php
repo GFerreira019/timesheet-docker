@@ -7,9 +7,81 @@ use App\Models\Notificacao;
 use App\Models\Colaborador;
 use App\Services\AuditoriaService;
 use Illuminate\Support\Facades\Log;
+use Illuminate\View\View;
 
 class NotificacaoController extends Controller
 {
+    /**
+     * Logs de notificações disparadas (Push/WhatsApp) - Acesso Admin.
+     *
+     * GET /configuracoes/notificacoes-logs
+     */
+    public function index(Request $request): View
+    {
+        $colaboradores = Colaborador::orderBy('nome_completo')->get();
+
+        $query = Notificacao::with('colaborador')
+            ->when($request->filled('colaborador_id'), function ($q) use ($request) {
+                $q->where('colaborador_id', $request->query('colaborador_id'));
+            })
+            ->when($request->filled('data'), function ($q) use ($request) {
+                $data = $request->query('data');
+                $q->where('created_at', '>=', $data . ' 00:00:00')
+                  ->where('created_at', '<=', $data . ' 23:59:59');
+            })
+            ->when($request->filled('acao'), function ($q) use ($request) {
+                $q->where('titulo', 'like', '%' . $request->query('acao') . '%');
+            })
+            ->when($request->filled('status'), function ($q) use ($request) {
+                if ($request->query('status') === 'lidas') {
+                    $q->where('lida', true);
+                } elseif ($request->query('status') === 'nao_lidas') {
+                    $q->where('lida', false);
+                }
+            })
+            ->orderByDesc('created_at');
+            
+        // Clone para os totalizadores
+        $baseQuery = clone $query;
+        
+        $totalPendencias = (clone $baseQuery)->where('titulo', 'like', '%Pendência de Apontamento%')->count();
+        $totalAprovacoes = (clone $baseQuery)->where('titulo', 'like', '%Aprovação Pendente%')->count();
+        $totalRecusados  = (clone $baseQuery)->where('titulo', 'like', '%Apontamento Recusado%')->count();
+        $totalNaoLidas   = (clone $baseQuery)->where('lida', false)->count();
+
+        $logs = $query->paginate(50)->withQueryString();
+
+        $acoes = [
+            'Pendência de Apontamento',
+            'Aprovação Pendente',
+            'Apontamento Recusado'
+        ];
+
+        // Regra de ouro para a lista do Modal de Permissões (quem usa o timesheet de fato)
+        $colaboradoresPermissao = Colaborador::select('id', 'nome_completo', 'cargo', 'recebe_notificacao')
+            ->ativos()
+            ->whereHas('setorRelacionamento', function ($q) {
+                $q->where('ativo', true);
+            })
+            ->orderBy('nome_completo')
+            ->get();
+
+        return view('notificacoes.logs', [
+            'titulo'          => 'Logs de Notificações',
+            'logs'            => $logs,
+            'colaboradores'   => $colaboradores,
+            'totalPendencias' => $totalPendencias,
+            'totalAprovacoes' => $totalAprovacoes,
+            'totalRecusados'  => $totalRecusados,
+            'totalNaoLidas'   => $totalNaoLidas,
+            'acoes'           => $acoes,
+            'filtro_acao'     => $request->query('acao'),
+            'filtro_data'     => $request->query('data'),
+            'filtro_status'   => $request->query('status'),
+            'colaboradoresPermissao' => $colaboradoresPermissao,
+        ]);
+    }
+
     /**
      * Responde a uma notificação (Adiciona justificativa e marca como lida)
      */
@@ -125,5 +197,30 @@ class NotificacaoController extends Controller
             report($e);
             return back()->with('error', 'Erro ao atualizar notificações.');
         }
+    }
+    public function getPermissao($colaborador_id)
+    {
+        $colaborador = Colaborador::findOrFail($colaborador_id);
+        return response()->json([
+            'recebe_notificacao' => $colaborador->recebe_notificacao,
+        ]);
+    }
+
+    public function togglePermissao(Request $request)
+    {
+        $request->validate([
+            'colaborador_id' => 'required|exists:produtividade_colaborador,id',
+            'recebe_notificacao' => 'required|boolean',
+        ]);
+
+        $colaborador = Colaborador::findOrFail($request->colaborador_id);
+        $colaborador->recebe_notificacao = $request->recebe_notificacao;
+        $colaborador->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Permissão atualizada com sucesso.',
+            'recebe_notificacao' => $colaborador->recebe_notificacao,
+        ]);
     }
 }

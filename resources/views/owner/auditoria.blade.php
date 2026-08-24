@@ -41,7 +41,6 @@
     backUrl="{{ route('painel') }}">
 </x-page-header>
 
-@if(request('filtro') !== 'notificacoes')
     {{-- ============================================================
          Filtros Padrão (Logs de Auditoria)
          ============================================================ --}}
@@ -93,54 +92,6 @@
         </a>
         @endif
     </div>
-@elseif(request('filtro') === 'notificacoes')
-    {{-- ============================================================
-         Filtros Exclusivos (Notificações)
-         ============================================================ --}}
-    <div class="flex items-center justify-end gap-2 max-w-7xl mx-auto px-4 sm:px-6 mb-2 fade-in">
-        <form id="form-filtro-notificacoes" method="GET" class="w-full flex flex-col sm:flex-row items-center justify-end gap-2">
-            {{-- Preserva a aba ativa --}}
-            <input type="hidden" name="filtro" value="notificacoes">
-            
-            {{-- Filtros por Destinatário e Data --}}
-            <div class="w-full md:justify-start md:flex items-center gap-2">
-                {{-- Busca por Destinatário --}}
-                <div class="relative w-full sm:w-auto flex-1 max-w-sm text-left">
-                    @php
-                        $opcoesColabs = [];
-                        foreach($colaboradores ?? [] as $c) {
-                            $opcoesColabs[$c->id] = $c->nome_completo . ' (' . ($c->cargo ?? 'Sem Cargo') . ')';
-                        }
-                    @endphp
-                    <x-select2 
-                        id="select-colaborador-auditoria" 
-                        name="colaborador_id" 
-                        placeholder="Filtrar por destinatário..." 
-                        :options="$opcoesColabs" 
-                        :selected="request('colaborador_id')"
-                    />
-                </div>
-
-                {{-- Filtro de Data --}}
-                <div class="relative w-full sm:w-auto">
-                    {{-- O "color-scheme: dark" no CSS força o ícone de calendário do Chrome a ficar claro --}}
-                    <input type="date" name="data" value="{{ request('data') }}" 
-                        onchange="this.form.submit()"
-                        style="color-scheme: dark;"
-                        class="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-sm text-slate-300 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all h-[42px] shadow-sm cursor-pointer">
-                </div>
-            </div>
-            
-            {{-- Botão de Limpar (Remover Filtro) padronizado --}}
-            @if(request('colaborador_id') || request('data'))
-                <a href="{{ request()->fullUrlWithQuery(['search' => null, 'colaborador_id' => null, 'data' => null]) }}" 
-                   class="bg-rose-900/20 hover:bg-rose-900/40 text-rose-400 hover:text-white p-2.5 rounded-lg border border-rose-900/30 hover:border-rose-500/50 transition-all h-[42px] w-[42px] flex items-center justify-center mt-2 sm:mt-0 shadow-sm shrink-0" title="Limpar Filtros">
-                    <i class="fas fa-times"></i>
-                </a>
-            @endif
-        </form>
-    </div>
-@endif
 
 <div class="max-w-7xl mx-auto w-full px-4 sm:px-6">
 
@@ -218,8 +169,8 @@
         </div>
         
         {{-- Notificações (Info) --}}
-        <a href="{{ request('filtro') === 'notificacoes' ? request()->fullUrlWithQuery(['filtro' => null]) : request()->fullUrlWithQuery(['filtro' => 'notificacoes']) }}" 
-           class="bg-slate-800 p-4 rounded-xl hover:border-blue-400 transition-colors cursor-pointer block {{ request('filtro') === 'notificacoes' ? 'border-2 border-blue-500 bg-blue-500/10' : 'border border-blue-500/30' }}">
+        <a href="{{ route('notificacoes.logs') }}" 
+           class="bg-slate-800 p-4 rounded-xl hover:border-blue-400 transition-colors cursor-pointer block border border-blue-500/30">
             <span class="text-xs text-blue-400 font-bold uppercase flex items-center gap-2">
                 <i class="fas fa-bell text-blue-400"></i>
                 Notificações
@@ -249,98 +200,6 @@
     {{-- ============================================================
          Timeline
          ============================================================ --}}
-    @if(request('filtro') === 'notificacoes')
-        <div class="relative border-l-2 border-slate-700/50 ml-4 space-y-8 pb-12 mb-12">
-            @forelse($logs as $index => $log)
-            {{-- Card de Notificação na Linha do Tempo --}}
-            <div class="relative pl-8 group fade-in" style="animation-delay: {{ ($index + 1) * 100 }}ms">
-                
-                {{-- Bolinha Conectora (Status de Leitura) --}}
-                <div class="absolute -left-[9px] top-5 bg-slate-900 rounded-full p-1 border-2 z-10
-                    @if($log->lida) border-green-500 text-green-500
-                    @else border-slate-500 text-slate-500 @endif">
-                    
-                    @if($log->lida)
-                        <i class="fas fa-envelope-open-text text-[10px]" title="Lida"></i>
-                    @else
-                        <i class="fas fa-envelope text-[10px]" title="Não lida"></i>
-                    @endif
-                </div>
-
-                {{-- Card da Linha do Tempo (Padrão DS) --}}
-                <div class="bg-slate-800 border border-slate-700/50 rounded-xl hover:border-slate-600 transition-all p-0 overflow-hidden group-hover:shadow-lg">
-                    
-                    {{-- Header do Card (Tipo + Título + Data/Hora) --}}
-                    <div class="px-5 py-3 border-b border-slate-700/50 flex flex-col sm:flex-row justify-between sm:items-center gap-2 bg-slate-900/20">
-                        <div class="flex items-center gap-3 flex-wrap">
-                            {{-- Badge de Tipo --}}
-                            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider
-                                @if($log->tipo == 'ALERTA') bg-yellow-500/20 text-yellow-500 border border-yellow-500/30
-                                @elseif($log->tipo == 'SUCESSO') bg-green-500/20 text-green-500 border border-green-500/30
-                                @else bg-blue-500/20 text-blue-400 border border-blue-500/30 @endif">
-                                {{ $log->tipo }}
-                            </span>
-                            
-                            {{-- Título da Notificação --}}
-                            <span class="text-xs text-slate-400 font-bold flex items-center gap-1">
-                                <i class="fas fa-cube text-slate-500 text-[10px]"></i>
-                                {{ $log->titulo }}
-                            </span>
-                        </div>
-                        
-                        {{-- Lado Direito: Data/Hora --}}
-                        <div class="text-right flex items-center gap-3">
-                            <p class="text-xs text-slate-400 font-mono font-bold">
-                                {{ \Carbon\Carbon::parse($log->created_at)->timezone('America/Sao_Paulo')->format('d/m/Y') }} 
-                                <span class="text-slate-600 mx-1">|</span> 
-                                {{ \Carbon\Carbon::parse($log->created_at)->timezone('America/Sao_Paulo')->format('H:i:s') }}
-                            </p>
-                        </div>
-                    </div>
-                    
-                    {{-- Corpo do Card (Destinatário + Mensagem) --}}
-                    <div class="p-5 flex items-start gap-4">
-                        {{-- Avatar --}}
-                        <div class="flex-shrink-0 mt-1">
-                            @if($log->colaborador)
-                                <div class="h-10 w-10 rounded-full bg-slate-700 flex items-center justify-center text-xs font-bold text-slate-300 border border-slate-600">
-                                    {{ strtoupper(substr($log->colaborador->nome_completo ?? 'XX', 0, 2)) }}
-                                </div>
-                            @else
-                                <div class="h-10 w-10 rounded-full bg-slate-900 flex items-center justify-center text-slate-600 border border-slate-800 border-dashed">
-                                    <i class="fas fa-user-slash"></i>
-                                </div>
-                            @endif
-                        </div>
-                        
-                        {{-- Dados e Mensagem --}}
-                        <div class="flex-1 min-w-0">
-                            <p class="text-sm font-bold text-white mb-2">
-                                @if($log->colaborador)
-                                    {{ $log->colaborador->nome_completo }}
-                                @else
-                                    <span class="text-slate-500 italic">Destinatário Removido</span>
-                                @endif
-                            </p>
-                            
-                            {{-- Detalhes da Notificação (Estilo Console) --}}
-                            <div class="bg-slate-950 rounded-lg p-3 border border-slate-700/50">
-                                <p class="text-[13px] text-slate-300 leading-relaxed font-mono whitespace-pre-wrap">{!! nl2br(e($log->mensagem)) !!}</p>
-                            </div>
-                        </div>
-                    </div>
-
-                </div>
-            </div>
-            @empty
-                <div class="pl-8 py-12 flex flex-col items-center justify-center text-slate-500 border border-dashed border-slate-700 rounded-xl bg-slate-800/30 mb-12">
-                    <i class="fas fa-search text-3xl mb-4 text-slate-600 block"></i>
-                    <p class="text-lg font-medium text-slate-400">Nenhuma notificação encontrada</p>
-                    <p class="text-sm text-slate-500 mt-1">Tente ajustar os filtros de data ou usuário.</p>
-                </div>
-            @endforelse
-        </div>
-    @else
     <div class="relative border-l-2 border-slate-700/50 ml-4 space-y-8 pb-12">
         @forelse($logs as $index => $log)
         {{-- Card de Auditoria Normal --}}
@@ -509,7 +368,6 @@
             </div>
         @endforelse
     </div>
-    @endif
 </div>
 
 @push('scripts')
@@ -529,13 +387,6 @@
         if (e.target === this.firstElementChild.nextElementSibling) {
             fecharModalFiltros();
         }
-    });
-
-    $(document).ready(function() {
-        // Dispara o submit automaticamente quando o usuário seleciona ou limpa um colaborador no Select2
-        $('#select-colaborador-auditoria').on('change', function() {
-            $(this).closest('form').submit();
-        });
     });
 </script>
 @endpush

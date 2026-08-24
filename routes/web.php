@@ -129,6 +129,9 @@ Route::middleware('auth')->group(function () {
     // Conformidade e Painel Administrativo (apenas Admins)
     Route::middleware('role:ADMIN')->group(function () {
         Route::get('/configuracoes/health', [\App\Http\Controllers\ConfiguracaoController::class, 'index'])->name('configuracoes.health');
+        Route::get('/configuracoes/notificacoes-logs', [\App\Http\Controllers\NotificacaoController::class, 'index'])->name('notificacoes.logs');
+        Route::get('/configuracoes/notificacoes-permissoes/{colaborador_id}', [\App\Http\Controllers\NotificacaoController::class, 'getPermissao'])->name('notificacoes.permissoes.get');
+        Route::post('/configuracoes/notificacoes-permissoes/toggle', [\App\Http\Controllers\NotificacaoController::class, 'togglePermissao'])->name('notificacoes.permissoes.toggle');
         Route::post('/configuracoes/salvar', [\App\Http\Controllers\ConfiguracaoController::class, 'salvar'])->name('configuracoes.salvar');
         Route::post('/configuracoes/testar-solides-api', [\App\Http\Controllers\ConfiguracaoController::class, 'testarSolidesApi'])->name('configuracoes.testar_solides_api');
         // Módulo de Gestão de Feriados e Localidades

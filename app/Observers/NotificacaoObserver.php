@@ -8,6 +8,19 @@ use App\Models\Notificacao;
 class NotificacaoObserver
 {
     /**
+     * Handle the Notificacao "creating" event.
+     */
+    public function creating(Notificacao $notificacao)
+    {
+        // Apenas notificações automáticas são bloqueadas. Notificações manuais (INFO) passam.
+        if ($notificacao->tipo !== 'INFO') {
+            if ($notificacao->colaborador && $notificacao->colaborador->recebe_notificacao === false) {
+                return false; // Trava a criação no banco de dados e consequentemente o disparo do Job
+            }
+        }
+    }
+
+    /**
      * Handle the Notificacao "created" event.
      */
     public function created(Notificacao $notificacao): void
