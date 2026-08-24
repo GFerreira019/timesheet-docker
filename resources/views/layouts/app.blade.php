@@ -105,7 +105,7 @@
 
         {{-- Footer --}}
         <footer class="py-4 px-6 text-center text-xs sm:text-sm text-gray-500 border-t border-slate-800">
-            CONNECT v3.59.0 © 2026 
+            CONNECT v{{ config('app.version') }} © 2026 
             <a href="https://atgbsistemas.com.br/" target="_blank" class="text-blue-400 hover:text-blue-300">ATGB SISTEMAS</a>
         </footer>
     </div>

@@ -1,42 +1,11 @@
+@extends('layouts.app')
+
 @section('title', 'Acesso Restrito')
 
-@vite(['resources/css/app.css', 'resources/js/app.js'])
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
-@push('head')
-<!DOCTYPE html>
-<html lang="pt-BR" class="h-full bg-slate-900">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Acesso Restrito - Timesheet | ATGB</title>
-    
-    <!-- Favicon -->
-    <link rel="icon" type="image/png" href="{{ asset('storage/suporte/anexos/icon-192x192.png') }}">
-
-    <!-- Google Fonts: Inter -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-
-    <!-- Tailwind CSS (seguindo o layout global do projeto) -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    fontFamily: { sans: ['Inter', 'sans-serif'] }
-                }
-            }
-        }
-    </script>
-    <style>
-        * { transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1); }
-        .card { @apply bg-slate-800/60 border border-slate-700/50 rounded-2xl shadow-xl backdrop-blur-sm; }
-        .btn-primary { @apply inline-flex items-center justify-center gap-2 px-5 py-3.5 w-full bg-cyan-600 hover:bg-cyan-500 text-white font-semibold rounded-xl transition-all duration-200 shadow-lg shadow-cyan-900/30 hover:shadow-cyan-900/50 hover:-translate-y-0.5; }
-    </style>
-</head>
-<body class="h-full font-sans antialiased text-white min-h-screen flex items-center justify-center" style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);">
-    
+@section('content')
+<div class="flex items-center justify-center w-full min-h-[70vh]">
     <div class="card p-8 sm:p-10 max-w-md w-full text-center mx-4">
         <!-- Ícone de Cadeado/Segurança -->
         <div class="mx-auto flex items-center justify-center h-20 w-20 rounded-2xl bg-cyan-500/10 mb-6 border border-cyan-500/20 shadow-inner">
@@ -74,6 +43,5 @@
             </svg>
         </a>
     </div>
-
-</body>
-</html>
+</div>
+@endsection

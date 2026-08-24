@@ -12,7 +12,7 @@ use Illuminate\View\View;
 class NotificacaoController extends Controller
 {
     /**
-     * Logs de notificações disparadas (Push/WhatsApp) - Acesso Admin.
+     * Logs de notificações disparadas (Push) - Acesso Admin.
      *
      * GET /configuracoes/notificacoes-logs
      */

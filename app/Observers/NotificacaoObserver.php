@@ -25,7 +25,7 @@ class NotificacaoObserver
      */
     public function created(Notificacao $notificacao): void
     {
-        // Dispara o job de notificação para a fila (FCM / WhatsApp), 
+        // Dispara o job de notificação para a fila (FCM), 
         // liberando a thread principal e evitando gargalos de I/O de rede.
         ProcessOmnichannelNotificationJob::dispatch($notificacao);
     }
