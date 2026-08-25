@@ -55,7 +55,7 @@ class SsoController extends Controller
             }
 
             // Just-In-Time Provisioning
-            $user = User::firstOrNew(['id_usuario_erp' => $dadosUsuario['id_usuario']]);
+            $user = User::firstOrNew(['connect_user_id' => $dadosUsuario['id_usuario']]);
 
             // Atualiza o nome APENAS no primeiro acesso (quando o ID ainda não existe)
             if (!$user->exists) {
@@ -91,5 +91,47 @@ class SsoController extends Controller
             report($e);
             return redirect()->route('login')->withErrors(['error' => 'Erro interno ao validar o acesso.']);
         }
+    }
+
+    public function connect(Request $request)
+    {
+        $ticket = (string) $request->query('ticket');
+
+        if (!$ticket) {
+            return redirect('/login');
+        }
+
+        try {
+            $r = Http::withHeaders(['X-Api-Key' => config('services.connect.token')])
+                ->acceptJson()
+                ->timeout(10)
+                ->post('https://atgbconnect.com.br/api/v1/sso-ticket-timesheet.php', [
+                    'ticket' => $ticket,
+                ]);
+        } catch (\Throwable $e) {
+            Log::warning('[sso-connect] resgate falhou: ' . $e->getMessage());
+            return redirect('/login');
+        }
+
+        $json = $r->json();
+        if (! $r->successful() || ! ($json['success'] ?? false)) {
+            Log::info('[sso-connect] recusado: ' . ($json['error'] ?? $r->status()));
+            return redirect('/login');
+        }
+
+        $u = $json['data'] ?? [];
+        if (($u['acesso_liberado'] ?? false) !== true) {
+            return redirect('/login');
+        }
+
+        $user = User::firstOrNew(['email' => $u['email']]);
+        $user->name = $u['nome'];
+        $user->connect_user_id = $u['id_usuario'];
+        $user->save();
+
+        Auth::login($user);
+        $request->session()->regenerate();
+
+        return redirect('/');
     }
 }

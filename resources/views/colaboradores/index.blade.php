@@ -155,7 +155,7 @@
                                                     Ignorar
                                                 </button>
                                             </form>
-                                            <button type="button" onclick="abrirModalNovoPreenchido('{{ $pendente->id }}', '{{ addslashes($pendente->name) }}', '{{ $pendente->id_usuario_erp }}')" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded transition-colors shadow shadow-indigo-900/20">
+                                            <button type="button" onclick="abrirModalNovoPreenchido('{{ $pendente->id }}', '{{ addslashes($pendente->name) }}', '{{ $pendente->connect_user_id }}')" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded transition-colors shadow shadow-indigo-900/20">
                                                 Completar Cadastro
                                             </button>
                                         </div>

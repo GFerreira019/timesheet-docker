@@ -277,7 +277,7 @@ class ApontamentoRequest extends FormRequest
                 $colaboradorId = $data['colaborador_id'] ?? null;
                 if ($colaboradorId) {
                     $user = \App\Models\User::find($colaboradorId);
-                    $idErp = $user ? $user->id_usuario_erp : null;
+                    $idErp = $user ? $user->connect_user_id : null;
                     
                     if (!$idErp) {
                         $validator->errors()->add('em_plantao', 'Colaborador sem vínculo com o ERP.');

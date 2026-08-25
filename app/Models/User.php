@@ -35,12 +35,12 @@ class User extends Authenticatable
         'name',
         'email',
         'produtividade_colaborador_id',
-        'id_usuario_erp',
         // ID da plataforma Sólides — centralizado aqui para ser a fonte de verdade
         // da integração de ponto. O Colaborador lê este valor via accessor.
         'solides_id',
         'ignorado_erp',
         'fcm_token',
+        'connect_user_id',
     ];
 
     protected $hidden = [];

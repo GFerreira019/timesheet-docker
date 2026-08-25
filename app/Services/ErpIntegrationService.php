@@ -127,7 +127,7 @@ class ErpIntegrationService
 
                         // 1. User
                         $user = \App\Models\User::updateOrCreate(
-                            ['id_usuario_erp' => $item['id_usuario']],
+                            ['connect_user_id' => $item['id_usuario']],
                             [
                                 'name' => $item['nome'] ?? 'Sem Nome',
                                 'email' => $item['email'] ?? null,

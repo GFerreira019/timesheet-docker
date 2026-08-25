@@ -27,7 +27,7 @@ O fluxo de Single Sign-On (SSO) no Timesheet adota a técnica de **Just-In-Time 
 2. **Autenticação**: O ERP valida credenciais e retorna um *Ticket* seguro ao endpoint de Callback do Timesheet (`/auth/sso/callback`).
 3. **Validação de Ticket (API-to-API)**: O `SsoController` no Laravel entra em contato *server-side* com o ERP enviando o Ticket. Se válido, o ERP retorna o Payload seguro contendo: `id_usuario`, `nome`, `email`, `nivel_acesso`, entre outros.
 4. **JIT Provisioning (Criação/Atualização)**:
-   - Se o usuário não existir na base do Timesheet (`firstOrNew` pelo `id_usuario_erp`), ele é criado na hora, recebendo os dados do Payload.
+   - Se o usuário não existir na base do Timesheet (`firstOrNew` pelo `connect_user_id`), ele é criado na hora, recebendo os dados do Payload.
    - O Controller **sempre** atualiza as informações vitais (`email`, `solides_id`) para espelhar as alterações no ERP.
    - Os níveis de acesso (`nivel_acesso`) vindo do ERP são espelhados imediatamente convertendo-os para Roles do Spatie via `$user->syncRoles()`. Caso venha vazio na primeira vez, uma fallback role de `OPERACIONAL` é atribuída automaticamente.
 5. **Sessão Segura**: O usuário é logado no Laravel utilizando a façade nativa (`Auth::login($user)`) e redirecionado ao seu Painel, tudo de forma transparente em milissegundos.

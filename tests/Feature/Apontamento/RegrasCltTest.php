@@ -29,7 +29,7 @@ class RegrasCltTest extends TestCase
             'name' => 'Teste CLT',
             'email' => 'teste.clt@teste.com',
             'solides_id' => 12345,
-            'id_usuario_erp' => 999,
+            'connect_user_id' => 999,
         ]);
         
         $this->colaborador = Colaborador::create([

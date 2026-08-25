@@ -1058,7 +1058,7 @@ class ApontamentoController extends Controller
         $isWeekend = $dataHoraApontamento->isWeekend();
 
         // 2. Verificação de Feriado
-        $user = \App\Models\User::where('id_usuario_erp', $idUsuarioErp)
+        $user = \App\Models\User::where('connect_user_id', $idUsuarioErp)
             ->orWhere('id', $idUsuarioErp)
             ->first();
             
@@ -1152,7 +1152,7 @@ class ApontamentoController extends Controller
         $userId = $request->input('colaborador') ?? auth()->id();
         
         $user = \App\Models\User::find($userId);
-        $idErp = $user ? $user->id_usuario_erp : null;
+        $idErp = $user ? $user->connect_user_id : null;
         
         if (!$idErp) {
             return response()->json(['pode_plantao' => false]);

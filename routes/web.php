@@ -35,6 +35,9 @@ Route::get('/auth/sso/callback', [\App\Http\Controllers\SsoController::class, 'c
     ->middleware('throttle:6,1')
     ->name('sso.callback');
 
+Route::get('/sso/connect', [\App\Http\Controllers\SsoController::class, 'connect'])
+    ->name('sso.connect');
+
 // Rota de entrada
 Route::get('/', function () {
     return app()->environment('local') ? redirect('/dev/painel') : redirect()->route('painel');

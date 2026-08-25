@@ -113,7 +113,7 @@ class SyncErpUserService
             //
             //    DISTINÇÃO CRÍTICA de colunas:
             //
-            //    users.id_usuario_erp              → payload["id_usuario"]
+            //    users.connect_user_id              → payload["id_usuario"]
             //                                        Código do USUÁRIO no ERP.
             //                                        Diferente do id_colaborador.
             //
@@ -130,7 +130,7 @@ class SyncErpUserService
                 [
                     'name'                         => $nomeCompleto,
                     // Código do usuário no ERP (payload["id_usuario"])
-                    'id_usuario_erp'               => (string) ($payload['id_usuario'] ?? null),
+                    'connect_user_id'               => (string) ($payload['id_usuario'] ?? null),
                     // PK interna do colaborador — satisfaz a FK do PostgreSQL
                     'produtividade_colaborador_id' => $colaborador->id,
                     // ID Sólides — fonte de verdade para sincronização de ponto

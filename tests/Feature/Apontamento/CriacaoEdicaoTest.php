@@ -28,7 +28,7 @@ class CriacaoEdicaoTest extends TestCase
         $this->user = User::create([
             'name' => 'Teste',
             'email' => 'teste@teste.com',
-            'id_usuario_erp' => 999
+            'connect_user_id' => 999
         ]);
         
         $this->colaborador = Colaborador::create([

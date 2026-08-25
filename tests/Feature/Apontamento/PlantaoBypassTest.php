@@ -33,7 +33,7 @@ class PlantaoBypassTest extends TestCase
         ]);
 
         $this->user = User::factory()->create([
-            'id_usuario_erp' => 999,
+            'connect_user_id' => 999,
             'produtividade_colaborador_id' => $this->colaborador->id
         ]);
     }
