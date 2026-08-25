@@ -150,7 +150,8 @@ Route::middleware('auth')->group(function () {
             Route::get('/', [ConformidadeController::class, 'dashboard'])->name('dashboard');
             Route::post('/notificar-pendencias', [ConformidadeController::class, 'notificarPendencias'])->name('notificar_pendencias');
             Route::post('/enviar-aviso', [ConformidadeController::class, 'enviarAvisoPersonalizado'])->name('enviar_aviso');
-            Route::post('/sincronizar-solides', [ConformidadeController::class, 'sincronizarSolides'])->name('sincronizar_solides');
+            Route::post('/sincronizar-solides', [ConformidadeController::class, 'iniciarSincronizacao'])->name('sincronizar_solides');
+            Route::get('/progresso-sincronizacao/{syncId}', [ConformidadeController::class, 'checarProgresso'])->name('checar_progresso');
         });
 
         // Módulo de Dashboard

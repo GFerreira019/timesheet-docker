@@ -75,10 +75,15 @@
     <div class="h-8 w-px bg-slate-700/50 mx-1 hidden lg:block"></div>
 
     {{-- Sincronizar Sólides --}}
-    <button type="button" id="btn-sync-solides" onclick="sincronizarSolides()" class="bg-blue-600 hover:bg-blue-500 text-white font-bold px-3 sm:px-4 rounded-lg flex items-center justify-center gap-2 shadow-lg shadow-blue-900/20 transition-all text-sm h-[42px]">
-        <i class="fas fa-sync-alt" id="icon-sync-solides"></i>
-        <span class="hidden sm:inline" id="text-sync-solides">Sincronizar</span>
-    </button>
+    <div class="flex flex-col gap-1 w-full sm:w-auto">
+        <button type="button" id="btn-sync-solides" onclick="sincronizarSolides()" class="bg-blue-600 hover:bg-blue-500 text-white font-bold px-3 sm:px-4 rounded-lg flex items-center justify-center gap-2 shadow-lg shadow-blue-900/20 transition-all text-sm h-[42px] w-full">
+            <i class="fas fa-sync-alt" id="icon-sync-solides"></i>
+            <span class="hidden sm:inline" id="text-sync-solides">Sincronizar</span>
+        </button>
+        <div id="sync-progress-container" class="hidden w-full bg-slate-700 rounded-full h-1.5 overflow-hidden">
+            <div id="sync-progress-bar" class="bg-green-500 h-1.5 rounded-full transition-all duration-300" style="width: 0%"></div>
+        </div>
+    </div>
 
     {{-- Aviso Manual --}}
     <button type="button" onclick="document.getElementById('modal-aviso-manual').classList.remove('hidden')" class="bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold px-3 sm:px-4 rounded-lg flex items-center justify-center gap-2 border border-slate-700 transition-all text-sm h-[42px]">
@@ -471,50 +476,120 @@
 <x-modal-calendario id="calendarioModal" titulo="Verificar Registros" dataRefStr="{{ $data_ref }}" :mostrar-legenda="true" />
 
 <script>
-    function sincronizarSolides() {
+    let syncInterval;
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const activeSyncId = localStorage.getItem('sync_solides_id');
+        if (activeSyncId) {
+            iniciarEstadoSincronizando();
+            syncInterval = setInterval(() => {
+                checarProgresso(activeSyncId);
+            }, 2000);
+        }
+    });
+
+    function iniciarEstadoSincronizando() {
         const btn = document.getElementById('btn-sync-solides');
         const icon = document.getElementById('icon-sync-solides');
         const text = document.getElementById('text-sync-solides');
+        const progressContainer = document.getElementById('sync-progress-container');
 
         btn.disabled = true;
         btn.classList.add('opacity-50', 'cursor-not-allowed');
         icon.classList.remove('fa-sync-alt');
         icon.classList.add('fa-spinner', 'fa-spin');
         text.innerText = "Sincronizando...";
+        
+        progressContainer.classList.remove('hidden');
+    }
+
+    function sincronizarSolides() {
+        iniciarEstadoSincronizando();
+        document.getElementById('sync-progress-bar').style.width = '0%';
+        document.getElementById('text-sync-solides').innerText = "Iniciando...";
+
+        const dataSelecionada = '{{ $data_ref }}' || new Date().toISOString().split('T')[0];
 
         fetch('{{ route("conformidade.sincronizar_solides") }}', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'X-CSRF-TOKEN': '{{ csrf_token() }}'
-            }
+            },
+            body: JSON.stringify({ data_base: dataSelecionada })
         })
         .then(response => {
             if(!response.ok) throw new Error('Erro na requisição');
             return response.json();
         })
         .then(data => {
-            if(typeof Swal !== 'undefined') {
-                Swal.fire('Sucesso!', 'Sincronização concluída com sucesso!', 'success').then(() => window.location.reload());
-            } else {
-                alert("Sincronização concluída com sucesso!");
-                window.location.reload();
-            }
+            document.getElementById('text-sync-solides').innerText = "Sincronizando...";
+            const syncId = data.sync_id;
+            
+            localStorage.setItem('sync_solides_id', syncId);
+            
+            syncInterval = setInterval(() => {
+                checarProgresso(syncId);
+            }, 2000);
         })
         .catch(error => {
             console.error(error);
             if(typeof Swal !== 'undefined') {
-                Swal.fire('Erro!', 'Ocorreu um erro ao sincronizar.', 'error');
+                Swal.fire('Erro!', 'Ocorreu um erro ao iniciar sincronização.', 'error');
             } else {
-                alert("Ocorreu um erro ao sincronizar.");
+                alert("Ocorreu um erro ao iniciar sincronização.");
             }
-            
-            btn.disabled = false;
-            btn.classList.remove('opacity-50', 'cursor-not-allowed');
-            icon.classList.remove('fa-spinner', 'fa-spin');
-            icon.classList.add('fa-sync-alt');
-            text.innerText = "Sincronizar";
+            resetSyncButton();
         });
+    }
+
+    function checarProgresso(syncId) {
+        const cacheBuster = new Date().getTime();
+        fetch(`{{ url('conformidade/progresso-sincronizacao') }}/${syncId}?t=${cacheBuster}`, {
+            method: 'GET',
+            cache: 'no-store',
+            headers: {
+                'Content-Type': 'application/json',
+                'Cache-Control': 'no-cache',
+                'Pragma': 'no-cache'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            const progressBar = document.getElementById('sync-progress-bar');
+            progressBar.style.width = data.porcentagem + '%';
+
+            if (data.status === 'concluido' || data.porcentagem >= 100) {
+                clearInterval(syncInterval);
+                localStorage.removeItem('sync_solides_id');
+                
+                if(typeof Swal !== 'undefined') {
+                    Swal.fire('Sucesso!', 'Sincronização concluída com sucesso!', 'success');
+                    setTimeout(() => window.location.reload(), 2000);
+                } else {
+                    alert("Sincronização concluída com sucesso!");
+                    window.location.reload();
+                }
+            }
+        })
+        .catch(error => {
+            console.error('Erro ao checar progresso:', error);
+        });
+    }
+
+    function resetSyncButton() {
+        const btn = document.getElementById('btn-sync-solides');
+        const icon = document.getElementById('icon-sync-solides');
+        const text = document.getElementById('text-sync-solides');
+        const progressContainer = document.getElementById('sync-progress-container');
+        
+        btn.disabled = false;
+        btn.classList.remove('opacity-50', 'cursor-not-allowed');
+        icon.classList.remove('fa-spinner', 'fa-spin');
+        icon.classList.add('fa-sync-alt');
+        text.innerText = "Sincronizar";
+        progressContainer.classList.add('hidden');
+        localStorage.removeItem('sync_solides_id');
     }
 
 

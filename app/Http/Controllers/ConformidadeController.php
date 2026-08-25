@@ -445,32 +445,41 @@ class ConformidadeController extends Controller
     }
 
     /**
-     * Sincroniza pontos dos últimos 7 dias na Sólides
+     * Inicia a Sincronização dos pontos da Sólides baseada na data informada (janela de 3 dias)
      *
      * POST /conformidade/sincronizar-solides
      */
-    public function sincronizarSolides(Request $request): \Illuminate\Http\JsonResponse
+    public function iniciarSincronizacao(Request $request): \Illuminate\Http\JsonResponse
     {
-        set_time_limit(180);
+        $syncId = auth()->id() . '_' . time();
+        
+        $dataFim = \Carbon\Carbon::parse($request->input('data_base', now()));
+        $dataInicio = $dataFim->copy()->subDays(2);
 
-        $colaboradores = Colaborador::ativos()
-            ->whereHas('setorRelacionamento', fn($q) => $q->where('ativo', true))
-            // solides_id foi movido para users — filtramos via relacionamento
-            ->whereHas('user', fn($q) => $q->whereNotNull('solides_id'))
-            ->get();
+        \App\Jobs\SyncSolidesJob::dispatch($syncId, $dataInicio->format('Y-m-d'), $dataFim->format('Y-m-d'));
 
-        $dataInicio = now()->subDays(7)->format('Y-m-d');
-        $dataFim = now()->format('Y-m-d');
+        return response()->json(['sync_id' => $syncId]);
+    }
 
-        foreach ($colaboradores as $colab) {
-            try {
-                \App\Services\SolidesService::buscarEspelhoPonto($colab->id, $dataInicio, $dataFim);
-            } catch (\Exception $e) {
-                report($e);
-            }
+    /**
+     * Checa o progresso da Sincronização
+     *
+     * GET /conformidade/progresso-sincronizacao/{syncId}
+     */
+    public function checarProgresso($syncId): \Illuminate\Http\JsonResponse
+    {
+        $progress = \Illuminate\Support\Facades\Cache::get("sync_progress_{$syncId}");
+        
+        \Illuminate\Support\Facades\Log::info("Lendo Cache {$syncId}: " . ($progress ? json_encode($progress) : 'Vazio'));
+
+        if (!$progress) {
+            return response()->json([
+                'porcentagem' => 0,
+                'status' => 'processando'
+            ]);
         }
 
-        return response()->json(['message' => 'Sincronização de 7 dias finalizada com sucesso!']);
+        return response()->json($progress);
     }
 
     /**
