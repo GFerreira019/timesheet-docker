@@ -102,7 +102,7 @@ class SsoController extends Controller
         }
 
         try {
-            $r = Http::withHeaders(['X-Api-Key' => config('services.connect.token')])
+            $r = Http::withHeaders(['X-Api-Key' => config('services.erp.key')])
                 ->acceptJson()
                 ->timeout(10)
                 ->post('https://atgbconnect.com.br/api/v1/sso-ticket-timesheet.php', [
@@ -110,18 +110,19 @@ class SsoController extends Controller
                 ]);
         } catch (\Throwable $e) {
             Log::warning('[sso-connect] resgate falhou: ' . $e->getMessage());
-            return redirect('/login');
+            return redirect('/login')->withErrors(['error' => 'Falha de comunicação com o ERP (Timeout ou Indisponibilidade).']);
         }
 
         $json = $r->json();
         if (! $r->successful() || ! ($json['success'] ?? false)) {
-            Log::info('[sso-connect] recusado: ' . ($json['error'] ?? $r->status()));
-            return redirect('/login');
+            $erroApi = $json['error'] ?? $r->status();
+            Log::info('[sso-connect] recusado: ' . $erroApi);
+            return redirect('/login')->withErrors(['error' => 'Ticket de acesso recusado pelo ERP. Motivo: ' . $erroApi]);
         }
 
         $u = $json['data'] ?? [];
         if (($u['acesso_liberado'] ?? false) !== true) {
-            return redirect('/login');
+            return redirect('/login')->withErrors(['error' => 'Seu usuário não possui a flag "acesso_liberado" ativa no ERP.']);
         }
 
         $user = User::firstOrNew(['email' => $u['email']]);
