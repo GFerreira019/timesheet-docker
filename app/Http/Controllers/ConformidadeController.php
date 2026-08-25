@@ -451,6 +451,8 @@ class ConformidadeController extends Controller
      */
     public function sincronizarSolides(Request $request): \Illuminate\Http\JsonResponse
     {
+        set_time_limit(180);
+
         $colaboradores = Colaborador::ativos()
             ->whereHas('setorRelacionamento', fn($q) => $q->where('ativo', true))
             // solides_id foi movido para users — filtramos via relacionamento

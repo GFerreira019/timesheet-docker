@@ -56,7 +56,7 @@ class SolidesService
                 $response = Http::withHeaders([
                     'Authorization' => $token,
                     'accept'        => 'application/json;charset=UTF-8'
-                ])->get($url, $queryParams);
+                ])->timeout(180)->get($url, $queryParams);
 
                 if (!$response->successful()) {
                     throw new \Exception("Erro na API Sólides: " . $response->status() . " - " . $response->body());

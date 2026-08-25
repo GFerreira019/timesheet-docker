@@ -44,7 +44,7 @@ class ColaboradorController extends Controller
 
         $colaboradores = $query->paginate(25)->withQueryString();
         
-        $cargos = Colaborador::whereNotNull('cargo')->distinct()->pluck('cargo');
+        $cargos = Colaborador::whereNotNull('cargo')->distinct()->orderBy('cargo', 'asc')->pluck('cargo');
         $setores = \App\Models\Setor::orderBy('nome')->get();
         $roles = \Spatie\Permission\Models\Role::all();
         $cidades = Colaborador::select('cidade_moradia')
@@ -246,7 +246,7 @@ class ColaboradorController extends Controller
     {
         $validated = $request->validate([
             'nome_completo'       => 'required|string|max:255',
-            'role'                => ['required', 'string', 'exists:roles,name'], // Fase de Transição: substituiu nivel_acesso
+            'role'                => ['nullable', 'string', 'exists:roles,name'], // Fase de Transição: gerido pelo ERP
             'id_colaborador'      => 'required|string|max:255', // Removido unique para permitir o updateOrCreate do ERP
             'telefone'            => 'nullable|string|max:20',
             'cargo'               => 'required|string|max:255',
@@ -271,7 +271,7 @@ class ColaboradorController extends Controller
         $setoresGerenciados = $request->input('setores_gerenciados', []);
         unset($dados['setores_gerenciados']);
 
-        $roleParaSincronizar = $dados['role'];
+        $roleParaSincronizar = $dados['role'] ?? null;
         unset($dados['role']);
 
         // Concatena a UF na Cidade de Moradia

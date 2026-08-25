@@ -232,7 +232,8 @@
                     <td class="py-3 px-4 text-sm text-slate-300 whitespace-normal break-words min-w-[150px] max-w-[250px] align-middle" id="cell-cargo-{{ $colab->id }}">{{ $colab->cargo ?? '-' }}</td>
                     <td class="py-3 px-4 text-sm text-slate-300 whitespace-nowrap align-middle" id="cell-setor-{{ $colab->id }}">{{ $colab->setorRelacionamento->nome ?? '-' }}</td>
                     <td class="py-3 px-4 text-sm text-slate-300 whitespace-nowrap align-middle">
-                        <span class="px-2 py-1 bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 rounded text-[10px] font-bold">{{ $colab->user ? ($colab->user->roles->first()?->name ?? 'SEM ACESSO') : 'SEM ACESSO' }}</span>
+                        @php $roleName = $colab->user ? ($colab->user->roles->first()?->name ?? 'SEM ACESSO') : 'SEM ACESSO'; @endphp
+                        <span class="px-2 py-1 bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 rounded text-[10px] font-bold">{{ $roleName === 'SAC' ? 'ASSISTENTE' : $roleName }}</span>
                     </td>
                     <td class="py-3 px-4 text-sm text-slate-300 whitespace-nowrap align-middle" id="cell-status-{{ $colab->id }}">
                         @if($colab->data_demissao)
@@ -381,7 +382,7 @@
                                 <select id="filtro-role" name="role" disabled class="filtro-input hidden w-full bg-slate-800 border border-slate-600 text-white text-xs rounded-lg p-3 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none appearance-none cursor-pointer transition-all hover:bg-slate-700">
                                     <option value="">Selecione um Perfil...</option>
                                     @foreach($roles as $role)
-                                    <option value="{{ $role->name }}" @if(request('role') == $role->name) selected @endif>{{ $role->name }}</option>
+                                    <option value="{{ $role->name }}" @if(request('role') == $role->name) selected @endif>{{ $role->name === 'SAC' ? 'ASSISTENTE' : $role->name }}</option>
                                     @endforeach
                                 </select>
 
@@ -434,12 +435,13 @@
                             <input type="text" name="nome_completo" required class="w-full bg-slate-800 border border-slate-600 rounded-lg p-3 text-white text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all">
                         </div>
                         <div class="col-span-1 sm:col-span-2">
-                            <label class="block text-xs font-bold text-slate-400 mb-1 ml-1">Nível de Acesso (Timesheet) *</label>
-                            <select name="role" id="novo_nivel_acesso" required class="w-full bg-slate-800 border border-slate-600 rounded-lg p-3 text-white text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all appearance-none cursor-pointer">
+                            <label class="block text-xs font-bold text-slate-400 mb-1 ml-1">Nível de Acesso (Timesheet)</label>
+                            <select name="role" id="novo_nivel_acesso" disabled class="w-full bg-slate-900/50 border border-slate-700 rounded-lg p-3 text-slate-500 text-sm cursor-not-allowed opacity-70 outline-none transition-all appearance-none">
                                 @foreach($roles as $role)
-                                    <option value="{{ $role->name }}" @if($role->name === 'OPERACIONAL') selected @endif>{{ $role->name }}</option>
+                                    <option value="{{ $role->name }}" @if($role->name === 'OPERACIONAL') selected @endif>{{ $role->name === 'SAC' ? 'ASSISTENTE' : $role->name }}</option>
                                 @endforeach
                             </select>
+                            <span class="text-xs text-gray-500 block mt-1">O nível de acesso é gerido automaticamente pelo ERP.</span>
                             <div id="container-btn-vincular-novo" class="hidden mt-2">
                                 <button type="button" onclick="abrirModalVincularSetores('novo')" class="w-full px-4 py-2 bg-slate-700 hover:bg-slate-600 text-slate-300 font-bold rounded-lg transition-colors border border-slate-600 flex items-center justify-center gap-2 text-sm">
                                     <i class="fas fa-network-wired text-indigo-400"></i> Vincular Setores <span id="badge-setores-novo" class="bg-indigo-600 text-white rounded-full px-2 py-0.5 ml-1 hidden">0</span>
@@ -688,22 +690,14 @@
 
                     <!-- Nivel Acesso -->
                     <div class="relative group">
-                        <label class="block text-xs font-medium mb-1 text-slate-400">Nível de Acesso (Timesheet) *</label>
+                        <label class="block text-xs font-medium mb-1 text-slate-400">Nível de Acesso (Timesheet)</label>
 
-                        {{-- Alerta para colaboradores sem usuário de sistema vinculado --}}
-                        <div id="aviso-sem-usuario" class="hidden mb-2 p-2 rounded-lg border border-amber-500/40 bg-amber-500/10 text-amber-400 text-xs flex items-center gap-2">
-                            <i class="fas fa-exclamation-triangle"></i>
-                            <span>Nível de acesso só pode ser alterado para colaboradores com usuário de sistema vinculado.</span>
-                        </div>
-
-                        <select name="role" id="select-nivel-ficha" disabled class="w-full bg-slate-900/50 border border-slate-700 text-slate-500 rounded-lg p-3 outline-none cursor-not-allowed appearance-none">
+                        <select name="role" id="select-nivel-ficha" disabled class="w-full bg-slate-900/50 border border-slate-700 text-slate-500 rounded-lg p-3 cursor-not-allowed opacity-70 outline-none appearance-none">
                             @foreach($roles as $role)
-                                <option value="{{ $role->name }}">{{ $role->name }}</option>
+                                <option value="{{ $role->name }}">{{ $role->name === 'SAC' ? 'ASSISTENTE' : $role->name }}</option>
                             @endforeach
                         </select>
-                        <small class="text-slate-500 text-[10px] mt-1 block flex items-center gap-1">
-                            <i class="fas fa-lock text-slate-400"></i> Campo gerenciado pelo ATGB Connect.
-                        </small>
+                        <span class="text-xs text-gray-500 block mt-1">O nível de acesso é gerido automaticamente pelo ERP.</span>
                         <div id="container-btn-vincular-ficha" class="hidden mt-2">
                             <button type="button" onclick="abrirModalVincularSetores('ficha')" class="w-full px-4 py-2 bg-slate-700 hover:bg-slate-600 text-slate-300 font-bold rounded-lg transition-colors border border-slate-600 flex items-center justify-center gap-2 text-xs">
                                 <i class="fas fa-network-wired text-indigo-400"></i> Vincular Setores <span id="badge-setores-ficha" class="bg-indigo-600 text-white rounded-full px-2 py-0.5 ml-1 hidden">0</span>
@@ -908,25 +902,7 @@
             });
         }
         
-        const selectNivelNovo = document.querySelector('select[name="role"]#novo_nivel_acesso');
-        if (selectNivelNovo) {
-            selectNivelNovo.addEventListener('change', function() {
-                const isGerencialOrSac = ['GERENCIAL', 'SAC', 'ADMIN'].includes(this.value);
-                const isGestorOuSuperior = ['GERENCIAL', 'ADMIN'].includes(this.value);
-                document.getElementById('container-btn-vincular-novo').classList.toggle('hidden', !isGerencialOrSac);
-                document.getElementById('container-btn-gerenciar-novo').classList.toggle('hidden', !isGestorOuSuperior);
-            });
-        }
 
-        const selectNivelFicha = document.getElementById('select-nivel-ficha');
-        if (selectNivelFicha) {
-            selectNivelFicha.addEventListener('change', function() {
-                const isGerencialOrSac = ['GERENCIAL', 'SAC', 'ADMIN'].includes(this.value);
-                const isGestorOuSuperior = ['GERENCIAL', 'ADMIN'].includes(this.value);
-                document.getElementById('container-btn-vincular-ficha').classList.toggle('hidden', !isGerencialOrSac);
-                document.getElementById('container-btn-gerenciar-ficha').classList.toggle('hidden', !isGestorOuSuperior);
-            });
-        }
     });
 
     let contextVincularSetores = null;
@@ -1104,6 +1080,19 @@
             e.target.value = value;
         }); 
     }
+    function atualizarBotoesSetores(nivelAcesso, context) {
+        const btnVincular = document.getElementById(`container-btn-vincular-${context}`);
+        const btnGerenciar = document.getElementById(`container-btn-gerenciar-${context}`);
+        
+        if (btnVincular) btnVincular.classList.add('hidden');
+        if (btnGerenciar) btnGerenciar.classList.add('hidden');
+
+        if (nivelAcesso === 'GERENCIAL') {
+            if (btnGerenciar) btnGerenciar.classList.remove('hidden');
+        } else if (nivelAcesso === 'SAC') {
+            if (btnVincular) btnVincular.classList.remove('hidden');
+        }
+    }
 
     function abrirModalFicha(btnElement) {
         try {
@@ -1128,23 +1117,12 @@
 
             // Popula o select de role com a role atual via Spatie (ou legado como fallback)
             const selectNivel = document.getElementById('select-nivel-ficha');
-            const avisoSemUsuario = document.getElementById('aviso-sem-usuario');
-            const btnEditarNivel = document.getElementById('btn-editar-nivel');
             if (selectNivel) {
                 const roleAtual = dados.role_atual || 'OPERACIONAL';
                 selectNivel.value = roleAtual;
                 selectNivel.disabled = true;
-                selectNivel.classList.add('bg-slate-900/50', 'text-slate-400', 'cursor-not-allowed');
+                selectNivel.classList.add('bg-slate-900/50', 'text-slate-400', 'cursor-not-allowed', 'opacity-70');
                 selectNivel.classList.remove('bg-slate-800', 'text-white');
-
-                // Se não tem usuário vinculado, exibe aviso e bloqueia o botão de editar
-                if (!dados.tem_usuario) {
-                    avisoSemUsuario.classList.remove('hidden');
-                    if (btnEditarNivel) btnEditarNivel.style.display = 'none';
-                } else {
-                    avisoSemUsuario.classList.add('hidden');
-                    if (btnEditarNivel) btnEditarNivel.style.display = '';
-                }
             }
 
             if (form.elements['uf']) {
@@ -1181,12 +1159,8 @@
             setoresSelecionadosFicha = (dados.setores_vinculados || []).map(s => String(s.id));
             setoresGerenciadosFicha = (dados.setores_gerenciados || []).map(s => String(s.id));
             
-            const roleAtual = selectNivel ? selectNivel.value : '';
-            const isGerencialOrSac = ['GERENCIAL', 'SAC', 'ADMIN'].includes(roleAtual);
-            const isGestorOuSuperior = ['GERENCIAL', 'ADMIN'].includes(roleAtual);
-
-            document.getElementById('container-btn-vincular-ficha').classList.toggle('hidden', !isGerencialOrSac);
-            document.getElementById('container-btn-gerenciar-ficha').classList.toggle('hidden', !isGestorOuSuperior);
+            const roleAtual = dados.role_atual || (selectNivel ? selectNivel.value : '');
+            atualizarBotoesSetores(roleAtual, 'ficha');
             
             const badgeFicha = document.getElementById('badge-setores-ficha');
             if (setoresSelecionadosFicha.length > 0) {

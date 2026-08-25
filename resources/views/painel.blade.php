@@ -153,7 +153,7 @@
 
             {{-- Lado esquerdo: Voltar + Identificação do módulo --}}
             <div class="flex items-center gap-2 sm:gap-4">
-                <a href="{{ route('home') }}"
+                <a href="{{ app()->environment('production') ? 'https://atgbconnect.com.br/dashboard-planejamento.php' : route('home') }}"
                    class="p-2 rounded-lg hover:bg-slate-700/50 text-slate-400 hover:text-white transition"
                    title="Voltar ao Início">
                     <i class="fas fa-arrow-left text-lg"></i>
@@ -491,7 +491,7 @@
          bg-slate-700 hover:bg-slate-600 rounded-lg font-medium transition
          ============================================================ --}}
     <div class="text-center mt-8">
-        <a href="{{ route('home') }}"
+        <a href="{{ app()->environment('production') ? 'https://atgbconnect.com.br/dashboard-planejamento.php' : route('home') }}"
            class="inline-flex items-center gap-2 px-6 py-3 bg-slate-700 hover:bg-slate-600 rounded-lg font-medium transition">
             <i class="fas fa-arrow-left"></i>
             Voltar ao Início
