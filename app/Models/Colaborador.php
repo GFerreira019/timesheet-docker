@@ -169,6 +169,26 @@ class Colaborador extends Model
     }
 
     /**
+     * Retorna os IDs de todos os setores em que o colaborador tem alguma visibilidade 
+     * (Soma dos vinculados e dos gerenciados).
+     */
+    public function getSetoresPermitidosIds(): array
+    {
+        $vinculados = $this->setoresVinculados()->pluck('setores.id');
+        $gerenciados = $this->setoresGerenciados()->pluck('setores.id');
+        
+        return $vinculados->merge($gerenciados)->unique()->toArray();
+    }
+
+    /**
+     * Retorna apenas os IDs dos setores que ele ativamente gerencia.
+     */
+    public function getSetoresGerenciadosIds(): array
+    {
+        return $this->setoresGerenciados()->pluck('setores.id')->toArray();
+    }
+
+    /**
      * Obras/Projetos que este colaborador gerencia (papel de Gestor).
      */
     public function projetosGerenciados(): BelongsToMany

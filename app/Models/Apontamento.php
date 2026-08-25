@@ -338,17 +338,17 @@ class Apontamento extends Model
                 return $query->whereRaw('0=1');
             }
 
-            $setoresVinculadosIds = $colaborador->setoresVinculados()->pluck('setores.id')->toArray();
+            $setoresPermitidosIds = $colaborador->getSetoresPermitidosIds();
 
-            return $query->where(function ($q) use ($user, $colaborador, $setoresVinculadosIds) {
+            return $query->where(function ($q) use ($user, $colaborador, $setoresPermitidosIds) {
                 // Acesso aos seus próprios apontamentos
                 $q->where('registrado_por_id', $user->id)
                   ->orWhere('colaborador_id', $colaborador->id);
 
-                // Acesso aos apontamentos dos colaboradores que pertencem aos setores vinculados
-                if (!empty($setoresVinculadosIds)) {
-                    $q->orWhereHas('colaborador', function ($subQ) use ($setoresVinculadosIds) {
-                        $subQ->whereIn('setor_id', $setoresVinculadosIds);
+                // Acesso aos apontamentos dos colaboradores que pertencem aos setores vinculados/gerenciados
+                if (!empty($setoresPermitidosIds)) {
+                    $q->orWhereHas('colaborador', function ($subQ) use ($setoresPermitidosIds) {
+                        $subQ->whereIn('setor_id', $setoresPermitidosIds);
                     });
                 }
             });

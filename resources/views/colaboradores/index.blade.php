@@ -446,6 +446,13 @@
                                 </button>
                             </div>
                             <div id="hidden-inputs-setores-novo"></div>
+                            
+                            <div id="container-btn-gerenciar-novo" class="hidden mt-2">
+                                <button type="button" onclick="abrirModalGerenciarSetores('novo')" class="w-full px-4 py-2 bg-indigo-900/30 hover:bg-indigo-900/50 text-indigo-300 font-bold rounded-lg transition-colors border border-indigo-700/50 flex items-center justify-center gap-2 text-sm">
+                                    <i class="fas fa-crown text-indigo-400"></i> Setores Gerenciados <span id="badge-gerenciados-novo" class="bg-indigo-600 text-white rounded-full px-2 py-0.5 ml-1 hidden">0</span>
+                                </button>
+                            </div>
+                            <div id="hidden-inputs-gerenciados-novo"></div>
                         </div>
                         <div class="col-span-1 sm:col-span-2">
                             <label class="block text-xs font-bold text-slate-400 mb-1 ml-1">Cargo *</label>
@@ -602,6 +609,47 @@
 </div>
 
 {{-- ==========================================
+     MODAL GERENCIAR SETORES (GERENCIAL / SAC / ADMIN)
+     ========================================== --}}
+<div id="modal-gerenciar-setores" class="relative hidden" style="z-index: 9999;" role="dialog" aria-modal="true">
+    <div class="fixed inset-0 bg-gray-900/80 transition-opacity backdrop-blur-sm" style="z-index: 9998;"></div>
+    <div class="fixed inset-0 z-50 w-screen overflow-y-auto" style="z-index: 9999;">
+        <div class="flex min-h-full items-center justify-center p-4">
+            <div class="relative transform overflow-hidden rounded-xl bg-slate-900 border border-slate-700 text-left shadow-2xl w-full max-w-lg fade-in">
+                <div class="bg-slate-800 px-4 py-3 border-b border-slate-700 flex justify-between items-center">
+                    <h3 class="text-base font-bold text-white flex items-center gap-2">
+                        <i class="fas fa-crown text-indigo-400"></i>
+                        Setores Gerenciados
+                    </h3>
+                    <button type="button" onclick="fecharModalGerenciarSetores()" class="text-gray-400 hover:text-white text-xl font-bold transition-colors">&times;</button>
+                </div>
+                <div class="p-5">
+                    <p class="text-sm text-slate-400 mb-4">Selecione os setores que este colaborador GERENCIA (Matriz de Escalonamento):</p>
+                    
+                    <div class="max-h-60 overflow-y-auto pr-2 custom-scrollbar space-y-2" id="lista-setores-gerenciados-checkboxes">
+                        @foreach($setores as $setor)
+                        <label class="flex items-center gap-3 p-3 rounded-lg border border-slate-700 bg-slate-800 cursor-pointer hover:bg-slate-700 transition-colors">
+                            <input type="checkbox" value="{{ $setor->id }}" class="checkbox-setor-gerenciado w-5 h-5 text-indigo-600 bg-slate-900 border-slate-600 rounded focus:ring-indigo-500 focus:ring-2">
+                            <span class="text-sm text-slate-200 font-medium">{{ $setor->nome }}</span>
+                        </label>
+                        @endforeach
+                    </div>
+                    
+                    <div class="mt-5 flex justify-end gap-3">
+                        <button type="button" onclick="fecharModalGerenciarSetores()" class="px-4 py-2 bg-slate-700 text-slate-300 font-bold rounded-lg hover:bg-slate-600 transition-colors text-sm border border-slate-600">
+                            Cancelar
+                        </button>
+                        <button type="button" onclick="confirmarGerenciarSetores()" class="px-5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-lg shadow-lg transition-all text-sm">
+                            Confirmar Seleção
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{{-- ==========================================
      MODAL FICHA DO COLABORADOR
      ========================================== --}}
 <div id="modal-ficha" class="fixed inset-0 hidden z-50 flex items-center justify-center p-4 bg-black/60">
@@ -662,6 +710,13 @@
                             </button>
                         </div>
                         <div id="hidden-inputs-setores-ficha"></div>
+                        
+                        <div id="container-btn-gerenciar-ficha" class="hidden mt-2">
+                            <button type="button" onclick="abrirModalGerenciarSetores('ficha')" class="w-full px-4 py-2 bg-indigo-900/30 hover:bg-indigo-900/50 text-indigo-300 font-bold rounded-lg transition-colors border border-indigo-700/50 flex items-center justify-center gap-2 text-xs">
+                                <i class="fas fa-crown text-indigo-400"></i> Setores Gerenciados <span id="badge-gerenciados-ficha" class="bg-indigo-600 text-white rounded-full px-2 py-0.5 ml-1 hidden">0</span>
+                            </button>
+                        </div>
+                        <div id="hidden-inputs-gerenciados-ficha"></div>
                     </div>
 
                     <!-- Cargo -->
@@ -856,16 +911,20 @@
         const selectNivelNovo = document.querySelector('select[name="role"]#novo_nivel_acesso');
         if (selectNivelNovo) {
             selectNivelNovo.addEventListener('change', function() {
-                const isGerencialOrSac = ['GERENCIAL', 'SAC'].includes(this.value);
+                const isGerencialOrSac = ['GERENCIAL', 'SAC', 'ADMIN'].includes(this.value);
+                const isGestorOuSuperior = ['GERENCIAL', 'ADMIN'].includes(this.value);
                 document.getElementById('container-btn-vincular-novo').classList.toggle('hidden', !isGerencialOrSac);
+                document.getElementById('container-btn-gerenciar-novo').classList.toggle('hidden', !isGestorOuSuperior);
             });
         }
 
         const selectNivelFicha = document.getElementById('select-nivel-ficha');
         if (selectNivelFicha) {
             selectNivelFicha.addEventListener('change', function() {
-                const isGerencialOrSac = ['GERENCIAL', 'SAC'].includes(this.value);
+                const isGerencialOrSac = ['GERENCIAL', 'SAC', 'ADMIN'].includes(this.value);
+                const isGestorOuSuperior = ['GERENCIAL', 'ADMIN'].includes(this.value);
                 document.getElementById('container-btn-vincular-ficha').classList.toggle('hidden', !isGerencialOrSac);
+                document.getElementById('container-btn-gerenciar-ficha').classList.toggle('hidden', !isGestorOuSuperior);
             });
         }
     });
@@ -873,6 +932,80 @@
     let contextVincularSetores = null;
     let setoresSelecionadosFicha = [];
     let setoresSelecionadosNovo = [];
+
+    let contextGerenciarSetores = null;
+    let setoresGerenciadosFicha = [];
+    let setoresGerenciadosNovo = [];
+
+    function abrirModalGerenciarSetores(context) {
+        contextGerenciarSetores = context;
+        const modal = document.getElementById('modal-gerenciar-setores');
+        const checkboxes = document.querySelectorAll('.checkbox-setor-gerenciado');
+        
+        const selecionados = context === 'novo' ? setoresGerenciadosNovo : setoresGerenciadosFicha;
+        
+        checkboxes.forEach(cb => {
+            cb.checked = selecionados.includes(cb.value);
+        });
+        
+        modal.classList.remove('hidden');
+    }
+
+    function fecharModalGerenciarSetores() {
+        document.getElementById('modal-gerenciar-setores').classList.add('hidden');
+        contextGerenciarSetores = null;
+    }
+
+    function confirmarGerenciarSetores() {
+        const checkboxes = document.querySelectorAll('.checkbox-setor-gerenciado:checked');
+        const selecionados = Array.from(checkboxes).map(cb => cb.value);
+        
+        const containerInputs = document.getElementById(`hidden-inputs-gerenciados-${contextGerenciarSetores}`);
+        const badge = document.getElementById(`badge-gerenciados-${contextGerenciarSetores}`);
+        
+        if (contextGerenciarSetores === 'novo') {
+            setoresGerenciadosNovo = selecionados;
+        } else {
+            setoresGerenciadosFicha = selecionados;
+        }
+        
+        containerInputs.innerHTML = '';
+        selecionados.forEach(id => {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'setores_gerenciados[]';
+            input.value = id;
+            containerInputs.appendChild(input);
+        });
+        
+        if (selecionados.length > 0) {
+            badge.textContent = selecionados.length;
+            badge.classList.remove('hidden');
+        } else {
+            badge.classList.add('hidden');
+        }
+
+        if (contextGerenciarSetores === 'ficha') {
+            const rodape = document.getElementById('rodape-edicao');
+            if (rodape) rodape.classList.remove('hidden');
+
+            const containerVigencia = document.getElementById('container-vigencia');
+            if (containerVigencia) containerVigencia.classList.remove('hidden');
+
+            const vigencia = document.getElementById('ficha-data-vigencia');
+            if (vigencia) {
+                vigencia.required = true;
+                if (!vigencia.value) {
+                    const hoje = new Date();
+                    const ano = hoje.getFullYear();
+                    const mes = String(hoje.getMonth() + 1).padStart(2, '0');
+                    vigencia.value = `${ano}-${mes}`;
+                }
+            }
+        }
+        
+        fecharModalGerenciarSetores();
+    }
 
     function abrirModalVincularSetores(context) {
         contextVincularSetores = context;
@@ -1046,8 +1179,14 @@
             }
 
             setoresSelecionadosFicha = (dados.setores_vinculados || []).map(s => String(s.id));
-            const isGerencialOrSac = ['GERENCIAL', 'SAC'].includes(selectNivel ? selectNivel.value : '');
+            setoresGerenciadosFicha = (dados.setores_gerenciados || []).map(s => String(s.id));
+            
+            const roleAtual = selectNivel ? selectNivel.value : '';
+            const isGerencialOrSac = ['GERENCIAL', 'SAC', 'ADMIN'].includes(roleAtual);
+            const isGestorOuSuperior = ['GERENCIAL', 'ADMIN'].includes(roleAtual);
+
             document.getElementById('container-btn-vincular-ficha').classList.toggle('hidden', !isGerencialOrSac);
+            document.getElementById('container-btn-gerenciar-ficha').classList.toggle('hidden', !isGestorOuSuperior);
             
             const badgeFicha = document.getElementById('badge-setores-ficha');
             if (setoresSelecionadosFicha.length > 0) {
@@ -1055,6 +1194,14 @@
                 badgeFicha.classList.remove('hidden');
             } else {
                 badgeFicha.classList.add('hidden');
+            }
+
+            const badgeGerenciadosFicha = document.getElementById('badge-gerenciados-ficha');
+            if (setoresGerenciadosFicha.length > 0) {
+                badgeGerenciadosFicha.textContent = setoresGerenciadosFicha.length;
+                badgeGerenciadosFicha.classList.remove('hidden');
+            } else {
+                badgeGerenciadosFicha.classList.add('hidden');
             }
 
             const containerInputsFicha = document.getElementById('hidden-inputs-setores-ficha');
@@ -1065,6 +1212,16 @@
                 input.name = 'setores_vinculados[]';
                 input.value = id;
                 containerInputsFicha.appendChild(input);
+            });
+
+            const containerInputsGerenciadosFicha = document.getElementById('hidden-inputs-gerenciados-ficha');
+            containerInputsGerenciadosFicha.innerHTML = '';
+            setoresGerenciadosFicha.forEach(id => {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = 'setores_gerenciados[]';
+                input.value = id;
+                containerInputsGerenciadosFicha.appendChild(input);
             });
 
             document.getElementById('modal-ficha').classList.remove('hidden');
@@ -1260,12 +1417,21 @@
     function abrirModalNovo() {
         document.getElementById('modal-novo-colaborador').classList.remove('hidden');
         setoresSelecionadosNovo = [];
+        setoresGerenciadosNovo = [];
+        
         const containerInputsNovo = document.getElementById('hidden-inputs-setores-novo');
         if (containerInputsNovo) containerInputsNovo.innerHTML = '';
         const badgeNovo = document.getElementById('badge-setores-novo');
         if (badgeNovo) badgeNovo.classList.add('hidden');
         const containerBtnNovo = document.getElementById('container-btn-vincular-novo');
         if (containerBtnNovo) containerBtnNovo.classList.add('hidden');
+
+        const containerInputsGerenciadosNovo = document.getElementById('hidden-inputs-gerenciados-novo');
+        if (containerInputsGerenciadosNovo) containerInputsGerenciadosNovo.innerHTML = '';
+        const badgeGerenciadosNovo = document.getElementById('badge-gerenciados-novo');
+        if (badgeGerenciadosNovo) badgeGerenciadosNovo.classList.add('hidden');
+        const containerBtnGerenciarNovo = document.getElementById('container-btn-gerenciar-novo');
+        if (containerBtnGerenciarNovo) containerBtnGerenciarNovo.classList.add('hidden');
         const selectNivelNovo = document.querySelector('select[name="role"]#novo_nivel_acesso');
         if (selectNivelNovo) selectNivelNovo.value = 'OPERACIONAL';
     }

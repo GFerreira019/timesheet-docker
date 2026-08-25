@@ -162,11 +162,9 @@ class ApontamentoRequest extends FormRequest
                     $setoresPermitidos = collect();
 
                     if ($user->hasAnyRole(['GERENCIAL', 'SAC'])) {
-                        $setoresVinculados = $colab->setoresVinculados()->pluck('setores.id');
-                        $setoresGerenciados = $colab->setoresGerenciados()->pluck('setores.id');
-                        $setoresPermitidos = $setoresVinculados->merge($setoresGerenciados)->unique();
+                        $setoresPermitidos = collect($colab->getSetoresPermitidosIds());
                     } elseif ($user->hasRole('ADMINISTRATIVO')) {
-                        $setoresPermitidos = $colab->setoresGerenciados()->pluck('setores.id');
+                        $setoresPermitidos = collect($colab->getSetoresGerenciadosIds());
                     }
 
                     $colabAlvo = Colaborador::find($colaboradorIdReq);

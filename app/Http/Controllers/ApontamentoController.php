@@ -848,7 +848,7 @@ class ApontamentoController extends Controller
             if (!$colab) {
                 return Colaborador::whereRaw('0=1')->get(); // none()
             }
-            $setoresGerenciados = $colab->setoresGerenciados()->pluck('setores.id');
+            $setoresGerenciados = collect($colab->getSetoresGerenciadosIds());
             if ($setoresGerenciados->isEmpty()) {
                 return Colaborador::where('id', $colab->id)->get();
             }
@@ -870,9 +870,7 @@ class ApontamentoController extends Controller
 
         // GERENCIAL ou SAC: verificação direta via Spatie Laravel Permission (model_has_roles)
         if (AcessoHelper::isAcessoExpandido($user)) {
-            $setoresVinculados = $colab->setoresVinculados()->pluck('setores.id');
-            $setoresGerenciados = $colab->setoresGerenciados()->pluck('setores.id');
-            $setoresPermitidos = $setoresVinculados->merge($setoresGerenciados)->unique();
+            $setoresPermitidos = collect($colab->getSetoresPermitidosIds());
 
             return Colaborador::where(function ($q) use ($setoresPermitidos, $colab) {
                 $q->whereIn('setor_id', $setoresPermitidos)

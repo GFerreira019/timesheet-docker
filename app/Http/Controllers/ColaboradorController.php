@@ -9,7 +9,7 @@ class ColaboradorController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Colaborador::with(['setorRelacionamento', 'setoresVinculados:id', 'user.roles']);
+        $query = Colaborador::with(['setorRelacionamento', 'setoresVinculados:id', 'setoresGerenciados:id', 'user.roles']);
 
         if ($request->filled('nome')) {
             $query->where('nome_completo', 'ilike', '%' . $request->nome . '%');
@@ -84,6 +84,8 @@ class ColaboradorController extends Controller
             'setor_id'            => 'sometimes|nullable|exists:setores,id',
             'setores_vinculados'  => 'sometimes|nullable|array',
             'setores_vinculados.*'=> 'exists:setores,id',
+            'setores_gerenciados' => 'sometimes|nullable|array',
+            'setores_gerenciados.*'=> 'exists:setores,id',
             'cidade_moradia'      => 'sometimes|nullable|string|max:255',
             'cidade_trabalho'     => 'sometimes|nullable|string|max:255',
             'uf_moradia'          => 'sometimes|nullable|string|max:2',
@@ -102,6 +104,9 @@ class ColaboradorController extends Controller
 
         $setoresVinculados = $request->input('setores_vinculados', []);
         unset($dados['setores_vinculados']);
+
+        $setoresGerenciados = $request->input('setores_gerenciados', []);
+        unset($dados['setores_gerenciados']);
 
         // Concatena a UF na Cidade de Moradia
         if (!empty($dados['cidade_moradia']) && !empty($dados['uf_moradia'])) {
@@ -129,6 +134,9 @@ class ColaboradorController extends Controller
 
         // Sincroniza os setores vinculados
         $colaborador->setoresVinculados()->sync($setoresVinculados);
+        
+        // Sincroniza os setores gerenciados
+        $colaborador->setoresGerenciados()->sync($setoresGerenciados);
 
 
 
@@ -245,6 +253,8 @@ class ColaboradorController extends Controller
             'setor_id'            => 'required|exists:setores,id',
             'setores_vinculados'  => 'nullable|array',
             'setores_vinculados.*'=> 'exists:setores,id',
+            'setores_gerenciados' => 'nullable|array',
+            'setores_gerenciados.*'=> 'exists:setores,id',
             'cidade_moradia'      => 'nullable|string|max:255',
             'cidade_trabalho'     => 'nullable|string|max:255',
             'data_admissao'       => 'required|date',
@@ -257,6 +267,9 @@ class ColaboradorController extends Controller
         // Remove campos processados separadamente para não cair no fill()
         $setoresVinculados = $request->input('setores_vinculados', []);
         unset($dados['setores_vinculados']);
+
+        $setoresGerenciados = $request->input('setores_gerenciados', []);
+        unset($dados['setores_gerenciados']);
 
         $roleParaSincronizar = $dados['role'];
         unset($dados['role']);
@@ -291,6 +304,7 @@ class ColaboradorController extends Controller
         );
 
         $colaborador->setoresVinculados()->sync($setoresVinculados);
+        $colaborador->setoresGerenciados()->sync($setoresGerenciados);
 
         // --- FASE DE TRANSIÇÃO: Sincronização Spatie ---
         // Colaborador recém-criado geralmente não tem User ainda (criado depois no SSO).

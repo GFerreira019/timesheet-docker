@@ -25,7 +25,7 @@ class PontoController extends Controller
                 if (!$colab) {
                     $query->whereRaw('0=1');
                 } else {
-                    $setoresGerenciados = $colab->setoresGerenciados()->pluck('setores.id');
+                    $setoresGerenciados = collect($colab->getSetoresGerenciadosIds());
                     if ($setoresGerenciados->isEmpty()) {
                         $query->where('id', $colab->id);
                     } else {
@@ -39,9 +39,9 @@ class PontoController extends Controller
                 if (!$colab) {
                     $query->whereRaw('0=1');
                 } elseif (\App\Helpers\AcessoHelper::isAcessoExpandido($user)) {
-                    $setoresVinculados = $colab->setoresVinculados()->pluck('setores.id');
-                    $query->where(function ($q) use ($setoresVinculados, $colab) {
-                        $q->whereIn('setor_id', $setoresVinculados)
+                    $setoresPermitidos = collect($colab->getSetoresPermitidosIds());
+                    $query->where(function ($q) use ($setoresPermitidos, $colab) {
+                        $q->whereIn('setor_id', $setoresPermitidos)
                           ->orWhere('id', $colab->id);
                     });
                 } else {
@@ -191,7 +191,7 @@ class PontoController extends Controller
                     if (!$colab) {
                         $query->whereRaw('0=1');
                     } else {
-                        $setoresGerenciados = $colab->setoresGerenciados()->pluck('setores.id');
+                        $setoresGerenciados = collect($colab->getSetoresGerenciadosIds());
                         if ($setoresGerenciados->isEmpty()) {
                             $query->where('id', $colab->id);
                         } else {
@@ -205,9 +205,9 @@ class PontoController extends Controller
                     if (!$colab) {
                         $query->whereRaw('0=1');
                     } elseif (\App\Helpers\AcessoHelper::isAcessoExpandido($user)) {
-                        $setoresVinculados = $colab->setoresVinculados()->pluck('setores.id');
-                        $query->where(function ($q) use ($setoresVinculados, $colab) {
-                            $q->whereIn('setor_id', $setoresVinculados)
+                        $setoresPermitidos = collect($colab->getSetoresPermitidosIds());
+                        $query->where(function ($q) use ($setoresPermitidos, $colab) {
+                            $q->whereIn('setor_id', $setoresPermitidos)
                               ->orWhere('id', $colab->id);
                         });
                     } else {
