@@ -71,7 +71,7 @@ class ProjetoController extends Controller
 
     public function sincronizarErp()
     {
-        $dadosErp = \Illuminate\Support\Facades\DB::table('erp_obras_api')->get();
+        $dadosErp = \Illuminate\Support\Facades\DB::table('erp_obras_manual')->get();
 
         DB::beginTransaction();
         try {

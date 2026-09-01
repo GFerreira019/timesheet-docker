@@ -15,78 +15,10 @@ class ErpIntegrationService
      */
     public function syncObras()
     {
-        $erpUrlBase = config('services.erp.url');
-        $erpKey = config('services.erp.key');
-
-        if (!$erpUrlBase) {
-            return [
-                'success' => false,
-                'message' => 'URL do ERP não está configurada.',
-            ];
-        }
-
-        try {
-            // Supondo que o endpoint seja /obras. Se for diferente, ajuste a rota aqui.
-            $endpoint = rtrim($erpUrlBase, '/') . '/codigos-obra.php';
-            
-            $limit = 200;
-            $count = 0;
-
-            Log::info("Sincronizando obras do ERP (Sem loop) - Tentando carregar até {$limit} registros...");
-
-            // Faz apenas uma requisição
-            $response = Http::timeout(30)
-                ->withToken($erpKey)
-                ->get($endpoint, ['limit' => $limit]);
-
-            if ($response->successful() && $response->json('success') === true) {
-                $obras = $response->json('data');
-
-                if (is_array($obras) && !empty($obras)) {
-                    foreach ($obras as $item) {
-                        if (!isset($item['codigo_obra'])) {
-                            continue;
-                        }
-
-                        ErpObrasApi::updateOrCreate(
-                            ['projeto_codigo' => $item['codigo_obra']],
-                            [
-                                'cliente_codigo' => $item['codigo_cliente'] ?? null,
-                                'projeto_nome'   => $item['razao_social'] ?? null,
-                                'status_ativo'   => true,
-                            ]
-                        );
-
-                        $count++;
-                    }
-                }
-
-                return [
-                    'success' => true,
-                    'message' => "Sincronização concluída (Chamada única). {$count} obras foram processadas.",
-                    'total_obras' => $count
-                ];
-            } else {
-                Log::warning("ErpIntegration: Falha ao sincronizar obras do ERP (Chamada única)", [
-                    'status' => $response->status(),
-                    'body' => $response->body()
-                ]);
-
-                return [
-                    'success' => false,
-                    'message' => "Erro na API do ERP: " . $response->status(),
-                    'detalhes' => $response->json()
-                ];
-            }
-
-        } catch (\Exception $e) {
-            report($e);
-            
-            return [
-                'success' => false,
-                'message' => 'Erro de comunicação: ' . $e->getMessage(),
-            ];
-        }
+        return [
+            'success' => false,
+            'message' => 'Sincronização de obras com o ERP desativada temporariamente (manutenção manual).',
+        ];
     }
 
     /**

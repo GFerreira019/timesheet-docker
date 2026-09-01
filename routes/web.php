@@ -13,6 +13,7 @@ use App\Http\Controllers\PontoController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\SuporteController;
 use App\Http\Controllers\NotificacaoController;
+use App\Http\Controllers\ErpObraManualController;
 use App\Http\Controllers\Api\CalendarioApiController;
 use App\Livewire\Gerencial\Dashboard;
 use App\Livewire\Gerencial\LancamentosAvancado;
@@ -184,6 +185,16 @@ Route::middleware('auth')->group(function () {
             Route::post('/', [\App\Http\Controllers\ProjetoController::class, 'store'])->name('store');
             Route::put('/{id}', [\App\Http\Controllers\ProjetoController::class, 'update'])->name('update');
             Route::post('/sincronizar-erp', [\App\Http\Controllers\ProjetoController::class, 'sincronizarErp'])->name('sincronizar');
+        });
+
+        // Módulo de Obras Manuais
+        Route::prefix('erp-obras-manual')->name('erp-obras-manual.')->group(function () {
+            Route::get('/', [ErpObraManualController::class, 'index'])->name('index');
+            Route::post('/', [ErpObraManualController::class, 'store'])->name('store');
+            Route::get('/sugestoes-nome', [ErpObraManualController::class, 'sugestoesNome'])->name('sugestoes-nome');
+            Route::get('/{id}', [ErpObraManualController::class, 'show'])->name('show');
+            Route::put('/{id}', [ErpObraManualController::class, 'update'])->name('update');
+            Route::delete('/{id}', [ErpObraManualController::class, 'destroy'])->name('destroy');
         });
 
         // Módulo de Veículos

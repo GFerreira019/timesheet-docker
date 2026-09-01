@@ -486,6 +486,35 @@
     @endrole
 
     {{-- ============================================================
+         CATEGORIA 5 — GESTÃO DE PROJETOS (apenas ADMIN)
+         ============================================================ --}}
+    @role('ADMIN')
+    <div class="mb-8">
+        <h2 class="text-lg font-bold mb-4 flex items-center gap-2 theme-text-primary">
+            <i class="fas fa-building text-rose-500"></i>
+            Projetos
+        </h2>
+        <div class="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
+            {{-- Card: Obras --}}
+            <a href="{{ route('erp-obras-manual.index') }}" class="module-card relative theme-bg-card rounded-xl border border-slate-700 p-4 lg:p-6 hover:border-green-500/50 transition group">
+                <div class="relative z-10">
+                    <div class="module-icon w-12 h-12 lg:w-14 lg:h-14 bg-green-500/20 rounded-xl flex items-center justify-center mb-3 lg:mb-4 transition">
+                        <i class="fas fa-hard-hat text-green-500 text-xl lg:text-2xl"></i>
+                    </div>
+                    <h3 class="text-base lg:text-lg font-bold mb-1 lg:mb-2 theme-text-primary">Acompanhamento de Projetos</h3>
+                    <p class="text-xs lg:text-sm theme-text-secondary mb-3 lg:mb-4 line-clamp-2">Cadastro e acompanhamento de obras.</p>
+                    
+                    <div class="flex items-center text-green-500 group-hover:opacity-80 transition">
+                        <span class="text-xs lg:text-sm font-medium">Acessar</span>
+                        <i class="fas fa-arrow-right ml-2 transform group-hover:translate-x-1 transition-transform"></i>
+                    </div>
+                </div>
+            </a>
+        </div>
+    </div>
+    @endrole
+
+    {{-- ============================================================
          14.4 BOTÃO DE AÇÃO INFERIOR (Voltar Geral)
          Classes exatas: inline-flex items-center gap-2 px-6 py-3
          bg-slate-700 hover:bg-slate-600 rounded-lg font-medium transition
