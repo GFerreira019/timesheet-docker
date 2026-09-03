@@ -12,13 +12,18 @@ class ProjetoController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Projeto::with('gestores')->orderBy('nome');
+        $query = Projeto::with(['gestores', 'cliente'])
+            ->select('produtividade_projeto.*')
+            ->leftJoin('produtividade_codigocliente as c', 'produtividade_projeto.codigo_cliente_id', '=', 'c.id')
+            ->orderBy('c.nome');
 
         $busca = $request->query('busca');
         if ($busca) {
             $query->where(function($q) use ($busca) {
-                $q->where('nome', 'ilike', '%' . $busca . '%')
-                  ->orWhere('codigo', 'ilike', '%' . $busca . '%');
+                $q->whereHas('cliente', function($qC) use ($busca) {
+                    $qC->where('nome', 'ilike', '%' . $busca . '%');
+                })
+                ->orWhere('produtividade_projeto.codigo', 'ilike', '%' . $busca . '%');
             });
         }
 
@@ -32,7 +37,7 @@ class ProjetoController extends Controller
                                         ->orderBy('nome_completo')
                                         ->get();
 
-        $todosProjetos = Projeto::select('nome', 'codigo')->orderBy('nome')->get();
+        $todosProjetos = Projeto::with('cliente')->get()->sortBy('nome');
 
         return view('projetos.index', compact('projetos', 'possiveisGestores', 'todosProjetos'));
     }
@@ -84,7 +89,6 @@ class ProjetoController extends Controller
                 Projeto::updateOrCreate(
                     ['codigo' => $linha->projeto_codigo],
                     [
-                        'nome' => $linha->projeto_nome,
                         'ativo' => $linha->status_ativo,
                         'codigo_cliente_id' => $cliente->id
                     ]

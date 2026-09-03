@@ -114,12 +114,12 @@ class DashboardService
 
         switch ($tipoFiltro) {
             case 'obra':
-                $lista = Projeto::whereHas('apontamentos', function($q) use ($dataLimite30) {
+                $lista = Projeto::with('cliente')
+                    ->whereHas('apontamentos', function($q) use ($dataLimite30) {
                         $q->where('data_apontamento', '>=', $dataLimite30);
                     })
-                    ->select('id', 'nome as desc', 'codigo as id_display')
                     ->get()
-                    ->map(fn($p) => (object)['id' => $p->id, 'desc' => $p->desc, 'display' => $p->id_display]);
+                    ->map(fn($p) => (object)['id' => $p->id, 'desc' => $p->nome, 'display' => $p->codigo]);
                 break;
             case 'colaborador':
                 $lista = Colaborador::whereHas('apontamentos', function($q) use ($dataLimite30) {

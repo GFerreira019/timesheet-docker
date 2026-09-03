@@ -73,8 +73,10 @@ class LancamentosAvancado extends Component
         // --- Filtros de Coluna (Busca Textual) ---
         if (!empty($this->filtroObra)) {
             $query->whereHas('projeto', function($q) {
-                $q->where('nome', 'like', '%' . $this->filtroObra . '%')
-                  ->orWhere('codigo', 'like', '%' . $this->filtroObra . '%');
+                $q->whereHas('cliente', function($qC) {
+                    $qC->where('nome', 'like', '%' . $this->filtroObra . '%');
+                })
+                ->orWhere('codigo', 'like', '%' . $this->filtroObra . '%');
             });
         }
 
@@ -126,7 +128,7 @@ class LancamentosAvancado extends Component
                        ->paginate(50);
 
         // Opções para os Selects Avançados
-        $obrasOptions = Projeto::orderBy('nome')->get();
+        $obrasOptions = Projeto::with('cliente')->get()->sortBy('nome');
         $colaboradoresOptions = Colaborador::orderBy('nome_completo')->get();
         $cargosOptions = Colaborador::select('cargo')->distinct()->whereNotNull('cargo')->pluck('cargo');
         $veiculosOptions = Veiculo::orderBy('descricao')->get();

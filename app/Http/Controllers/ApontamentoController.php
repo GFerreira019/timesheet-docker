@@ -114,7 +114,7 @@ class ApontamentoController extends Controller
             'is_owner'                 => AcessoHelper::isOwner($user),
             'pode_lancar_terceiros'    => $user->hasAnyRole(['ADMIN', 'GERENCIAL', 'SAC', 'ADMINISTRATIVO']) || AcessoHelper::isOwner($user),
             'colaboradores'            => $this->getColaboradoresPermitidos($user),
-            'projetos'                 => Projeto::where('ativo', true)->orderBy('nome')->get(),
+            'projetos'                 => Projeto::with('cliente')->where('ativo', true)->get()->sortBy('nome'),
             'clientes'                 => CodigoCliente::where('ativo', true)->orderBy('nome')->get(),
             'centros_custo'            => CentroCusto::where('ativo', true)->orderBy('nome')->get(),
             'veiculos'                 => Veiculo::ativos()->orderBy('placa')->get(),
@@ -270,7 +270,7 @@ class ApontamentoController extends Controller
             'is_owner'                 => AcessoHelper::isOwner($user),
             'pode_lancar_terceiros'    => $user->hasAnyRole(['ADMIN', 'GERENCIAL', 'SAC', 'ADMINISTRATIVO']) || AcessoHelper::isOwner($user),
             'colaboradores'            => $this->getColaboradoresPermitidos($user, $apontamento),
-            'projetos'                 => Projeto::where('ativo', true)->orderBy('nome')->get(),
+            'projetos'                 => Projeto::with('cliente')->where('ativo', true)->get()->sortBy('nome'),
             'clientes'                 => CodigoCliente::where('ativo', true)->orderBy('nome')->get(),
             'centros_custo'            => CentroCusto::where('ativo', true)->orderBy('nome')->get(),
             'veiculos'                 => Veiculo::where(function($q) use ($apontamento) {
