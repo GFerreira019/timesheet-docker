@@ -22,6 +22,7 @@ class CodigoCliente extends Model
 
     protected $fillable = [
         'codigo',
+        'cnpj',
         'nome',
         'ativo',
     ];

@@ -96,7 +96,18 @@ class ErpObraManualController extends Controller
         $obra->coordenadoresProjeto()->sync($coordenadoresCombinados);
 
         if ($obra->cliente_codigo) {
-            $cliente = \App\Models\CodigoCliente::where('codigo', $obra->cliente_codigo)->first();
+            $query = \App\Models\CodigoCliente::where('codigo', $obra->cliente_codigo);
+            
+            if ($obra->cnpj) {
+                $cnpjLimpo = preg_replace('/[^0-9]/', '', $obra->cnpj);
+                $query->where('cnpj', $cnpjLimpo);
+            } else {
+                $query->where(function($q) {
+                    $q->whereNull('cnpj')->orWhere('cnpj', '');
+                });
+            }
+            
+            $cliente = $query->first();
             
             if ($cliente) {
                 foreach ($coordenadoresCombinados as $colaboradorId) {
@@ -172,6 +183,77 @@ class ErpObraManualController extends Controller
             'nome_exato' => $nomeExato,
             'razao_social_exata' => $razaoSocialExata,
             'nomes' => $nomesUnicos
+        ]);
+    }
+
+    public function verificarCliente(Request $request)
+    {
+        $clienteCodigo = $request->input('cliente_codigo');
+        $cnpj = $request->input('cnpj');
+        
+        $razaoSocial = null;
+        $cnpjLimpo = null;
+        
+        // 1. Independentemente do código do cliente, verifica se o CNPJ existe para puxar a Razão Social (que é imutável)
+        if ($cnpj) {
+            $cnpjLimpo = preg_replace('/[^0-9]/', '', $cnpj);
+            if (!empty($cnpjLimpo)) {
+                $obraComCnpj = ErpObraManual::where('cnpj', $cnpjLimpo)
+                                            ->whereNotNull('razao_social')
+                                            ->where('razao_social', '!=', '')
+                                            ->first();
+                                            
+                if ($obraComCnpj) {
+                    $razaoSocial = $obraComCnpj->razao_social;
+                }
+            }
+        }
+
+        if (!$clienteCodigo) {
+            return response()->json([
+                'acao' => 'livre', 
+                'razao_social' => $razaoSocial
+            ]);
+        }
+
+        $obrasDoCliente = ErpObraManual::where('cliente_codigo', $clienteCodigo)->get();
+
+        if ($obrasDoCliente->isEmpty()) {
+            return response()->json([
+                'acao' => 'livre',
+                'razao_social' => $razaoSocial
+            ]);
+        }
+
+        if ($cnpj && !empty($cnpjLimpo)) {
+            $obraExata = $obrasDoCliente->firstWhere('cnpj', $cnpjLimpo);
+            
+            if ($obraExata && !empty($obraExata->projeto_nome)) {
+                return response()->json([
+                    'acao' => 'travar',
+                    'nome' => $obraExata->projeto_nome,
+                    'razao_social' => $razaoSocial ?? $obraExata->razao_social
+                ]);
+            }
+        }
+
+        $nomesUnicos = $obrasDoCliente->pluck('projeto_nome')
+                                      ->filter()
+                                      ->unique()
+                                      ->values()
+                                      ->toArray();
+
+        if (count($nomesUnicos) > 0) {
+            return response()->json([
+                'acao' => 'sugerir',
+                'sugestoes' => $nomesUnicos,
+                'razao_social' => $razaoSocial
+            ]);
+        }
+
+        return response()->json([
+            'acao' => 'livre',
+            'razao_social' => $razaoSocial
         ]);
     }
 

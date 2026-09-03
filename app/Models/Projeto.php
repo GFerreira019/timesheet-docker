@@ -29,9 +29,9 @@ class Projeto extends Model
 
     protected $fillable = [
         'codigo',
-        'nome',
         'ativo',
         'codigo_cliente_id',
+        'unidade',
     ];
 
     protected $casts = [
@@ -92,6 +92,14 @@ class Projeto extends Model
     // -------------------------------------------------------------------------
     // Accessors / Helpers
     // -------------------------------------------------------------------------
+
+    /**
+     * Accessor para retornar o nome do cliente.
+     */
+    public function getNomeAttribute(): string
+    {
+        return $this->cliente ? $this->cliente->nome : 'N/A';
+    }
 
     /**
      * Equivalente ao __str__ do Django: "{codigo} - {nome}"

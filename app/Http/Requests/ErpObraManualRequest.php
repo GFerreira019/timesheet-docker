@@ -36,6 +36,16 @@ class ErpObraManualRequest extends FormRequest
 
         $this->merge($mergeData);
 
+        // Tratamento da máscara do CNPJ
+        if ($this->has('cnpj') && !empty($this->input('cnpj'))) {
+            $mergeData['cnpj'] = preg_replace('/[^0-9]/', '', $this->input('cnpj'));
+        }
+
+        // Sanitização da Unidade: não pode ser nula para não quebrar a unique constraint
+        if (empty($this->input('projeto_unidade'))) {
+            $mergeData['projeto_unidade'] = 'N/A';
+        }
+
         // Extração automática do cliente_codigo a partir do projeto_codigo
         if ($this->has('projeto_codigo') && strlen($this->projeto_codigo) >= 5) {
             $mergeData['cliente_codigo'] = substr($this->projeto_codigo, 1, 4);
@@ -67,9 +77,27 @@ class ErpObraManualRequest extends FormRequest
 
     public function rules()
     {
+        $id = $this->route('id') ?? $this->route('erp_obras_manual') ?? $this->route('obra');
+
+        $uniqueRule = \Illuminate\Validation\Rule::unique('erp_obras_manual', 'projeto_codigo')
+            ->where(function ($query) {
+                return $query->where('cliente_codigo', $this->cliente_codigo)
+                             ->where('projeto_unidade', $this->projeto_unidade)
+                             ->where('cnpj', $this->cnpj);
+            });
+
+        if ($this->isMethod('put') || $this->isMethod('patch')) {
+            $uniqueRule->ignore($id);
+        }
+
         return [
             // Dados Gerais
-            'projeto_codigo' => 'required|string|max:8',
+            'projeto_codigo' => [
+                'required',
+                'string',
+                'max:8',
+                $uniqueRule
+            ],
             'projeto_nome' => 'required|string|max:255',
             'cliente_codigo' => 'nullable|string|max:255',
             'razao_social' => 'nullable|string|max:255',
@@ -116,6 +144,13 @@ class ErpObraManualRequest extends FormRequest
             'valor_locacao' => 'nullable|numeric',
             
             'status_ativo' => 'boolean'
+        ];
+    }
+
+    public function messages()
+    {
+        return [
+            'projeto_codigo.unique' => 'Esta obra já está cadastrada. Verifique o código, unidade e CNPJ ou acesse a edição.',
         ];
     }
 }

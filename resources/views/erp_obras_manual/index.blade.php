@@ -302,6 +302,19 @@
 
         <!-- Body -->
         <div class="p-6 flex-1 overflow-y-auto">
+            @if ($errors->any())
+                <div class="mb-6 p-4 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400">
+                    <div class="flex items-center gap-2 mb-2">
+                        <i class="fas fa-exclamation-circle"></i>
+                        <h4 class="font-bold">Atenção: Houve um erro ao salvar</h4>
+                    </div>
+                    <ul class="list-disc list-inside text-sm font-medium space-y-1">
+                        @foreach ($errors->all() as $error)
+                            <li>{{ $error }}</li>
+                        @endforeach
+                    </ul>
+                </div>
+            @endif
             <form id="form-obra" method="POST" action="{{ route('erp-obras-manual.store') }}">
                 @csrf
                 <input type="hidden" name="_method" value="POST" id="form-method">
@@ -750,6 +763,7 @@
             });
 
         } else {
+            form.reset();
             document.getElementById('modal-title-text').innerText = 'Novo Projeto';
             form.action = `/erp-obras-manual`;
             document.getElementById('form-method').value = 'POST';
@@ -757,10 +771,20 @@
             
             // Reset visual dos nomes
             document.getElementById('ui-nome-bloqueado').classList.add('hidden');
+            document.getElementById('ui-nome-bloqueado').value = '';
             document.getElementById('ui-nome-select').classList.add('hidden');
+            document.getElementById('ui-nome-select').innerHTML = '';
             document.getElementById('ui-nome-livre').classList.remove('hidden');
             document.getElementById('ui-nome-livre').value = '';
             document.getElementById('hidden-projeto-nome').value = '';
+
+            const inputRazao = document.getElementById('input-razao-social');
+            if (inputRazao) {
+                inputRazao.classList.remove('cursor-not-allowed', 'opacity-80', 'text-slate-500');
+                inputRazao.classList.add('text-slate-300');
+                inputRazao.readOnly = false;
+                inputRazao.removeAttribute('tabindex');
+            }
 
             // Reset dos selects múltiplos no Novo Projeto
             ['select-coord-imp', 'select-coord-man', 'select-etapa-options'].forEach(containerId => {
@@ -852,7 +876,7 @@
     let timeoutBusca;
 
     // --- AUTO EXTRAÇÃO DO CÓDIGO DO CLIENTE ---
-    document.addEventListener('DOMContentLoaded', function() {
+    (function() {
         const inputProjeto = document.getElementById('input-projeto-codigo');
         const inputCliente = document.getElementById('input-cliente-codigo');
 
@@ -862,8 +886,8 @@
         }
 
         if(inputProjeto && inputCliente) {
-            // Escuta blur e keyup
-            ['blur', 'keyup'].forEach(evento => {
+            // Escuta blur e input para melhor responsividade
+            ['blur', 'input'].forEach(evento => {
                 inputProjeto.addEventListener(evento, function() {
                     // Força maiúscula
                     this.value = this.value.toUpperCase();
@@ -871,9 +895,8 @@
                     const val = this.value.trim();
                     if (val.length >= 5) {
                         inputCliente.value = val.substring(1, 5);
-                        if (evento === 'blur' || val.length >= 8) { // Se for blur ou já preencheu tudo
-                            triggerBuscaDebounced();
-                        }
+                        // O código do cliente já está formado (4 dígitos), podemos buscar
+                        triggerBuscaDebounced();
                     } else {
                         inputCliente.value = '';
                     }
@@ -883,9 +906,9 @@
 
         const inputCnpj = document.getElementById('input-cliente-cnpj');
         if(inputCnpj) {
-            ['blur', 'keyup'].forEach(evento => {
+            ['blur', 'input'].forEach(evento => {
                 inputCnpj.addEventListener(evento, function() {
-                    // Só dispara no keyup se tiver digitado ao menos o tamanho de um CPF
+                    // Só dispara no input se tiver digitado ao menos o tamanho de um CPF
                     if (evento === 'blur' || this.value.length >= 14) {
                         triggerBuscaDebounced();
                     }
@@ -902,7 +925,7 @@
                 hiddenNome.value = this.value;
             });
         }
-    });
+    })();
 
     async function buscarSugestoesNome() {
         // Ignora busca se estiver editando uma obra já existente (modal PUT)
@@ -932,78 +955,70 @@
         }
 
         try {
-            const url = `/erp-obras-manual/sugestoes-nome?cliente_codigo=${encodeURIComponent(clienteCodigo)}&cnpj=${encodeURIComponent(cnpj)}`;
-            const response = await fetch(url);
+            const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+            const url = `/erp-obras-manual/verificar-cliente`;
+            
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken
+                },
+                body: JSON.stringify({
+                    cliente_codigo: clienteCodigo,
+                    cnpj: cnpj
+                })
+            });
             const data = await response.json();
 
-            // Guarda estado atual para não limpar a seleção se o usuário já escolheu algo antes de terminar o CNPJ
-            const currentSelection = hiddenNome.value;
-            const wasLivre = !uiLivre.classList.contains('hidden');
-            const livreValue = uiLivre.value;
-
-            // Reseta interfaces
+            // Reseta interfaces do nome
             uiBloqueado.classList.add('hidden');
             uiSelect.classList.add('hidden');
             uiLivre.classList.add('hidden');
             
+            // --- Trava Global de Razão Social baseada no CNPJ ---
             if (inputRazao) {
-                inputRazao.classList.remove('cursor-not-allowed', 'opacity-80', 'text-slate-500');
-                inputRazao.classList.add('text-slate-300');
-                inputRazao.readOnly = false;
-                inputRazao.removeAttribute('tabindex');
-            }
-
-            if (data.match_exato) {
-                // 1. MATCH EXATO
-                if (data.nome_exato) {
-                    uiBloqueado.value = data.nome_exato;
-                    uiBloqueado.classList.remove('hidden');
-                    hiddenNome.value = data.nome_exato;
-                }
-                
-                if (data.razao_social_exata && inputRazao) {
-                    inputRazao.value = data.razao_social_exata;
+                if (data.razao_social) {
+                    inputRazao.value = data.razao_social;
                     inputRazao.classList.add('cursor-not-allowed', 'opacity-80', 'text-slate-500');
                     inputRazao.classList.remove('text-slate-300');
                     inputRazao.readOnly = true;
                     inputRazao.tabIndex = -1;
+                } else {
+                    inputRazao.classList.remove('cursor-not-allowed', 'opacity-80', 'text-slate-500');
+                    inputRazao.classList.add('text-slate-300');
+                    inputRazao.readOnly = false;
+                    inputRazao.removeAttribute('tabindex');
                 }
+            }
+
+            if (data.acao === 'travar') {
+                // 1. MATCH EXATO (TRAVAR)
+                uiBloqueado.value = data.nome || '';
+                uiBloqueado.classList.remove('hidden');
+                uiBloqueado.readOnly = true;
+                hiddenNome.value = data.nome || '';
+                
             } 
-            else if (data.nomes && data.nomes.length > 0) {
+            else if (data.acao === 'sugerir' && data.sugestoes && data.sugestoes.length > 0) {
                 // 2. TEM SUGESTÕES MAS NÃO É EXATO
                 uiSelect.innerHTML = '<option value="">Selecione uma sugestão...</option>';
-                data.nomes.forEach(nome => {
+                data.sugestoes.forEach(nome => {
                     const opt = document.createElement('option');
                     opt.value = nome;
                     opt.textContent = nome;
-                    if (nome === currentSelection && !wasLivre) {
-                        opt.selected = true;
-                    }
                     uiSelect.appendChild(opt);
                 });
                 
-                uiSelect.innerHTML += '<option value="NOVO" class="font-bold text-indigo-400">-- Cadastrar Novo Nome --</option>';
+                uiSelect.innerHTML += '<option value="outro" class="font-bold text-indigo-400">Outro (Digitar novo)</option>';
                 
-                // Se o usuário já estava na opção Livre (Cadastrar Novo), mantemos lá
-                if (wasLivre && currentSelection !== '' && currentSelection === livreValue) {
-                    uiSelect.value = "NOVO";
-                    uiSelect.classList.add('hidden');
-                    uiLivre.classList.remove('hidden');
-                    uiLivre.value = livreValue;
-                    hiddenNome.value = livreValue;
-                } else if (currentSelection && data.nomes.includes(currentSelection)) {
-                    // Mantém a seleção existente do select
-                    uiSelect.classList.remove('hidden');
-                    hiddenNome.value = currentSelection;
-                } else {
-                    // Estado inicial zerado
-                    uiSelect.classList.remove('hidden');
-                    hiddenNome.value = ''; // Exige escolha do usuário
-                }
+                uiSelect.classList.remove('hidden');
+                hiddenNome.value = ''; // Exige escolha do usuário
                 
                 // Listener pro select
                 uiSelect.onchange = function() {
-                    if (this.value === 'NOVO') {
+                    if (this.value === 'outro') {
                         uiSelect.classList.add('hidden');
                         uiLivre.classList.remove('hidden');
                         uiLivre.value = '';
@@ -1015,14 +1030,14 @@
                 };
             } 
             else {
-                // 3. NOVO CADASTRO / SEM REFERÊNCIA
+                // 3. NOVO CADASTRO / SEM REFERÊNCIA (LIVRE)
                 uiLivre.classList.remove('hidden');
                 // Se já tinha digitado algo no input livre, mantem
                 hiddenNome.value = uiLivre.value;
             }
 
         } catch (e) {
-            console.error('Erro ao buscar sugestões:', e);
+            console.error('Erro ao verificar cliente:', e);
             // Fallback
             uiBloqueado.classList.add('hidden');
             uiSelect.classList.add('hidden');
@@ -1031,7 +1046,7 @@
     }
 
     // Regra de Visibilidade da Etapa baseada no Setor (Locação)
-    document.addEventListener('DOMContentLoaded', function() {
+    (function() {
         const selectSetor = document.getElementById('select-setor_id');
         const wrapperEtapa = document.getElementById('wrapper-etapa');
         const containerEtapa = document.getElementById('select-etapa-options');
@@ -1070,7 +1085,7 @@
             const observer = new MutationObserver(toggleEtapaVisibilidade);
             observer.observe(selectSetor, { attributes: true, attributeFilter: ['value'] });
         }
-    });
+    })();
 
     // Abre/Fecha o dropdown ao clicar na caixa principal
     function toggleMultiSelect(element) {
@@ -1186,7 +1201,7 @@
         });
     };
 
-    document.addEventListener('DOMContentLoaded', function() {
+    (function() {
         // Sincronização dos checkboxes espelho de cronograma
         const chkAusenteInicial = document.getElementById('chk-ausente-inicial');
         const chkAusenteFinal = document.getElementById('chk-ausente-final');
@@ -1209,6 +1224,17 @@
                 toggle.addEventListener('change', () => window.handleAbsenceToggle(toggle));
             }
         });
-    });
+
+        @if($errors->any())
+            // Reabre o modal em caso de erro de validação
+            // Tenta manter o estado passando null para novo (limpa form) ou o objeto json se tiver id
+            @if(old('id') || old('_method') === 'PUT')
+                abrirModal({!! json_encode(old()) !!});
+            @else
+                abrirModal(null);
+                // Opcional: Para evitar perda de dados no POST, poderíamos popular os inputs aqui
+            @endif
+        @endif
+    })();
 </script>
 @endpush

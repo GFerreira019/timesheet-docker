@@ -171,6 +171,7 @@ Route::middleware('auth')->group(function () {
         // Módulo de Colaboradores (RH)
         Route::prefix('colaboradores')->name('colaboradores.')->group(function () {
             Route::post('/sync-erp', [\App\Http\Controllers\ColaboradorController::class, 'syncErp'])->name('sync-erp');
+            Route::post('/vincular-existente', [\App\Http\Controllers\ColaboradorController::class, 'vincularExistente'])->name('vincular_existente');
             Route::get('/', [\App\Http\Controllers\ColaboradorController::class, 'index'])->name('index');
             Route::post('/', [\App\Http\Controllers\ColaboradorController::class, 'store'])->name('store');
             Route::put('/{id}', [\App\Http\Controllers\ColaboradorController::class, 'update'])->name('update');
@@ -191,6 +192,7 @@ Route::middleware('auth')->group(function () {
         Route::prefix('erp-obras-manual')->name('erp-obras-manual.')->group(function () {
             Route::get('/', [ErpObraManualController::class, 'index'])->name('index');
             Route::post('/', [ErpObraManualController::class, 'store'])->name('store');
+            Route::post('/verificar-cliente', [ErpObraManualController::class, 'verificarCliente'])->name('verificar-cliente');
             Route::get('/sugestoes-nome', [ErpObraManualController::class, 'sugestoesNome'])->name('sugestoes-nome');
             Route::get('/{id}', [ErpObraManualController::class, 'show'])->name('show');
             Route::put('/{id}', [ErpObraManualController::class, 'update'])->name('update');

@@ -18,25 +18,23 @@ class ErpObraManualObserver
      */
     public function updated(ErpObraManual $obra)
     {
-        try {
-            $snapshot = $obra->toArray();
+        $snapshot = $obra->toArray();
 
-            $ultimaEdicao = ControleProjetoHistorico::where('projeto_original_id', $obra->id)
-                ->orderBy('numero_edicao', 'desc')
-                ->first();
+        $ultimaEdicao = ControleProjetoHistorico::where('projeto_original_id', $obra->id)
+            ->orderBy('numero_edicao', 'desc')
+            ->first();
 
-            $proximoNumero = $ultimaEdicao ? ($ultimaEdicao->numero_edicao + 1) : 1;
+        $proximoNumero = $ultimaEdicao ? ($ultimaEdicao->numero_edicao + 1) : 1;
 
-            ControleProjetoHistorico::create([
-                'projeto_original_id' => $obra->id,
-                'dados_snapshot' => $snapshot,
-                'editado_por_id' => auth()->id(), // Pega o usuário logado
-                'numero_edicao' => $proximoNumero,
-                'data_edicao' => now(),
-            ]);
-        } catch (\Exception $e) {
-            \Log::error("Erro no ErpObraManualObserver (updated): " . $e->getMessage());
-        }
+        ControleProjetoHistorico::create([
+            'projeto_original_id' => $obra->id,
+            'dados_snapshot' => $snapshot,
+            'editado_por_id' => auth()->id(), // Pega o usuário logado
+            'numero_edicao' => $proximoNumero,
+            'data_edicao' => now(),
+        ]);
+
+        $this->syncToProdutividade($obra);
     }
     
     /**
@@ -48,16 +46,56 @@ class ErpObraManualObserver
      */
     public function created(ErpObraManual $obra)
     {
-        try {
-            ControleProjetoHistorico::create([
-                'projeto_original_id' => $obra->id,
-                'dados_snapshot' => $obra->toArray(),
-                'editado_por_id' => auth()->id(),
-                'numero_edicao' => 1,
-                'data_edicao' => now(),
-            ]);
-        } catch (\Exception $e) {
-            \Log::error("Erro no ErpObraManualObserver (created): " . $e->getMessage());
-        }
+        ControleProjetoHistorico::create([
+            'projeto_original_id' => $obra->id,
+            'dados_snapshot' => $obra->toArray(),
+            'editado_por_id' => auth()->id(),
+            'numero_edicao' => 1,
+            'data_edicao' => now(),
+        ]);
+
+        $this->syncToProdutividade($obra);
+    }
+
+    /**
+     * Sincroniza a obra manual com as tabelas de produtividade legadas.
+     *
+     * @param  \App\Models\ErpObraManual  $obra
+     * @return void
+     */
+    private function syncToProdutividade(ErpObraManual $obra)
+    {
+        // Etapa A: Sincroniza Cliente (apenas dados cadastrais)
+        $cliente = \App\Models\CodigoCliente::updateOrCreate(
+            [
+                'codigo' => $obra->cliente_codigo,
+                'cnpj'   => $obra->cnpj,
+            ],
+            [
+                'nome'  => $obra->projeto_nome,
+                // O status 'ativo' será recalculado na Etapa C
+            ]
+        );
+
+        // Etapa B: Sincroniza Projeto (Obra)
+        $unidade = $obra->projeto_unidade ?: 'N/A';
+
+        \App\Models\Projeto::updateOrCreate(
+            [
+                'codigo_cliente_id' => $cliente->id,
+                'codigo'            => $obra->projeto_codigo,
+                'unidade'           => $unidade,
+            ],
+            [
+                'ativo'             => $obra->status_ativo,
+            ]
+        );
+
+        // Etapa C: Recálculo Dinâmico do Status do Cliente
+        $temProjetoAtivo = \App\Models\Projeto::where('codigo_cliente_id', $cliente->id)
+            ->where('ativo', 1)
+            ->exists();
+
+        $cliente->update(['ativo' => $temProjetoAtivo ? 1 : 0]);
     }
 }
