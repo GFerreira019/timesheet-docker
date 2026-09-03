@@ -85,14 +85,6 @@
                 <i class="fas fa-filter"></i> <span class="hidden sm:inline">Filtrar</span>
             </button>
 
-            <!-- Formulário e Botão Sincronizar ERP -->
-            <form action="{{ route('colaboradores.sync-erp') }}" method="POST" class="flex items-stretch m-0">
-                @csrf
-                <button type="submit" onclick="this.disabled=true; this.innerHTML='<i class=\'fas fa-spinner fa-spin\'></i>'; this.form.submit();" class="flex-shrink-0 w-full h-full px-3 sm:px-4 py-2 bg-sky-600 border border-transparent hover:bg-sky-500 text-white font-bold rounded-lg shadow-lg shadow-sky-900/20 transition-all flex items-center justify-center gap-2 text-sm">
-                    <i class="fas fa-sync"></i>
-                </button>
-            </form>
-
             <!-- Botão Novo Colaborador -->
             <button type="button" onclick="abrirModalNovo()" class="flex-shrink-0 h-full px-3 sm:px-4 py-2 bg-indigo-600 border border-transparent hover:bg-indigo-500 text-white font-bold rounded-lg shadow-lg shadow-indigo-900/20 transition-all flex items-center gap-2 text-sm">
                 <i class="fas fa-plus"></i> <span class="hidden sm:inline">Novo Colaborador</span>
@@ -155,8 +147,11 @@
                                                     Ignorar
                                                 </button>
                                             </form>
+                                            <button type="button" onclick="abrirModalVincularExistente('{{ $pendente->id }}', '{{ addslashes($pendente->name) }}')" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded transition-colors shadow shadow-emerald-900/20">
+                                                Vincular
+                                            </button>
                                             <button type="button" onclick="abrirModalNovoPreenchido('{{ $pendente->id }}', '{{ addslashes($pendente->name) }}', '{{ $pendente->connect_user_id }}')" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded transition-colors shadow shadow-indigo-900/20">
-                                                Completar Cadastro
+                                                Novo
                                             </button>
                                         </div>
                                     </li>
@@ -164,6 +159,57 @@
                             @endif
                         </ul>
                     </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {{-- MODAL VINCULAR EXISTENTE --}}
+    <div id="modal-vincular-existente" class="relative z-[60] hidden" role="dialog" aria-modal="true">
+        <div class="fixed inset-0 bg-gray-900/80 transition-opacity backdrop-blur-sm"></div>
+        <div class="fixed inset-0 z-[60] w-screen overflow-y-auto">
+            <div class="flex min-h-full items-center justify-center p-4">
+                <div class="relative transform overflow-hidden rounded-xl bg-slate-900 border border-slate-700 text-left shadow-2xl w-full max-w-lg fade-in">
+                    <div class="bg-slate-800 px-4 py-3 border-b border-slate-700 flex justify-between items-center">
+                        <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                            <i class="fas fa-link text-emerald-400"></i>
+                            Vincular a Cadastro Existente
+                        </h3>
+                        <button type="button" onclick="fecharModalVincularExistente()" class="text-gray-400 hover:text-white text-2xl font-bold transition-colors">&times;</button>
+                    </div>
+                    <form method="POST" action="{{ route('colaboradores.vincular_existente') }}" class="p-6">
+                        @csrf
+                        <input type="hidden" name="user_id" id="vincular_user_id" value="">
+                        
+                        <p class="text-sm text-slate-300 mb-4">
+                            Selecione abaixo o cadastro de produtividade que pertence ao usuário <strong id="vincular_user_nome" class="text-white"></strong>.
+                        </p>
+
+                        <div class="mb-4">
+                            <label class="block text-xs font-bold text-slate-400 mb-1 ml-1">Colaborador Existente</label>
+                            <select name="colaborador_id" required class="w-full bg-slate-800 border border-slate-600 rounded-lg p-3 text-white text-sm focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none transition-all">
+                                <option value="">Selecione o colaborador...</option>
+                                @foreach($colaboradoresParaVinculo as $colab)
+                                    <option value="{{ $colab->id }}">
+                                        {{ $colab->nome_completo }} [{{ $colab->setorRelacionamento?->nome ?? $colab->setor ?? 'Sem Setor' }}] 
+                                        @if($colab->user)
+                                            - [Já vinculado a: {{ $colab->user->email ?? $colab->user->name }}]
+                                        @endif
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+                        
+                        <div class="flex justify-end gap-3 mt-6 pt-4 border-t border-slate-800">
+                            <button type="button" onclick="fecharModalVincularExistente()" class="px-4 py-2 bg-slate-700 text-slate-300 font-bold rounded-lg hover:bg-slate-600 transition-colors text-sm border border-slate-600">
+                                Cancelar
+                            </button>
+                            <button type="submit" class="px-6 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg shadow-lg shadow-emerald-900/20 transition-all text-sm flex items-center gap-2">
+                                <i class="fas fa-check"></i>
+                                Confirmar Vínculo
+                            </button>
+                        </div>
+                    </form>
                 </div>
             </div>
         </div>
@@ -469,10 +515,6 @@
                                     <i class="fas fa-plus"></i>
                                 </button>
                             </div>
-                        </div>
-                        <div>
-                            <label class="block text-xs font-bold text-slate-400 mb-1 ml-1">Matrícula *</label>
-                            <input type="text" name="id_colaborador" required class="w-full bg-slate-800 border border-slate-600 rounded-lg p-3 text-white text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all">
                         </div>
                         <div>
                             <label class="block text-xs font-bold text-slate-400 mb-1 ml-1">Telefone</label>
@@ -1576,10 +1618,19 @@
         if (form) {
             const nomeInput = form.querySelector('input[name="nome_completo"]');
             if (nomeInput) nomeInput.value = nome;
-            
-            const matriculaInput = form.querySelector('input[name="id_colaborador"]');
-            if (matriculaInput && idErp) matriculaInput.value = idErp;
         }
+    }
+
+    function abrirModalVincularExistente(userId, nome) {
+        document.getElementById('modal-pendentes').classList.add('hidden');
+        document.getElementById('vincular_user_id').value = userId;
+        document.getElementById('vincular_user_nome').innerText = nome;
+        document.getElementById('modal-vincular-existente').classList.remove('hidden');
+    }
+
+    function fecharModalVincularExistente() {
+        document.getElementById('modal-vincular-existente').classList.add('hidden');
+        document.getElementById('modal-pendentes').classList.remove('hidden');
     }
 </script>
 @endpush

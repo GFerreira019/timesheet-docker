@@ -62,7 +62,9 @@ class ColaboradorController extends Controller
                                 ->where('ignorado_erp', true)
                                 ->get();
 
-        return view('colaboradores.index', compact('colaboradores', 'cargos', 'setores', 'cidades', 'cidades_trabalho', 'roles', 'usuariosPendentes', 'usuariosIgnorados'));
+        $colaboradoresParaVinculo = Colaborador::with(['user', 'setorRelacionamento'])->orderBy('nome_completo')->get();
+
+        return view('colaboradores.index', compact('colaboradores', 'cargos', 'setores', 'cidades', 'cidades_trabalho', 'roles', 'usuariosPendentes', 'usuariosIgnorados', 'colaboradoresParaVinculo'));
     }
 
     public function syncErp(\App\Services\ErpIntegrationService $erpService)
@@ -73,6 +75,25 @@ class ColaboradorController extends Controller
         } catch (\Exception $e) {
             return redirect()->back()->with('error', 'Erro ao sincronizar: ' . $e->getMessage());
         }
+    }
+
+    public function vincularExistente(Request $request)
+    {
+        $request->validate([
+            'user_id' => 'required|exists:users,id',
+            'colaborador_id' => 'required|exists:produtividade_colaborador,id'
+        ]);
+
+        $user = \App\Models\User::findOrFail($request->user_id);
+        $colaborador = Colaborador::findOrFail($request->colaborador_id);
+
+        // Remove o vínculo de qualquer outro usuário que já estivesse com este colaborador
+        \App\Models\User::where('produtividade_colaborador_id', $colaborador->id)
+            ->update(['produtividade_colaborador_id' => null]);
+
+        $user->update(['produtividade_colaborador_id' => $colaborador->id]);
+
+        return redirect()->back()->with('success', 'Usuário vinculado ao colaborador com sucesso!');
     }
 
     public function update(Request $request, $id)
@@ -247,7 +268,6 @@ class ColaboradorController extends Controller
         $validated = $request->validate([
             'nome_completo'       => 'required|string|max:255',
             'role'                => ['nullable', 'string', 'exists:roles,name'], // Fase de Transição: gerido pelo ERP
-            'id_colaborador'      => 'required|string|max:255', // Removido unique para permitir o updateOrCreate do ERP
             'telefone'            => 'nullable|string|max:20',
             'cargo'               => 'required|string|max:255',
             'setor_id'            => 'required|exists:setores,id',
@@ -293,15 +313,7 @@ class ColaboradorController extends Controller
             }
         }
 
-        // --- FASE DE TRANSIÇÃO: Grava nivel_acesso legado para compatibilidade durante a migração ---
-        // Será removido após a Fase 6 (deprecação do campo).
-        $dados['nivel_acesso'] = $roleParaSincronizar;
-        // --- FIM DA FASE DE TRANSIÇÃO ---
-
-        $colaborador = Colaborador::updateOrCreate(
-            ['id_colaborador' => $dados['id_colaborador']],
-            $dados
-        );
+        $colaborador = Colaborador::create($dados);
 
         $colaborador->setoresVinculados()->sync($setoresVinculados);
         $colaborador->setoresGerenciados()->sync($setoresGerenciados);

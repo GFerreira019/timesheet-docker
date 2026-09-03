@@ -11,9 +11,9 @@ use Illuminate\Database\Seeder;
  *
  * Cria:
  * 1. Roles do sistema (via RolesAndPermissionsSeeder)
- * 2. Usuário Super Admin de Resgate (email e senha via .env) — role ADMIN
+ * 2. Usuário Super Admin de Resgate (email via .env) — role ADMIN via Spatie
  *
- * Os demais usuários (Gerentes, Operacionais, etc.) virão da integração com o ERP.
+ * Os demais usuários virão da integração com o ERP / SSO.
  *
  * Rodar com: php artisan db:seed
  */
@@ -25,13 +25,11 @@ class DatabaseSeeder extends Seeder
         $this->call(RolesAndPermissionsSeeder::class);
 
         // ---------------------------------------------------------------
-        // PORTA DOS FUNDOS: SUPER ADMIN DE RESGATE (SSO FALBACK)
+        // SUPER ADMIN DE RESGATE (SSO FALLBACK)
         // ---------------------------------------------------------------
         $colaboradorSuperAdmin = Colaborador::firstOrCreate(
-            ['id_colaborador' => 'RESGATE001'],
+            ['nome_completo' => 'Super Admin (Resgate)'],
             [
-                'nome_completo'  => 'Super Admin (Resgate)',
-                'nivel_acesso'   => 'ADMIN',
                 'cargo'          => 'SUPORTE TI',
                 'cidade_moradia' => 'Remoto',
                 'uf'             => 'SP',
@@ -45,14 +43,14 @@ class DatabaseSeeder extends Seeder
                 'produtividade_colaborador_id' => $colaboradorSuperAdmin->id,
             ]
         );
-        $superAdmin->assignRole('ADMIN');
+        $superAdmin->syncRoles(['ADMIN']);
 
         $this->command->newLine();
         $this->command->info('✅ Seeder concluído! Roles criadas e Super Admin gerado.');
         $this->command->table(
             ['Tipo', 'Email', 'Role', 'Acesso Mágico'],
             [
-                ['Super Admin (Resgate)', env('ADMIN_DEFAULT_EMAIL', 'suporte@timesheet.com'), 'ADMIN', 'http://localhost:8000/dev/painel'],
+                ['Super Admin (Resgate)', env('ADMIN_DEFAULT_EMAIL', 'suporte@timesheet.com'), 'ADMIN', url('/dev/painel')],
             ]
         );
         $this->command->warn('⚠️  Demais usuários serão geridos pelo ERP via integração/SSO.');

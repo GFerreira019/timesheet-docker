@@ -42,7 +42,6 @@ class Colaborador extends Model
     }
 
     protected $fillable = [
-        'id_colaborador',
         'nome_completo',
         'cargo',
         'cidade_moradia',

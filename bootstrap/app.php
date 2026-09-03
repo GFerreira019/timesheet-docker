@@ -24,7 +24,6 @@ return Application::configure(basePath: dirname(__DIR__))
          *   middleware('permission:X')    → spatie permission check
          */
         $middleware->alias([
-            'acesso'     => \App\Http\Middleware\CheckNivelAcesso::class,
             'owner'      => \App\Http\Middleware\CheckOwner::class,
             'gerente'    => \App\Http\Middleware\CheckGerente::class,
             'role'       => \Spatie\Permission\Middleware\RoleMiddleware::class,
@@ -38,4 +37,3 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withExceptions(function (Exceptions $exceptions): void {
         \Sentry\Laravel\Integration::handles($exceptions);
     })->create();
-

@@ -73,9 +73,10 @@ class SsoController extends Controller
             
             $user->save();
 
-            // Sincroniza a Role (Spatie Permission)
+            // Sincroniza a Role (Spatie Permission) - Padronizando para Maiúsculas
             if (!empty($dadosUsuario['nivel_acesso'])) {
-                $user->syncRoles([$dadosUsuario['nivel_acesso']]);
+                $role = strtoupper(trim($dadosUsuario['nivel_acesso']));
+                $user->syncRoles([$role]);
             } elseif ($user->roles()->count() === 0) {
                 // Fallback caso não venha nivel_acesso e o usuário não tenha nenhuma role
                 $user->assignRole('OPERACIONAL');
@@ -129,6 +130,14 @@ class SsoController extends Controller
         $user->name = $u['nome'];
         $user->connect_user_id = $u['id_usuario'];
         $user->save();
+
+        // Sincroniza a Role (Spatie Permission) - Padronizando para Maiúsculas
+        if (!empty($u['nivel_acesso'])) {
+            $role = strtoupper(trim($u['nivel_acesso']));
+            $user->syncRoles([$role]);
+        } elseif ($user->roles()->count() === 0) {
+            $user->assignRole('OPERACIONAL');
+        }
 
         Auth::login($user);
         $request->session()->regenerate();
