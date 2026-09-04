@@ -14,15 +14,57 @@ class ErpObraManualController extends Controller
     {
         $query = ErpObraManual::orderBy('projeto_nome');
 
-        $busca = $request->query('busca');
-        if ($busca) {
-            $query->where(function($q) use ($busca) {
-                $q->where('projeto_nome', 'ilike', '%' . $busca . '%')
-                  ->orWhere('projeto_codigo', 'ilike', '%' . $busca . '%')
-                  ->orWhere('cliente_razao_social', 'ilike', '%' . $busca . '%')
-                  ->orWhere('cliente_codigo', 'ilike', '%' . $busca . '%');
+        $search = $request->query('search');
+        if ($search) {
+            $query->where(function($q) use ($search) {
+                $q->where('projeto_codigo', 'ilike', '%' . $search . '%')
+                  ->orWhere('projeto_nome', 'ilike', '%' . $search . '%')
+                  ->orWhere('projeto_unidade', 'ilike', '%' . $search . '%')
+                  ->orWhere('cnpj', 'ilike', '%' . $search . '%');
             });
         }
+
+        // Filtros de Texto (LIKE)
+        $textFields = ['cliente_codigo', 'projeto_codigo', 'projeto_nome', 'projeto_unidade', 'cidade', 'cnpj'];
+        foreach ($textFields as $field) {
+            $query->when($request->filled($field), function ($q) use ($request, $field) {
+                return $q->where($field, 'ilike', '%' . $request->query($field) . '%');
+            });
+        }
+
+        // Correspondência Exata / Selects
+        $exactFields = ['tipo_categoria', 'setor_id', 'projeto_etapa', 'projeto_status', 'lider_comercial', 'gerente_implantacao', 'gerente_manutencao'];
+        foreach ($exactFields as $field) {
+            $query->when($request->filled($field), function ($q) use ($request, $field) {
+                return $q->where($field, $request->query($field));
+            });
+        }
+
+        // Booleanos / Checkboxes (Sim/Não)
+        $booleanFields = ['status_ativo', 'pedagio', 'ausencia_cronograma', 'ausencia_contrato', 'ausencia_termo'];
+        foreach ($booleanFields as $field) {
+            $query->when($request->filled($field), function ($q) use ($request, $field) {
+                return $q->where($field, $request->query($field) == '1' ? 1 : 0);
+            });
+        }
+
+        // Datas
+        $query->when($request->filled('target'), function ($q) use ($request) {
+            return $q->where('target', $request->query('target'));
+        });
+
+        // Coordenadores (Relacionamento N:N)
+        $query->when($request->filled('coordenador_implantacao'), function ($q) use ($request) {
+            return $q->whereHas('coordenadoresProjeto', function ($q2) use ($request) {
+                $q2->where('colaborador_id', $request->query('coordenador_implantacao'));
+            });
+        });
+        
+        $query->when($request->filled('coordenador_manutencao'), function ($q) use ($request) {
+            return $q->whereHas('coordenadoresProjeto', function ($q2) use ($request) {
+                $q2->where('colaborador_id', $request->query('coordenador_manutencao'));
+            });
+        });
 
         $obras = $query->with(['setor', 'liderComercial', 'gerenteImplantacao', 'gerenteManutencao', 'coordenadoresProjeto'])->paginate(15);
         $obras->appends($request->all());

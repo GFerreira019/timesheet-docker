@@ -38,19 +38,35 @@
 
     @php
         $viewMode = request('view');
+        $activeFilters = array_filter(request()->except(['page', 'view']), function($value) {
+            return $value !== null && $value !== '';
+        });
+        $hasFilters = count($activeFilters) > 0;
     @endphp
 
     <div class="flex items-center gap-2 sm:gap-4 relative justify-between mb-6">
                 
         <div class="flex flex-col sm:flex-row items-center gap-3 w-full sm:flex-1">
-            <form method="GET" action="{{ route('erp-obras-manual.index') }}" class="relative w-full sm:w-80 lg:w-96" id="searchContainer">
+            <form method="GET" action="{{ route('erp-obras-manual.index') }}" class="relative w-full sm:w-80 lg:w-96 flex gap-2" id="searchContainer">
                 {{-- Preserva o filtro da lente atual na busca --}}
                 @if(request()->has('view'))
                     <input type="hidden" name="view" value="{{ request('view') }}">
                 @endif
                 
-                <input type="text" name="busca" value="{{ request('busca') }}" id="searchInput" autocomplete="off" placeholder="Buscar por código ou nome..." class="w-full bg-slate-900 border border-slate-700 rounded-lg pl-10 pr-4 py-2 text-sm text-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition">
-                <i class="fas fa-search absolute left-3 top-2.5 text-slate-400"></i>
+                <div class="relative flex-1">
+                    <input type="text" name="search" value="{{ request('search') }}" id="searchInput" autocomplete="off" placeholder="Busca global..." class="w-full bg-slate-900 border border-slate-700 rounded-lg pl-10 pr-4 py-2 text-sm text-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition">
+                    <i class="fas fa-search absolute left-3 top-2.5 text-slate-400"></i>
+                </div>
+
+                @if($hasFilters)
+                    <a href="{{ request()->url() }}{{ request('view') ? '?view='.request('view') : '' }}" class="px-3 py-2 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400 hover:text-white hover:bg-red-500 transition flex items-center justify-center" title="Limpar Filtros">
+                        <i class="fas fa-times"></i>
+                    </a>
+                @endif
+
+                <button type="button" onclick="document.getElementById('advancedFiltersPanel').classList.toggle('hidden')" class="px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-300 hover:text-white hover:bg-slate-700 transition flex items-center justify-center" title="Filtros Avançados">
+                    <i class="fas fa-filter"></i>
+                </button>
             </form>
         </div>
 
@@ -92,6 +108,216 @@
             </button>
         </div>
         
+    </div>
+
+    {{-- ============================================================
+         PAINEL DE FILTROS AVANÇADOS
+         ============================================================ --}}
+    <div id="advancedFiltersPanel" class="hidden mb-6 bg-slate-800 border border-slate-700 rounded-xl p-5 shadow-lg">
+        <div class="flex items-center justify-between mb-4 border-b border-slate-700 pb-3">
+            <h3 class="text-sm font-bold text-slate-300 uppercase tracking-wider flex items-center gap-2">
+                <i class="fas fa-sliders-h text-indigo-400"></i> Filtros Avançados
+            </h3>
+            <button type="button" onclick="document.getElementById('advancedFiltersPanel').classList.add('hidden')" class="text-slate-400 hover:text-slate-200">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        
+        <form method="GET" action="{{ route('erp-obras-manual.index') }}">
+            @if(request()->has('view'))
+                <input type="hidden" name="view" value="{{ request('view') }}">
+            @endif
+
+            <div class="space-y-6 mb-5">
+                <!-- GRUPO: DADOS DO PROJETO E CLIENTE -->
+                <div>
+                    <h4 class="text-xs font-bold text-slate-400 border-b border-slate-700 pb-2 mb-3 uppercase tracking-wider flex items-center gap-2">
+                        <i class="fas fa-building text-slate-500"></i> Dados do Projeto
+                    </h4>
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Código do Cliente</label>
+                            <input type="text" name="cliente_codigo" value="{{ request('cliente_codigo') }}" class="w-full bg-slate-900 border border-slate-700 text-slate-300 rounded-lg p-2 text-sm focus:ring-indigo-500 outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Código do Projeto</label>
+                            <input type="text" name="projeto_codigo" value="{{ request('projeto_codigo') }}" class="w-full bg-slate-900 border border-slate-700 text-slate-300 rounded-lg p-2 text-sm focus:ring-indigo-500 outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Nome Projeto</label>
+                            <input type="text" name="projeto_nome" value="{{ request('projeto_nome') }}" class="w-full bg-slate-900 border border-slate-700 text-slate-300 rounded-lg p-2 text-sm focus:ring-indigo-500 outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Unidade</label>
+                            <input type="text" name="projeto_unidade" value="{{ request('projeto_unidade') }}" class="w-full bg-slate-900 border border-slate-700 text-slate-300 rounded-lg p-2 text-sm focus:ring-indigo-500 outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Cidade</label>
+                            <input type="text" name="cidade" value="{{ request('cidade') }}" class="w-full bg-slate-900 border border-slate-700 text-slate-300 rounded-lg p-2 text-sm focus:ring-indigo-500 outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">CNPJ</label>
+                            <input type="text" name="cnpj" value="{{ request('cnpj') }}" class="w-full bg-slate-900 border border-slate-700 text-slate-300 rounded-lg p-2 text-sm focus:ring-indigo-500 outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Categoria</label>
+                            <select name="tipo_categoria" class="w-full bg-slate-900 border border-slate-700 text-slate-300 rounded-lg p-2 text-sm focus:ring-indigo-500 outline-none">
+                                <option value="">Todos</option>
+                                <option value="CONTRATO" {{ request('tipo_categoria') == 'CONTRATO' ? 'selected' : '' }}>CONTRATO</option>
+                                <option value="PROPOSTA" {{ request('tipo_categoria') == 'PROPOSTA' ? 'selected' : '' }}>PROPOSTA</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Setor</label>
+                            <select name="setor_id" class="w-full bg-slate-900 border border-slate-700 text-slate-300 rounded-lg p-2 text-sm focus:ring-indigo-500 outline-none">
+                                <option value="">Todos</option>
+                                @foreach($setores as $setor)
+                                    <option value="{{ $setor->id }}" {{ request('setor_id') == $setor->id ? 'selected' : '' }}>{{ $setor->nome }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- GRUPO: RESPONSÁVEIS E GESTORES -->
+                <div>
+                    <h4 class="text-xs font-bold text-slate-400 border-b border-slate-700 pb-2 mb-3 uppercase tracking-wider flex items-center gap-2">
+                        <i class="fas fa-users text-slate-500"></i> Gestores e Responsáveis
+                    </h4>
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Responsável Comercial</label>
+                            <select name="lider_comercial" class="w-full bg-slate-900 border border-slate-700 text-slate-300 rounded-lg p-2 text-sm focus:ring-indigo-500 outline-none">
+                                <option value="">Todos</option>
+                                @foreach($lideresComerciais as $g)
+                                    <option value="{{ $g->id }}" {{ request('lider_comercial') == $g->id ? 'selected' : '' }}>{{ $g->nome_completo }}</option>
+                                @endforeach
+                                <option value="SAC" {{ request('lider_comercial') == 'SAC' ? 'selected' : '' }}>SAC</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Gerente de Implantação</label>
+                            <select name="gerente_implantacao" class="w-full bg-slate-900 border border-slate-700 text-slate-300 rounded-lg p-2 text-sm focus:ring-indigo-500 outline-none">
+                                <option value="">Todos</option>
+                                @foreach($gerentes as $g)
+                                    <option value="{{ $g->id }}" {{ request('gerente_implantacao') == $g->id ? 'selected' : '' }}>{{ $g->nome_completo }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Gerente de Manutenção</label>
+                            <select name="gerente_manutencao" class="w-full bg-slate-900 border border-slate-700 text-slate-300 rounded-lg p-2 text-sm focus:ring-indigo-500 outline-none">
+                                <option value="">Todos</option>
+                                @foreach($gerentes as $g)
+                                    <option value="{{ $g->id }}" {{ request('gerente_manutencao') == $g->id ? 'selected' : '' }}>{{ $g->nome_completo }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Coordenador de Implantação</label>
+                            <select name="coordenador_implantacao" class="w-full bg-slate-900 border border-slate-700 text-slate-300 rounded-lg p-2 text-sm focus:ring-indigo-500 outline-none">
+                                <option value="">Todos</option>
+                                @foreach($coordenadores as $c)
+                                    <option value="{{ $c->id }}" {{ request('coordenador_implantacao') == $c->id ? 'selected' : '' }}>{{ $c->nome_completo }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Coordenador de Manutenção</label>
+                            <select name="coordenador_manutencao" class="w-full bg-slate-900 border border-slate-700 text-slate-300 rounded-lg p-2 text-sm focus:ring-indigo-500 outline-none">
+                                <option value="">Todos</option>
+                                @foreach($coordenadores as $c)
+                                    <option value="{{ $c->id }}" {{ request('coordenador_manutencao') == $c->id ? 'selected' : '' }}>{{ $c->nome_completo }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- GRUPO: CRONOGRAMA E STATUS -->
+                <div>
+                    <h4 class="text-xs font-bold text-slate-400 border-b border-slate-700 pb-2 mb-3 uppercase tracking-wider flex items-center gap-2">
+                        <i class="fas fa-calendar-alt text-slate-500"></i> Cronograma e Status
+                    </h4>
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Status</label>
+                            <select name="projeto_status" class="w-full bg-slate-900 border border-slate-700 text-slate-300 rounded-lg p-2 text-sm focus:ring-indigo-500 outline-none">
+                                <option value="">Todos</option>
+                                <option value="CANCELADA" {{ request('projeto_status') == 'CANCELADA' ? 'selected' : '' }}>CANCELADA</option>
+                                <option value="CONCLUIDA" {{ request('projeto_status') == 'CONCLUIDA' ? 'selected' : '' }}>CONCLUIDA</option>
+                                <option value="EM ANDAMENTO" {{ request('projeto_status') == 'EM ANDAMENTO' ? 'selected' : '' }}>EM ANDAMENTO</option>
+                                <option value="PENDENCIA DO CLIENTE" {{ request('projeto_status') == 'PENDENCIA DO CLIENTE' ? 'selected' : '' }}>PENDENCIA DO CLIENTE</option>
+                                <option value="PERMUTA" {{ request('projeto_status') == 'PERMUTA' ? 'selected' : '' }}>PERMUTA</option>
+                                <option value="SUSPENSA" {{ request('projeto_status') == 'SUSPENSA' ? 'selected' : '' }}>SUSPENSA</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Etapa</label>
+                            <select name="projeto_etapa" class="w-full bg-slate-900 border border-slate-700 text-slate-300 rounded-lg p-2 text-sm focus:ring-indigo-500 outline-none">
+                                <option value="">Todos</option>
+                                @foreach($etapas as $etapa)
+                                    <option value="{{ $etapa->nome }}" {{ request('projeto_etapa') == $etapa->nome ? 'selected' : '' }}>{{ $etapa->nome }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Obra Ativa</label>
+                            <select name="status_ativo" class="w-full bg-slate-900 border border-slate-700 text-slate-300 rounded-lg p-2 text-sm focus:ring-indigo-500 outline-none">
+                                <option value="">Todos</option>
+                                <option value="1" {{ request('status_ativo') === '1' ? 'selected' : '' }}>Sim</option>
+                                <option value="0" {{ request('status_ativo') === '0' ? 'selected' : '' }}>Não</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Possui Pedágio</label>
+                            <select name="pedagio" class="w-full bg-slate-900 border border-slate-700 text-slate-300 rounded-lg p-2 text-sm focus:ring-indigo-500 outline-none">
+                                <option value="">Todos</option>
+                                <option value="0" {{ request('pedagio') === '0' ? 'selected' : '' }}>Não</option>
+                                <option value="1" {{ request('pedagio') === '1' ? 'selected' : '' }}>Sim</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Target</label>
+                            <input type="month" name="target" value="{{ request('target') }}" class="w-full bg-slate-900 border border-slate-700 text-slate-300 rounded-lg p-2 text-sm focus:ring-indigo-500 outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Sem Cronograma</label>
+                            <select name="ausencia_cronograma" class="w-full bg-slate-900 border border-slate-700 text-slate-300 rounded-lg p-2 text-sm focus:ring-indigo-500 outline-none">
+                                <option value="">Todos</option>
+                                <option value="1" {{ request('ausencia_cronograma') === '1' ? 'selected' : '' }}>Não</option>
+                                <option value="0" {{ request('ausencia_cronograma') === '0' ? 'selected' : '' }}>Sim</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Sem Contrato</label>
+                            <select name="ausencia_contrato" class="w-full bg-slate-900 border border-slate-700 text-slate-300 rounded-lg p-2 text-sm focus:ring-indigo-500 outline-none">
+                                <option value="">Todos</option>
+                                <option value="1" {{ request('ausencia_contrato') === '1' ? 'selected' : '' }}>Não</option>
+                                <option value="0" {{ request('ausencia_contrato') === '0' ? 'selected' : '' }}>Sim</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Sem Termo</label>
+                            <select name="ausencia_termo" class="w-full bg-slate-900 border border-slate-700 text-slate-300 rounded-lg p-2 text-sm focus:ring-indigo-500 outline-none">
+                                <option value="">Todos</option>
+                                <option value="1" {{ request('ausencia_termo') === '1' ? 'selected' : '' }}>Não</option>
+                                <option value="0" {{ request('ausencia_termo') === '0' ? 'selected' : '' }}>Sim</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex items-center justify-end gap-3 pt-3 border-t border-slate-700">
+                <a href="{{ request()->url() }}{{ request('view') ? '?view='.request('view') : '' }}" class="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white text-sm font-bold rounded-lg transition-colors">
+                    Limpar Filtros
+                </a>
+                <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-bold rounded-lg transition-colors flex items-center gap-2">
+                    <i class="fas fa-filter"></i> Aplicar Filtros
+                </button>
+            </div>
+        </form>
     </div>
 
     {{-- ============================================================
