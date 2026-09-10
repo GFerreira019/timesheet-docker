@@ -12,6 +12,9 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('erp_obras_manual', function (Blueprint $table) {
+            $table->dropForeign(['gerente_implantacao']);
+            $table->dropForeign(['gerente_manutencao']);
+            
             $table->dropColumn(['gerente_implantacao', 'gerente_manutencao']);
         });
     }
@@ -24,6 +27,9 @@ return new class extends Migration
         Schema::table('erp_obras_manual', function (Blueprint $table) {
             $table->unsignedBigInteger('gerente_implantacao')->nullable();
             $table->unsignedBigInteger('gerente_manutencao')->nullable();
+            
+            $table->foreign('gerente_implantacao')->references('id')->on('produtividade_colaborador')->nullOnDelete();
+            $table->foreign('gerente_manutencao')->references('id')->on('produtividade_colaborador')->nullOnDelete();
         });
     }
 };
