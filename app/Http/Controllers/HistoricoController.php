@@ -194,6 +194,7 @@ class HistoricoController extends Controller
                 'cargo'              => $item->colaborador->cargo,
                 'data'               => $item->data_apontamento,
                 'local_ref'          => $localRef,
+                'unidade_ref'        => $item->projeto ? $item->projeto->unidade : null,
                 'local_tipo'         => $localTipoDisplay,
                 'inicio'             => $item->hora_inicio,
                 'termino'            => $item->hora_termino,

@@ -129,10 +129,8 @@ class ErpObraManualRequest extends FormRequest
 
             // Gestores
             'lider_comercial' => 'nullable|integer|exists:produtividade_colaborador,id',
-            'gerente_implantacao' => 'nullable|integer|exists:produtividade_colaborador,id',
             'coordenadores_implantacao' => 'nullable|array',
             'coordenadores_implantacao.*' => 'integer|exists:produtividade_colaborador,id',
-            'gerente_manutencao' => 'nullable|integer|exists:produtividade_colaborador,id',
             'coordenadores_manutencao' => 'nullable|array',
             'coordenadores_manutencao.*' => 'integer|exists:produtividade_colaborador,id',
 

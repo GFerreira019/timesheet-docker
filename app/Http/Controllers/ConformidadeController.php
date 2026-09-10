@@ -468,18 +468,19 @@ class ConformidadeController extends Controller
      */
     public function checarProgresso($syncId): \Illuminate\Http\JsonResponse
     {
-        $progress = \Illuminate\Support\Facades\Cache::get("sync_progress_{$syncId}");
+        $dadosCache = \Illuminate\Support\Facades\Cache::get("sync_progress_{$syncId}");
         
-        \Illuminate\Support\Facades\Log::info("Lendo Cache {$syncId}: " . ($progress ? json_encode($progress) : 'Vazio'));
+        \Illuminate\Support\Facades\Log::info("Lendo Cache {$syncId}:", (array) $dadosCache);
 
-        if (!$progress) {
-            return response()->json([
-                'porcentagem' => 0,
-                'status' => 'processando'
-            ]);
-        }
+        $progressoNumerico = is_array($dadosCache) 
+            ? (int) ($dadosCache['progresso'] ?? $dadosCache['porcentagem'] ?? 0) 
+            : (int) $dadosCache;
 
-        return response()->json($progress);
+        return response()->json([
+            'progresso' => $progressoNumerico,
+            'porcentagem' => $progressoNumerico,
+            'status' => $progressoNumerico >= 100 ? 'concluido' : 'processando'
+        ]);
     }
 
     /**

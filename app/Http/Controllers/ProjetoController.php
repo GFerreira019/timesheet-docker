@@ -54,15 +54,24 @@ class ProjetoController extends Controller
 
         DB::beginTransaction();
         try {
-            // Sincroniza gestores com a obra
-            $projeto->gestores()->sync($gestoresIds);
+            // Sincroniza gestores com a obra (no modelo operacional)
+            $projetoOp = \App\Models\ProjetoOperacional::where('codigo', $projeto->codigo)->first();
+            if ($projetoOp) {
+                $projetoOp->gestores()->sync($gestoresIds);
+            }
 
             // Automação: Sincroniza o acesso ao Cliente pai da obra
             if ($projeto->codigo_cliente_id) {
-                foreach ($gestoresIds as $colaboradorId) {
-                    $colaborador = Colaborador::find($colaboradorId);
-                    if ($colaborador) {
-                        $colaborador->clientesGerenciados()->syncWithoutDetaching([$projeto->codigo_cliente_id]);
+                $clienteLegado = \App\Models\CodigoCliente::find($projeto->codigo_cliente_id);
+                if ($clienteLegado) {
+                    $clienteOp = \App\Models\ClienteOperacional::where('codigo', $clienteLegado->codigo)->first();
+                    if ($clienteOp) {
+                        foreach ($gestoresIds as $colaboradorId) {
+                            $colaborador = Colaborador::find($colaboradorId);
+                            if ($colaborador) {
+                                $colaborador->clientesGerenciados()->syncWithoutDetaching([$clienteOp->id]);
+                            }
+                        }
                     }
                 }
             }

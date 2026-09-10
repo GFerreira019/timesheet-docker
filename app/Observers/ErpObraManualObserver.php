@@ -97,5 +97,35 @@ class ErpObraManualObserver
             ->exists();
 
         $cliente->update(['ativo' => $temProjetoAtivo ? 1 : 0]);
+
+        // Etapa D: Sincroniza Cliente Operacional (Visão Operacional)
+        $clienteOperacional = \App\Models\ClienteOperacional::updateOrCreate(
+            [
+                'codigo' => $obra->cliente_codigo,
+            ],
+            [
+                'nome'  => $obra->projeto_nome,
+                // O status 'ativo' será recalculado no final da etapa E
+            ]
+        );
+
+        // Etapa E: Sincroniza Projeto Operacional (Visão Operacional)
+        \App\Models\ProjetoOperacional::updateOrCreate(
+            [
+                'cliente_operacional_id' => $clienteOperacional->id,
+                'codigo'                 => $obra->projeto_codigo,
+                'unidade'                => $unidade,
+            ],
+            [
+                'ativo'                  => $obra->status_ativo,
+            ]
+        );
+
+        // Recálculo Dinâmico do Status do Cliente Operacional
+        $temProjetoOperacionalAtivo = \App\Models\ProjetoOperacional::where('cliente_operacional_id', $clienteOperacional->id)
+            ->where('ativo', 1)
+            ->exists();
+
+        $clienteOperacional->update(['ativo' => $temProjetoOperacionalAtivo ? 1 : 0]);
     }
 }

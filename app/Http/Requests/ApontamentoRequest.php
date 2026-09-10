@@ -54,6 +54,8 @@ class ApontamentoRequest extends FormRequest
     // REGRAS BASE (equivalente ao Meta + campos required do Django)
     // =========================================================================
 
+
+
     /**
      * @return array<string, mixed>
      */
@@ -74,9 +76,10 @@ class ApontamentoRequest extends FormRequest
                 : ['required', 'date_format:H:i'],
 
             // Campos opcionais de localização
-            'projeto_id'         => ['nullable', 'integer', 'exists:produtividade_projeto,id'],
-            'codigo_cliente_id'  => ['nullable', 'integer', 'exists:produtividade_codigocliente,id'],
+            'projeto_id'         => ['nullable', 'integer', 'exists:projetos_operacionais,id'],
+            'codigo_cliente_id'  => ['nullable', 'integer', 'exists:clientes_operacionais,id'],
             'centro_custo_id'    => ['nullable', 'integer', 'exists:produtividade_centrocusto,id'],
+            'unidade'            => ['nullable', 'string', 'max:255'],
 
             // Veículo
             'veiculo_id'              => ['nullable', 'integer', 'exists:produtividade_veiculo,id'],
@@ -301,8 +304,14 @@ class ApontamentoRequest extends FormRequest
             // 8. VALIDAÇÃO DE RATEIO (Múltiplas Obras)
             // ==================================================================
             if (filter_var($data['registrar_multiplas_obras'] ?? false, FILTER_VALIDATE_BOOLEAN)) {
-                $extras = $data['obras_extras_list'] ?? '';
-                $hasExtras = is_array($extras) ? count($extras) > 0 : !empty(trim((string) $extras));
+                $hasExtras = false;
+                if (!empty($data['rateio']) && is_array($data['rateio'])) {
+                    $hasExtras = count($data['rateio']) > 0;
+                } else {
+                    $extras = $data['obras_extras_list'] ?? '';
+                    $hasExtras = is_array($extras) ? count($extras) > 0 : !empty(trim((string) $extras));
+                }
+                
                 if (!$hasExtras) {
                     $validator->errors()->add(
                         'registrar_multiplas_obras',
@@ -405,12 +414,18 @@ class ApontamentoRequest extends FormRequest
                     : 'Conflito Interjornada (Dia Anterior)';
 
                 if ($registro->local_execucao === 'EXTERNO') {
-                    $referencia = $registro->projeto
-                        ? (string) $registro->projeto
-                        : ($registro->codigoCliente ? (string) $registro->codigoCliente : 'Obra/Cliente');
+                    if ($registro->projeto) {
+                        $p = $registro->projeto;
+                        $referencia = $p->codigo . ' - ' . $p->nome . ($p->unidade ? ' | ' . $p->unidade : '');
+                    } else if ($registro->codigoCliente) {
+                        $c = $registro->codigoCliente;
+                        $referencia = $c->codigo . ' - ' . $c->nome;
+                    } else {
+                        $referencia = 'Obra/Cliente';
+                    }
                 } else {
                     $referencia = $registro->centroCusto
-                        ? (string) $registro->centroCusto
+                        ? $registro->centroCusto->nome
                         : 'Atividade Interna';
                 }
 
@@ -678,6 +693,36 @@ class ApontamentoRequest extends FormRequest
      */
     protected function prepareForValidation(): void
     {
+        // Se a View enviou codigo_projeto, precisamos traduzir para o projeto_id (PK) real
+        $codigoProjeto = $this->input('codigo_projeto');
+        $unidade = $this->input('unidade');
+        $clienteId = $this->input('codigo_cliente_id');
+
+        if ($codigoProjeto) {
+            $query = \App\Models\ProjetoOperacional::where('codigo', $codigoProjeto)->where('ativo', true);
+            
+            if ($unidade) {
+                $query->where('unidade', $unidade);
+            }
+            if ($clienteId) {
+                $query->where('cliente_operacional_id', $clienteId);
+            }
+            
+            $projeto = $query->first();
+
+            if ($projeto) {
+                $this->merge([
+                    'projeto_id' => $projeto->id,
+                    'unidade'    => $projeto->unidade // Garante que a unidade fique coerente
+                ]);
+            } else {
+                // Se não encontrar exato, passa null para a validação barrar
+                $this->merge([
+                    'projeto_id' => null
+                ]);
+            }
+        }
+
         $placa = $this->input('veiculo_manual_placa');
         if ($placa) {
             // Higienização da placa: uppercase, remove traços e espaços

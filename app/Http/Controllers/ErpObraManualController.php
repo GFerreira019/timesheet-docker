@@ -33,7 +33,7 @@ class ErpObraManualController extends Controller
         }
 
         // Correspondência Exata / Selects
-        $exactFields = ['tipo_categoria', 'setor_id', 'projeto_etapa', 'projeto_status', 'lider_comercial', 'gerente_implantacao', 'gerente_manutencao'];
+        $exactFields = ['tipo_categoria', 'setor_id', 'projeto_etapa', 'projeto_status', 'lider_comercial'];
         foreach ($exactFields as $field) {
             $query->when($request->filled($field), function ($q) use ($request, $field) {
                 return $q->where($field, $request->query($field));
@@ -55,19 +55,42 @@ class ErpObraManualController extends Controller
 
         // Coordenadores (Relacionamento N:N)
         $query->when($request->filled('coordenador_implantacao'), function ($q) use ($request) {
-            return $q->whereHas('coordenadoresProjeto', function ($q2) use ($request) {
+            return $q->whereHas('projetoOperacional.gestores', function ($q2) use ($request) {
                 $q2->where('colaborador_id', $request->query('coordenador_implantacao'));
             });
         });
         
         $query->when($request->filled('coordenador_manutencao'), function ($q) use ($request) {
-            return $q->whereHas('coordenadoresProjeto', function ($q2) use ($request) {
+            return $q->whereHas('projetoOperacional.gestores', function ($q2) use ($request) {
                 $q2->where('colaborador_id', $request->query('coordenador_manutencao'));
             });
         });
 
-        $obras = $query->with(['setor', 'liderComercial', 'gerenteImplantacao', 'gerenteManutencao', 'coordenadoresProjeto'])->paginate(15);
+        // 1. Paginação carregando apenas relações simples
+        $obras = $query->with(['setor', 'liderComercial'])->paginate(15);
         $obras->appends($request->all());
+
+        // 2. Custom Eager Loading de Chave Composta (Código + Unidade)
+        $codigos = $obras->pluck('projeto_codigo')->filter()->unique()->toArray();
+        $unidades = $obras->pluck('projeto_unidade')->filter()->unique()->toArray();
+
+        if (!empty($codigos)) {
+            // Busca todos os Projetos Operacionais possíveis na página atual (e seus gestores)
+            $projetosOps = \App\Models\ProjetoOperacional::with('gestores')
+                ->whereIn('codigo', $codigos)
+                ->whereIn('unidade', $unidades)
+                ->get();
+
+            // 3. Hidrata manualmente a relação na Collection
+            foreach ($obras as $obra) {
+                $projetoCorreto = $projetosOps->first(function($p) use ($obra) {
+                    return $p->codigo === $obra->projeto_codigo && $p->unidade === $obra->projeto_unidade;
+                });
+                // Injeta a relação correta na memória.
+                // Isso faz com que $obra->projetoOperacional retorne o objeto exato.
+                $obra->setRelation('projetoOperacional', $projetoCorreto);
+            }
+        }
 
         // Buscar Gerentes
         $gerentes = Colaborador::ativos()->whereHas('user.roles', function($q) {
@@ -135,29 +158,12 @@ class ErpObraManualController extends Controller
 
         $coordenadoresCombinados = array_unique(array_filter(array_merge($coordImp, $coordMan)));
 
-        $obra->coordenadoresProjeto()->sync($coordenadoresCombinados);
-
-        if ($obra->cliente_codigo) {
-            $query = \App\Models\CodigoCliente::where('codigo', $obra->cliente_codigo);
-            
-            if ($obra->cnpj) {
-                $cnpjLimpo = preg_replace('/[^0-9]/', '', $obra->cnpj);
-                $query->where('cnpj', $cnpjLimpo);
-            } else {
-                $query->where(function($q) {
-                    $q->whereNull('cnpj')->orWhere('cnpj', '');
-                });
-            }
-            
-            $cliente = $query->first();
-            
-            if ($cliente) {
-                foreach ($coordenadoresCombinados as $colaboradorId) {
-                    $colaborador = \App\Models\Colaborador::find($colaboradorId);
-                    if ($colaborador) {
-                        $colaborador->clientesGerenciados()->syncWithoutDetaching([$cliente->id]);
-                    }
-                }
+        if ($obra->projeto_codigo && $obra->projeto_unidade) {
+            $projetoOp = \App\Models\ProjetoOperacional::where('codigo', $obra->projeto_codigo)
+                ->where('unidade', $obra->projeto_unidade)
+                ->first();
+            if ($projetoOp) {
+                $projetoOp->gestores()->sync($coordenadoresCombinados);
             }
         }
     }

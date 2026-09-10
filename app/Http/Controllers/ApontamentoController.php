@@ -71,8 +71,10 @@ class ApontamentoController extends Controller
                 'data_apontamento'      => Carbon::parse($apontamentoAtivo->data_apontamento)->format('Y-m-d'),
                 'hora_inicio'           => substr($apontamentoAtivo->hora_inicio, 0, 5),
                 'local_execucao'        => $apontamentoAtivo->local_execucao,
+                'codigo_projeto'        => $apontamentoAtivo->projeto ? $apontamentoAtivo->projeto->codigo : null,
                 'projeto_id'            => $apontamentoAtivo->projeto_id,
                 'codigo_cliente_id'     => $apontamentoAtivo->codigo_cliente_id,
+                'unidade'               => $apontamentoAtivo->unidade,
                 'centro_custo_id'       => $apontamentoAtivo->centro_custo_id,
                 'registrar_veiculo'     => (bool) ($apontamentoAtivo->veiculo_id || $apontamentoAtivo->veiculo_manual_placa),
                 'veiculo_selecao'       => $apontamentoAtivo->veiculo_id
@@ -114,8 +116,8 @@ class ApontamentoController extends Controller
             'is_owner'                 => AcessoHelper::isOwner($user),
             'pode_lancar_terceiros'    => $user->hasAnyRole(['ADMIN', 'GERENCIAL', 'SAC', 'ADMINISTRATIVO']) || AcessoHelper::isOwner($user),
             'colaboradores'            => $this->getColaboradoresPermitidos($user),
-            'projetos'                 => Projeto::with('cliente')->where('ativo', true)->get()->sortBy('nome'),
-            'clientes'                 => CodigoCliente::where('ativo', true)->orderBy('nome')->get(),
+            'projetos'                 => \App\Models\ProjetoOperacional::with('cliente')->where('ativo', true)->get()->unique('codigo')->sortBy('codigo'),
+            'clientes'                 => \App\Models\ClienteOperacional::where('ativo', true)->orderBy('nome')->get(),
             'centros_custo'            => CentroCusto::where('ativo', true)->orderBy('nome')->get(),
             'veiculos'                 => Veiculo::ativos()->orderBy('placa')->get(),
             'auxiliares'               => Colaborador::ativos()
@@ -157,8 +159,13 @@ class ApontamentoController extends Controller
             $response = $this->criarCheckIn($dados, $user);
         } else {
             // Verifica se é rateio
-            $obrasExtras = $dados['obras_extras_list'] ?? null;
-            $hasObrasExtras = is_array($obrasExtras) ? count($obrasExtras) > 0 : !empty(trim((string)$obrasExtras));
+            $hasObrasExtras = false;
+            if ($request->has('rateio') && is_array($request->input('rateio'))) {
+                $hasObrasExtras = count($request->input('rateio')) > 0;
+            } else {
+                $obrasExtras = $dados['obras_extras_list'] ?? null;
+                $hasObrasExtras = is_array($obrasExtras) ? count($obrasExtras) > 0 : !empty(trim((string)$obrasExtras));
+            }
 
             $isRateio = AcessoHelper::podeFazerRateio($user)
                 && filter_var($dados['registrar_multiplas_obras'] ?? false, FILTER_VALIDATE_BOOLEAN)
@@ -171,8 +178,11 @@ class ApontamentoController extends Controller
             }
         }
 
-        if ($request->expectsJson()) {
-            return response()->json(['message' => 'Apontamento salvo com sucesso'], 201);
+        if ($request->wantsJson() || $request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Apontamento salvo com sucesso'
+            ], 201);
         }
 
         return $response;
@@ -231,8 +241,10 @@ class ApontamentoController extends Controller
             'hora_inicio'            => $apontamento->hora_inicio ? substr($apontamento->hora_inicio, 0, 5) : '',
             'hora_termino'           => $apontamento->hora_termino ? substr($apontamento->hora_termino, 0, 5) : '',
             'local_execucao'         => $apontamento->local_execucao,
+            'codigo_projeto'         => $apontamento->projeto ? $apontamento->projeto->codigo : null,
             'projeto_id'             => $apontamento->projeto_id,
             'codigo_cliente_id'      => $apontamento->codigo_cliente_id,
+            'unidade'                => $apontamento->projeto ? $apontamento->projeto->unidade : ($apontamento->unidade ?? null),
             'centro_custo_id'        => $apontamento->centro_custo_id,
             'registrar_veiculo'      => (bool) ($apontamento->veiculo_id || $apontamento->veiculo_manual_placa),
             'veiculo_selecao'        => $apontamento->veiculo_id
@@ -270,8 +282,8 @@ class ApontamentoController extends Controller
             'is_owner'                 => AcessoHelper::isOwner($user),
             'pode_lancar_terceiros'    => $user->hasAnyRole(['ADMIN', 'GERENCIAL', 'SAC', 'ADMINISTRATIVO']) || AcessoHelper::isOwner($user),
             'colaboradores'            => $this->getColaboradoresPermitidos($user, $apontamento),
-            'projetos'                 => Projeto::with('cliente')->where('ativo', true)->get()->sortBy('nome'),
-            'clientes'                 => CodigoCliente::where('ativo', true)->orderBy('nome')->get(),
+            'projetos'                 => \App\Models\ProjetoOperacional::with('cliente')->where('ativo', true)->get()->unique('codigo')->sortBy('codigo'),
+            'clientes'                 => \App\Models\ClienteOperacional::where('ativo', true)->orderBy('nome')->get(),
             'centros_custo'            => CentroCusto::where('ativo', true)->orderBy('nome')->get(),
             'veiculos'                 => Veiculo::where(function($q) use ($apontamento) {
                                                 $q->ativos();
@@ -406,8 +418,7 @@ class ApontamentoController extends Controller
             $dtContabil = ConformidadeCLTService::getDataContabil(
                 Carbon::parse(Carbon::parse($apontamento->data_apontamento)->format('Y-m-d') . " {$apontamento->hora_inicio}")
             );
-            $colabInst = \App\Models\Colaborador::where('id_colaborador', $apontamento->colaborador_id)->first() 
-                ?? \App\Models\Colaborador::find($apontamento->colaborador_id);
+            $colabInst = \App\Models\Colaborador::find($apontamento->colaborador_id);
             ConformidadeCLTService::calcularRegrasClt($colabInst, $dtContabil);
         });
 
@@ -454,8 +465,7 @@ class ApontamentoController extends Controller
         $apontamento->delete();
 
         // Recalcula CLT após exclusão (equivalente ao Django)
-        $colabInst = \App\Models\Colaborador::where('id_colaborador', $apontamento->colaborador_id)->first() 
-            ?? \App\Models\Colaborador::find($apontamento->colaborador_id);
+        $colabInst = \App\Models\Colaborador::find($apontamento->colaborador_id);
         ConformidadeCLTService::calcularRegrasClt($colabInst, $dtContabil);
 
         session()->flash('success', 'Apontamento excluído com sucesso.');
@@ -580,8 +590,7 @@ class ApontamentoController extends Controller
         $dtContabil = ConformidadeCLTService::getDataContabil(
             Carbon::parse(Carbon::parse($ap->data_apontamento)->format('Y-m-d') . " {$ap->hora_inicio}")
         );
-        $colabInst = \App\Models\Colaborador::where('id_colaborador', $ap->colaborador_id)->first() 
-            ?? \App\Models\Colaborador::find($ap->colaborador_id);
+        $colabInst = \App\Models\Colaborador::find($ap->colaborador_id);
         ConformidadeCLTService::calcularRegrasClt($colabInst, $dtContabil);
 
         session()->flash('success', "Registro de {$ap->colaborador->nome_completo} salvo com sucesso!");
@@ -590,47 +599,48 @@ class ApontamentoController extends Controller
 
     /**
      * Cria múltiplos apontamentos rateados (distribuição proporcional).
-     * Equivalente ao bloco if is_rateio: do apontamento_atividade_view() do Django.
+     * Lê o array 'rateio' enviado pelo Request e combina código e unidade
+     * para identificar o Projeto/Cliente correto.
      */
     private function criarComRateio(array $dados, Request $request, $user): RedirectResponse
     {
-        // Monta lista de obras (P_{id} ou C_{id})
-        $principalStr = '';
-        $projetoId    = $dados['projeto_id'] ?? null;
-        $clienteId    = $dados['codigo_cliente_id'] ?? null;
+        $rateioInput = $request->input('rateio', []);
+        $todasObras = [];
 
-        if ($projetoId) {
-            $principalStr = "P_{$projetoId}";
-        } elseif ($clienteId) {
-            $principalStr = "C_{$clienteId}";
+        // 1. Obra Principal (dados do formulário principal)
+        if (!empty($dados['projeto_id']) || !empty($dados['codigo_cliente_id'])) {
+            $todasObras[] = [
+                'tipo'         => !empty($dados['projeto_id']) ? 'P' : 'C',
+                'codigo'       => !empty($dados['projeto_id']) ? $dados['projeto_id'] : $dados['codigo_cliente_id'],
+                'unidade'      => $dados['unidade'] ?? null,
+                'is_principal' => true
+            ];
         }
 
-        $extrasStr   = $dados['obras_extras_list'] ?? '';
-        
-        $listaExtras = [];
-        if (is_array($extrasStr)) {
-            foreach ($extrasStr as $item) {
-                $listaExtras[] = is_numeric($item) ? "P_{$item}" : (string)$item;
+        // 2. Obras Extras vindas do array `rateio` gerado via JS
+        foreach ($rateioInput as $item) {
+            if (!empty($item['tipo']) && !empty($item['codigo'])) {
+                $todasObras[] = [
+                    'tipo'         => $item['tipo'],
+                    'codigo'       => $item['codigo'], // String(codigo_projeto) ou ID(cliente)
+                    'unidade'      => $item['unidade'] ?? null,
+                    'is_principal' => false
+                ];
             }
-        } elseif (str_starts_with(trim((string)$extrasStr), '[')) {
-            $arr = json_decode($extrasStr, true);
-            if (is_array($arr)) {
-                foreach ($arr as $item) {
-                    $listaExtras[] = is_numeric($item) ? "P_{$item}" : (string)$item;
-                }
-            }
-        } else {
-            $listaExtras = array_filter(array_map('trim', explode(',', (string)$extrasStr)));
         }
 
-        $todasObras  = $principalStr
-            ? array_merge([$principalStr], $listaExtras)
-            : $listaExtras;
-            
-        // Remove duplicatas e reseta as chaves numéricas
-        $todasObras = array_values(array_unique($todasObras));
+        // 3. Remove duplicatas baseado na combinação Tipo + Código + Unidade
+        $obrasUnicas = [];
+        $hashes = [];
+        foreach ($todasObras as $obra) {
+            $hash = $obra['tipo'] . '_' . $obra['codigo'] . '_' . ($obra['unidade'] ?? '');
+            if (!in_array($hash, $hashes)) {
+                $hashes[] = $hash;
+                $obrasUnicas[] = $obra;
+            }
+        }
 
-        if (empty($todasObras)) {
+        if (empty($obrasUnicas)) {
             $ap = new Apontamento();
             $this->preencherApontamento($ap, $dados, $user);
             $ap->status_aprovacao = 'EM_ANALISE';
@@ -643,51 +653,68 @@ class ApontamentoController extends Controller
         // Distribui os horários proporcionalmente
         $inicio  = Carbon::parse("{$dados['data_apontamento']} {$dados['hora_inicio']}");
         $termino = Carbon::parse("{$dados['data_apontamento']} {$dados['hora_termino']}");
-        $fatias  = RateioService::distribuirHorariosComGap($inicio, $termino, count($todasObras));
+        $fatias  = RateioService::distribuirHorariosComGap($inicio, $termino, count($obrasUnicas));
 
         $agrupamentoUid = (string) \Illuminate\Support\Str::uuid();
         $contagemSucesso = 0;
 
         try {
             DB::transaction(function () use (
-                $todasObras, $fatias, $dados, $user, $agrupamentoUid,
+                $obrasUnicas, $fatias, $dados, $user, $agrupamentoUid,
                 $request, &$contagemSucesso
             ) {
-                foreach ($todasObras as $idx => $itemHibrido) {
-                    if (!str_contains($itemHibrido, '_')) {
-                        continue;
-                    }
-
-                    [$prefixo, $objIdStr] = explode('_', $itemHibrido, 2);
-                    $objId = (int) $objIdStr;
-
-                    // Valida existência (equivalente ao Projeto.objects.filter(pk=obj_id).exists())
-                    if ($prefixo === 'P' && !Projeto::where('id', $objId)->exists()) {
-                        continue;
-                    }
-                    if ($prefixo === 'C' && !CodigoCliente::where('id', $objId)->exists()) {
-                        continue;
-                    }
-
+                foreach ($obrasUnicas as $idx => $obra) {
                     $ap = new Apontamento();
+                    
+                    // Preenche a base (não afeta 'unidade' pois removemos no preencherApontamento)
                     $this->preencherApontamento($ap, $dados, $user);
+                    
                     $ap->id_agrupamento   = $agrupamentoUid;
                     $ap->status_aprovacao = 'EM_ANALISE';
                     $ap->contagem_edicao  = 0;
 
-                    // Horário da fatia proporcional
+                    // Aplica os tempos proporcionais
                     if (isset($fatias[$idx])) {
                         $ap->hora_inicio  = $fatias[$idx]['inicio']->format('H:i:s');
                         $ap->hora_termino = $fatias[$idx]['termino']->format('H:i:s');
                     }
 
-                    // Obra ou Cliente (limpa o outro)
-                    if ($prefixo === 'P') {
-                        $ap->projeto_id        = $objId;
-                        $ap->codigo_cliente_id = null;
+                    if ($obra['is_principal']) {
+                        // O preencherApontamento já setou os IDs do projeto_id e codigo_cliente_id base
                     } else {
-                        $ap->codigo_cliente_id = $objId;
-                        $ap->projeto_id        = null;
+                        // Limpa o que veio da base
+                        $ap->projeto_id = null;
+                        $ap->codigo_cliente_id = null;
+
+                        if ($obra['tipo'] === 'P') {
+                            $query = \App\Models\ProjetoOperacional::where('codigo', $obra['codigo']);
+                            if (!empty($obra['unidade'])) {
+                                $query->where('unidade', $obra['unidade']);
+                            }
+                            $proj = $query->first();
+
+                            if ($proj) {
+                                $ap->projeto_id = $proj->id;
+                            } else {
+                                continue; // Ignora se não achou projeto
+                            }
+                        } else {
+                            $ap->codigo_cliente_id = $obra['codigo'];
+
+                            if (!empty($obra['unidade'])) {
+                                $proj = \App\Models\ProjetoOperacional::where('cliente_operacional_id', $obra['codigo'])
+                                    ->where('unidade', $obra['unidade'])
+                                    ->first();
+                                if ($proj) {
+                                    $ap->projeto_id = $proj->id;
+                                }
+                            }
+                        }
+                    }
+
+                    // Ignora se não resolveu nem projeto_id nem cliente_id
+                    if (!$ap->projeto_id && !$ap->codigo_cliente_id) {
+                        continue;
                     }
 
                     $ap->save();
@@ -709,8 +736,7 @@ class ApontamentoController extends Controller
                     $dtContabil = ConformidadeCLTService::getDataContabil(
                         Carbon::parse(Carbon::parse($ap->data_apontamento)->format('Y-m-d') . " {$ap->hora_inicio}")
                     );
-                    $colabInst = \App\Models\Colaborador::where('id_colaborador', $ap->colaborador_id)->first() 
-                        ?? \App\Models\Colaborador::find($ap->colaborador_id);
+                    $colabInst = \App\Models\Colaborador::find($ap->colaborador_id);
                     ConformidadeCLTService::calcularRegrasClt($colabInst, $dtContabil);
 
                     $contagemSucesso++;
@@ -727,6 +753,35 @@ class ApontamentoController extends Controller
     }
 
     /**
+     * Retorna as unidades ativas dinamicamente baseadas no Cliente e/ou Projeto.
+     * GET /apontamentos/unidades
+     */
+    public function getUnidades(Request $request)
+    {
+        $clienteId = $request->query('cliente_id');
+        $codigoProjeto = $request->query('codigo_projeto');
+
+        // Busca no Model ProjetoOperacional (tabela: projetos_operacionais)
+        $query = \App\Models\ProjetoOperacional::query()
+            ->whereNotNull('unidade')
+            ->where('unidade', '!=', '')
+            ->where('ativo', true);
+
+        if ($clienteId) {
+            $query->where('cliente_operacional_id', $clienteId);
+        }
+
+        if ($codigoProjeto) {
+            $query->where('codigo', $codigoProjeto);
+        }
+
+        // Distinct e pluck para pegar apenas a string da unidade, sem repetições
+        $unidades = $query->distinct()->pluck('unidade')->sort()->values();
+
+        return response()->json($unidades);
+    }
+
+    /**
      * Preenche os campos comuns de um Apontamento a partir dos dados validados.
      * Centraliza o preenchimento para evitar duplicação entre criarRegistroUnico e criarComRateio.
      */
@@ -739,6 +794,19 @@ class ApontamentoController extends Controller
         $ap->local_execucao      = $dados['local_execucao'];
         $ap->projeto_id          = $dados['projeto_id'] ?? null;
         $ap->codigo_cliente_id   = $dados['codigo_cliente_id'] ?? null;
+        
+        $unidade = $dados['unidade'] ?? null;
+
+        if (empty($ap->projeto_id) && !empty($ap->codigo_cliente_id) && !empty($unidade)) {
+            $projetoEncontrado = \App\Models\ProjetoOperacional::where('cliente_operacional_id', $ap->codigo_cliente_id)
+                ->where('unidade', $unidade)
+                ->first();
+                
+            if ($projetoEncontrado) {
+                $ap->projeto_id = $projetoEncontrado->id;
+            }
+        }
+
         $ap->centro_custo_id     = $dados['centro_custo_id'] ?? null;
         $ap->ocorrencias         = $dados['ocorrencias'] ?? null;
         $ap->em_plantao          = filter_var($dados['em_plantao'] ?? false, FILTER_VALIDATE_BOOLEAN);

@@ -284,16 +284,114 @@ class AprovacaoController extends Controller
             $diff[] = ['campo' => 'Local', 'antes' => $mapa[$localOld] ?? $localOld, 'depois' => $mapa[$localNew] ?? $localNew, 'icon' => 'map'];
         }
         // 4. Projeto
-        $projOldId = (int) ($dadosAntigos['projeto_id'] ?? 0) ?: null;
-        $projNewId = $ap->projeto_id;
-        if ($projOldId !== $projNewId) {
-            $diff[] = ['campo' => 'Projeto', 'antes' => $getFkNome(Projeto::class, $projOldId), 'depois' => $ap->projeto ? (string) $ap->projeto : '-', 'icon' => 'briefcase'];
+        $projOldVal = $dadosAntigos['projeto_id'] ?? null;
+        $projNewVal = $ap->projeto;
+
+        $formatProjeto = function ($val) {
+            if (empty($val)) return '-';
+            
+            // Se for o objeto Model (Situação do 'Depois')
+            if ($val instanceof \App\Models\ProjetoOperacional) {
+                $codigo = $val->codigo;
+                $nome = $val->nome;
+                $unidade = $val->unidade;
+                
+                $str = $codigo ? "{$codigo} - {$nome}" : $nome;
+                if ($unidade && $unidade !== 'N/A') {
+                    $str .= " | {$unidade}";
+                }
+                return $str;
+            }
+            
+            // Se for uma string JSON gravada no histórico (Situação do 'Antes')
+            if (is_string($val) && str_starts_with(trim($val), '{')) {
+                $data = json_decode($val, true);
+                if (json_last_error() === JSON_ERROR_NONE && is_array($data)) {
+                    $codigo = $data['codigo'] ?? '';
+                    $nome = $data['nome'] ?? 'N/A';
+                    $unidade = $data['unidade'] ?? '';
+                    
+                    // Se o nome vier "N/A" devido a ausência da relação carregada
+                    if ($nome === 'N/A' && !empty($data['cliente_operacional_id'])) {
+                        $cli = \App\Models\ClienteOperacional::find($data['cliente_operacional_id']);
+                        if ($cli) {
+                            $nome = $cli->nome;
+                        }
+                    }
+
+                    $str = $codigo ? "{$codigo} - {$nome}" : $nome;
+                    if ($unidade && $unidade !== 'N/A') {
+                        $str .= " | {$unidade}";
+                    }
+                    return $str;
+                }
+            }
+            
+            // Se for apenas um ID numérico legado ou novo
+            if (is_numeric($val)) {
+                $obj = \App\Models\ProjetoOperacional::find((int) $val);
+                if ($obj) {
+                    $codigo = $obj->codigo;
+                    $nome = $obj->nome;
+                    $unidade = $obj->unidade;
+                    
+                    $str = $codigo ? "{$codigo} - {$nome}" : $nome;
+                    if ($unidade && $unidade !== 'N/A') {
+                        $str .= " | {$unidade}";
+                    }
+                    return $str;
+                }
+                return "(ID: {$val} não encontrado)";
+            }
+            
+            return (string) $val;
+        };
+
+        $projOldStr = $formatProjeto($projOldVal);
+        $projNewStr = $formatProjeto($projNewVal);
+
+        if ($projOldVal != $ap->projeto_id && $projOldStr !== $projNewStr) {
+            $diff[] = ['campo' => 'Projeto', 'antes' => $projOldStr, 'depois' => $projNewStr, 'icon' => 'briefcase'];
         }
         // 5. Cliente
-        $cliOldId = (int) ($dadosAntigos['codigo_cliente_id'] ?? 0) ?: null;
-        $cliNewId = $ap->codigo_cliente_id;
-        if ($cliOldId !== $cliNewId) {
-            $diff[] = ['campo' => 'Cliente', 'antes' => $getFkNome(CodigoCliente::class, $cliOldId), 'depois' => $ap->codigoCliente ? (string) $ap->codigoCliente : '-', 'icon' => 'user'];
+        $cliOldVal = $dadosAntigos['codigo_cliente_id'] ?? null;
+        $cliNewVal = $ap->codigoCliente;
+
+        $formatCliente = function ($val) {
+            if (empty($val)) return '-';
+            
+            // Se for o Model
+            if ($val instanceof \App\Models\ClienteOperacional) {
+                return $val->codigo ? "{$val->codigo} - {$val->nome}" : $val->nome;
+            }
+            
+            // Se for JSON logado
+            if (is_string($val) && str_starts_with(trim($val), '{')) {
+                $data = json_decode($val, true);
+                if (json_last_error() === JSON_ERROR_NONE && is_array($data)) {
+                    $codigo = $data['codigo'] ?? '';
+                    $nome = $data['nome'] ?? 'N/A';
+                    return $codigo ? "{$codigo} - {$nome}" : $nome;
+                }
+            }
+            
+            // Se for ID
+            if (is_numeric($val)) {
+                $obj = \App\Models\ClienteOperacional::find((int) $val);
+                if ($obj) {
+                    return $obj->codigo ? "{$obj->codigo} - {$obj->nome}" : $obj->nome;
+                }
+                return "(ID: {$val} não encontrado)";
+            }
+            
+            return (string) $val;
+        };
+
+        $cliOldStr = $formatCliente($cliOldVal);
+        $cliNewStr = $formatCliente($cliNewVal);
+
+        if ($cliOldVal != $ap->codigo_cliente_id && $cliOldStr !== $cliNewStr) {
+            $diff[] = ['campo' => 'Cliente', 'antes' => $cliOldStr, 'depois' => $cliNewStr, 'icon' => 'user'];
         }
         // 6. Veículo (frota)
         $veicOldId = (int) ($dadosAntigos['veiculo_id'] ?? 0) ?: null;

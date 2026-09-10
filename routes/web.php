@@ -100,6 +100,9 @@ Route::middleware('auth')->group(function () {
             
         Route::get('/comparativo-diario', [ApontamentoController::class, 'comparativoDiario'])
             ->name('comparativo.diario');
+
+        Route::get('/unidades', [ApontamentoController::class, 'getUnidades'])
+            ->name('unidades');
             
         Route::get('/verificar-plantao', [ApontamentoController::class, 'apiVerificarPlantao'])
             ->name('api.plantao');
@@ -269,7 +272,13 @@ if (app()->environment('local')) {
                 $q->where('name', 'gerente')->orWhere('name', 'GESTOR');
             })->first() ?? \App\Models\User::first(); // Fallback caso não ache
     
-            // 2. Cria Cliente e Projeto Fake
+            // 2. Cria Cliente Operacional Teste RLS
+            $clienteOp = \App\Models\ClienteOperacional::create([
+                'codigo' => '9999',
+                'nome' => 'CLIENTE TESTE RLS',
+                'ativo' => 1
+            ]);
+    
             $cliente = \App\Models\CodigoCliente::create([
                 'codigo' => '9999',
                 'nome' => 'CLIENTE TESTE RLS',
@@ -285,7 +294,7 @@ if (app()->environment('local')) {
     
             // 3. Vincula o Gestor apenas ao Cliente (Testando a herança)
             if ($gestor->colaborador) {
-                $gestor->colaborador->clientesGerenciados()->sync([$cliente->id]);
+                $gestor->colaborador->clientesGerenciados()->sync([$clienteOp->id]);
             }
     
             // 4. Cria o Apontamento do Operador no Projeto

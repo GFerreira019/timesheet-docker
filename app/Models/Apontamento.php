@@ -146,16 +146,16 @@ class Apontamento extends Model
         return $this->belongsTo(\App\Models\User::class, 'aprovador_id');
     }
 
-    /** Projeto/Obra associado. */
+    /** Projeto/Obra associado (Visão Operacional). */
     public function projeto(): BelongsTo
     {
-        return $this->belongsTo(Projeto::class, 'projeto_id');
+        return $this->belongsTo(ProjetoOperacional::class, 'projeto_id');
     }
 
-    /** Código do cliente associado. */
+    /** Código do cliente associado (Visão Operacional). */
     public function codigoCliente(): BelongsTo
     {
-        return $this->belongsTo(CodigoCliente::class, 'codigo_cliente_id');
+        return $this->belongsTo(ClienteOperacional::class, 'codigo_cliente_id');
     }
 
     /** Centro de custo / justificativa. */
@@ -312,21 +312,24 @@ class Apontamento extends Model
                 return $query->whereRaw('0=1');
             }
 
-            $projetosIds = $colaborador->projetosGerenciados()->pluck('produtividade_projeto.id')->toArray();
-            $clientesIds = $colaborador->clientesGerenciados()->pluck('produtividade_codigocliente.id')->toArray();
+            $projetosIds = $colaborador->getProjetosOperacionaisGerenciadosIds();
+            $clientesIds = $colaborador->getClientesOperacionaisGerenciadosIds();
 
             return $query->where(function ($q) use ($user, $colaborador, $projetosIds, $clientesIds) {
                 // Acesso aos seus próprios apontamentos
                 $q->where('registrado_por_id', $user->id)
                   ->orWhere('colaborador_id', $colaborador->id);
 
-                // Acesso aos apontamentos dos projetos e clientes gerenciados
+                // Acesso estrito aos apontamentos dos projetos que ele gerencia
                 if (!empty($projetosIds)) {
                     $q->orWhereIn('projeto_id', $projetosIds);
                 }
+                
+                // Acesso estrito aos apontamentos genéricos (sem projeto) dos clientes que ele tem acesso
                 if (!empty($clientesIds)) {
-                    $q->orWhereHas('projeto', function ($subQ) use ($clientesIds) {
-                        $subQ->whereIn('codigo_cliente_id', $clientesIds);
+                    $q->orWhere(function ($subQ) use ($clientesIds) {
+                        $subQ->whereNull('projeto_id')
+                             ->whereIn('codigo_cliente_id', $clientesIds);
                     });
                 }
             });

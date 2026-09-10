@@ -38,8 +38,8 @@ class ArchiveOldRecordsJob implements ShouldQueue
                         // Snapshot dos relacionamentos
                         $snapshot = [
                             'colaborador_nome' => DB::table('produtividade_colaborador')->where('id', $ap->colaborador_id)->value('nome_completo') ?? 'Desconhecido',
-                            'projeto_nome' => $ap->projeto_id ? (DB::table('produtividade_projeto')->where('id', $ap->projeto_id)->value('nome') ?? 'Desconhecido') : null,
-                            'cliente_nome' => $ap->codigo_cliente_id ? (DB::table('produtividade_codigocliente')->where('id', $ap->codigo_cliente_id)->value('nome') ?? 'Desconhecido') : null,
+                            'projeto_nome' => $ap->projeto_id ? (DB::table('projetos_operacionais')->where('id', $ap->projeto_id)->value('codigo') ?? 'Desconhecido') : null,
+                            'cliente_nome' => $ap->codigo_cliente_id ? (DB::table('clientes_operacionais')->where('id', $ap->codigo_cliente_id)->value('nome') ?? 'Desconhecido') : null,
                             'centro_custo_nome' => $ap->centro_custo_id ? (DB::table('produtividade_centrocusto')->where('id', $ap->centro_custo_id)->value('nome') ?? 'Desconhecido') : null,
                             'veiculo_placa' => $ap->veiculo_id ? (DB::table('produtividade_veiculo')->where('id', $ap->veiculo_id)->value('placa') ?? 'Desconhecido') : null,
                             'auxiliar_nome' => $ap->auxiliar_id ? (DB::table('produtividade_colaborador')->where('id', $ap->auxiliar_id)->value('nome_completo') ?? 'Desconhecido') : null,
