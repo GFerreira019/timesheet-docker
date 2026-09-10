@@ -25,20 +25,21 @@ class BumpVersionCommand extends Command
      */
     public function handle()
     {
-        $envPath = base_path('.env');
+        $configPath = config_path('app.php');
 
-        if (!file_exists($envPath)) {
-            $this->error('.env file not found.');
+        if (!file_exists($configPath)) {
+            $this->error('config/app.php não encontrado.');
             return Command::FAILURE;
         }
 
-        $envContent = file_get_contents($envPath);
-        $currentVersion = env('APP_VERSION', '1.0.0');
-
-        if (preg_match('/^APP_VERSION=(.*)$/m', $envContent, $matches)) {
-            $currentVersion = trim($matches[1]);
-            // Remove double quotes if present
-            $currentVersion = trim($currentVersion, '"\'');
+        $configContent = file_get_contents($configPath);
+        
+        // Tenta capturar a versão de fallback atual no config/app.php
+        if (preg_match('/\'version\'\s*=>\s*env\(\'APP_VERSION\',\s*\'([^\']+)\'\)/', $configContent, $matches)) {
+            $currentVersion = $matches[1];
+        } else {
+            $this->error('Não foi possível encontrar a declaração da versão no config/app.php');
+            return Command::FAILURE;
         }
 
         $parts = explode('.', $currentVersion);
@@ -46,19 +47,20 @@ class BumpVersionCommand extends Command
             $parts[2] = (int)$parts[2] + 1;
             $newVersion = implode('.', $parts);
         } else {
-            $this->error('APP_VERSION format is invalid. Expected semantic versioning (e.g. 1.0.0)');
+            $this->error('O formato da versão é inválido. Esperado (ex: 1.0.0)');
             return Command::FAILURE;
         }
 
-        if (preg_match('/^APP_VERSION=.*$/m', $envContent)) {
-            $envContent = preg_replace('/^APP_VERSION=.*$/m', 'APP_VERSION=' . $newVersion, $envContent);
-        } else {
-            $envContent .= "\nAPP_VERSION=" . $newVersion . "\n";
-        }
+        // Substitui a versão no arquivo
+        $newConfigContent = preg_replace(
+            '/\'version\'\s*=>\s*env\(\'APP_VERSION\',\s*\'([^\']+)\'\)/',
+            '\'version\' => env(\'APP_VERSION\', \'' . $newVersion . '\')',
+            $configContent
+        );
 
-        file_put_contents($envPath, $envContent);
+        file_put_contents($configPath, $newConfigContent);
 
-        $this->info("Version bumped successfully from {$currentVersion} to {$newVersion}");
+        $this->info("Version bumped successfully from {$currentVersion} to {$newVersion} (in config/app.php)");
         
         return Command::SUCCESS;
     }

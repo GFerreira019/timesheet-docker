@@ -65,7 +65,7 @@ class SsoController extends Controller
 
             // Dados que devem ser atualizados em TODO login
             $user->email = $dadosUsuario['email'] ?? $user->email;
-            $user->solides_id = $dadosUsuario['solides_id'] ?? $user->solides_id;
+            $user->solides_id = $dadosUsuario['tangerino_employee_id'] ?? $user->solides_id;
             
             if (isset($dadosUsuario['is_superuser'])) {
                 $user->is_superuser = filter_var($dadosUsuario['is_superuser'], FILTER_VALIDATE_BOOLEAN);
@@ -145,6 +145,7 @@ class SsoController extends Controller
         $user = User::firstOrNew(['email' => $u['email']]);
         $user->name = $u['nome'];
         $user->connect_user_id = $u['id_usuario'];
+        $user->solides_id = $u['tangerino_employee_id'] ?? $user->solides_id;
         $user->save();
 
         // Sincroniza a Role (Spatie Permission) com mapeamento seguro
