@@ -156,7 +156,7 @@
                         <div class="mb-2">
                             <p class="text-xs text-slate-500 font-semibold mb-1">Coordenadores</p>
                             <div class="text-sm text-slate-200">
-                                @forelse($obra->coordenadoresProjeto as $coordenador)
+                                @forelse(($obra->projetoOperacional->gestores ?? []) as $coordenador)
                                     <span class="block">{{ $coordenador->nome_completo }}</span>
                                 @empty
                                     -

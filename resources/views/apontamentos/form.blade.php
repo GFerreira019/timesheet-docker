@@ -463,14 +463,14 @@
 
             <div id="inputs-obra-wrapper" class="bg-slate-800/50 p-4 rounded-xl border border-slate-700 mb-4">
                 <p class="text-xs text-yellow-500 font-bold mb-3 uppercase">Código do Cliente apenas para setores sem adendo</p>
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6">
                     <div>
                         <label class="form-label text-emerald-300">Código da Obra (com adendo)</label>
-                        <select id="id_projeto" name="projeto_id" class="form-input select2-enable">
+                        <select id="id_projeto" name="codigo_projeto" class="form-input select2-enable">
                             <option value="">Selecione...</option>
                             @foreach($projetos as $p)
-                            <option value="{{ $p->id }}" {{ old('projeto_id', $initial_values['projeto_id'] ?? '') == $p->id ? 'selected' : '' }}>
-                                {{ $p->codigo }} — {{ $p->nome }}
+                            <option value="{{ $p->codigo }}" {{ old('codigo_projeto', $initial_values['codigo_projeto'] ?? '') == $p->codigo ? 'selected' : '' }}>
+                                {{ $p->codigo }} - {{ $p->nome }}
                             </option>
                             @endforeach
                         </select>
@@ -489,8 +489,24 @@
                         <p class="text-[10px] text-gray-500 mt-1">Ex: 1894 - Vintage...</p>
                     </div>
 
+                    {{-- NOVO CAMPO: Unidade --}}
+                    <div>
+                        <label class="form-label text-purple-300">Unidade</label>
+                        <select id="id_unidade" name="unidade" class="form-input select2-enable">
+                            <option value="">Selecione...</option>
+                            {{-- Mantém selecionado em modo edição/erro de validação --}}
+                            @if(old('unidade', $initial_values['unidade'] ?? ''))
+                                <option value="{{ old('unidade', $initial_values['unidade'] ?? '') }}" selected>
+                                    {{ old('unidade', $initial_values['unidade'] ?? '') }}
+                                </option>
+                            @endif
+                        </select>
+                        {{-- Hidden input para submeter o valor caso o select seja desabilitado via JS --}}
+                        <input type="hidden" id="hidden_unidade">
+                    </div>
+
                     {{-- Botão de Rateio Restaurado --}}
-                    <div id="container-rateio" class="hidden mt-1 pt-4 border-t border-slate-700 sm:col-span-2">
+                    <div id="container-rateio" class="hidden mt-1 pt-4 border-t border-slate-700 col-span-full">
                         <div class="hidden"><input type="checkbox" name="registrar_multiplas_obras" id="id_registrar_multiplas_obras" value="1"></div> 
                         <input type="hidden" name="obras_extras_list" id="id_obras_extras_list" value="{{ old('obras_extras_list', '') }}">
                         <div id="obras-extras-wrapper" class="space-y-3 mb-1"></div>
@@ -944,44 +960,64 @@ $('#id_codigo_cliente').on('change', function() {
 // ========================================================================
 // RATEIO LÓGICA
 // ========================================================================
-function updateHybridHidden() {
-    if (!wrapperObras) return;
-    const rows = wrapperObras.querySelectorAll('div.flex-row');
-    const vals = Array.from(rows).map(row => {
-        const type = row.querySelector('select:first-child').value;
-        const id = $(row.querySelector('.input-rateio-target')).val();
-        return id ? `${type}_${id}` : null;
-    }).filter(v => v);
-    
-    if (hiddenObras) hiddenObras.value = vals.join(',');
-    if (hiddenCheckRateio) hiddenCheckRateio.checked = vals.length > 0;
-}
+let rateioIndex = 0;
 
-function restoreRateioRow(type, id) {
+function createRateioRow(typeValue = 'P', codigoValue = '', unidadeValue = '') {
     if (!wrapperObras) return;
+    const total = wrapperObras.children.length;
+    if (total >= 9) return alert("Limite de 10 atingido.");
 
+    const i = rateioIndex++;
+
+    // Card Principal agora é um Grid de 12 colunas
     const div = document.createElement('div');
-    div.className = "flex flex-row items-center gap-2 bg-slate-800/50 p-2 rounded border border-slate-700 mb-2 w-full animate-fadeIn";
+    div.className = "rateio-item grid grid-cols-12 gap-3 sm:gap-6 bg-slate-800/50 p-4 rounded-xl border border-slate-700 mb-3 animate-fadeIn w-full items-center";
 
+    // 1. Tipo (Mobile: 10 cols, Desktop: 3 cols) - Ordem 1 sempre
+    const colTipo = document.createElement('div');
+    colTipo.className = "col-span-10 sm:col-span-3 order-1";
     const typeSel = document.createElement('select');
-    typeSel.className = "bg-slate-700 border border-slate-600 text-white text-sm rounded focus:ring-indigo-500 focus:border-indigo-500 block w-24 h-[42px] p-1 flex-shrink-0 cursor-pointer";
+    typeSel.name = `rateio[${i}][tipo]`;
+    typeSel.className = "bg-slate-700 border border-slate-600 text-white text-sm rounded focus:ring-indigo-500 focus:border-indigo-500 block w-full h-[42px] p-1 cursor-pointer";
     typeSel.innerHTML = '<option value="P">OBRA</option><option value="C">CLIENTE</option>';
-    typeSel.value = type;
+    typeSel.value = typeValue;
+    colTipo.appendChild(typeSel);
 
-    const selectCont = document.createElement('div');
-    selectCont.className = "flex-1 min-w-0";
-    const newSel = document.createElement('select');
-    newSel.className = "form-control w-full input-rateio-target";
-    selectCont.appendChild(newSel);
-
+    // 2. Botão X (Mobile: 2 cols [Fica ao lado do Tipo], Desktop: 1 col [Vai pro final])
+    const colBtn = document.createElement('div');
+    colBtn.className = "col-span-2 sm:col-span-1 flex justify-end sm:justify-center order-2 sm:order-4";
     const btnRem = document.createElement('button');
-    btnRem.type = "button"; 
+    btnRem.type = "button";
     btnRem.innerHTML = "&times;";
-    btnRem.className = "text-red-500 hover:text-red-400 transition-colors h-[42px] w-10 flex items-center justify-center text-2xl flex-shrink-0";
+    btnRem.className = "text-red-500 hover:text-red-400 transition-colors text-4xl sm:text-3xl font-bold leading-none px-2 h-[42px] flex items-center justify-center";
+    colBtn.appendChild(btnRem);
 
-    div.append(typeSel, selectCont, btnRem);
+    // 3. Entidade (Mobile: 12 cols, Desktop: 4 cols) - Pula pra linha de baixo no mobile
+    const colEntidade = document.createElement('div');
+    colEntidade.className = "col-span-12 sm:col-span-4 order-3 sm:order-2";
+    const newSel = document.createElement('select');
+    newSel.name = `rateio[${i}][codigo]`;
+    newSel.className = "form-control w-full input-rateio-target";
+    colEntidade.appendChild(newSel);
+
+    // 4. Unidade (Mobile: 12 cols, Desktop: 4 cols) - Última linha no mobile
+    const colUnidade = document.createElement('div');
+    colUnidade.className = "col-span-12 sm:col-span-4 order-4 sm:order-3";
+    const uniSel = document.createElement('select');
+    uniSel.name = `rateio[${i}][unidade]`;
+    uniSel.className = "form-control w-full input-rateio-unidade";
+    uniSel.innerHTML = '<option value="">Selecione a Unidade...</option>';
+    
+    const hiddenUni = document.createElement('input');
+    hiddenUni.type = 'hidden';
+    
+    colUnidade.append(uniSel, hiddenUni);
+
+    // Adiciona todos os elementos ao grid (a ordem do append não importa graças às classes order-*)
+    div.append(colTipo, colBtn, colEntidade, colUnidade);
     wrapperObras.appendChild(div);
 
+    // Função de carregar opções (Obra ou Cliente)
     const loadOptions = () => {
         const isProj = typeSel.value === 'P';
         const original = isProj ? document.getElementById('id_projeto') : document.getElementById('id_codigo_cliente');
@@ -991,76 +1027,105 @@ function restoreRateioRow(type, id) {
             data: $(original).find('option').map(function() { return {id: $(this).val(), text: $(this).text()}; }).get(),
             placeholder: isProj ? "Selecione a Obra..." : "Selecione o Cliente...",
             width: '100%' 
-        }).on('change', updateHybridHidden);
+        });
+
+        $(uniSel).empty().append('<option value="">Selecione a Unidade...</option>').val(null).trigger('change');
     };
+
+    // Função de carregar Unidades via AJAX
+    const fetchRowUnidades = () => {
+        const selectedCode = $(newSel).val();
+        if (!selectedCode) {
+            $(uniSel).empty().append('<option value="">Selecione a Unidade...</option>').trigger('change');
+            return;
+        }
+
+        const isProj = typeSel.value === 'P';
+        const dataPayload = isProj ? { codigo_projeto: selectedCode } : { cliente_id: selectedCode };
+
+        // Reset Unidade
+        $(uniSel).prop('disabled', false).attr('name', `rateio[${i}][unidade]`);
+        hiddenUni.removeAttribute('name');
+        hiddenUni.value = '';
+        $(uniSel).empty();
+
+        $.ajax({
+            url: "{{ route('apontamentos.unidades') }}",
+            type: 'GET',
+            data: dataPayload,
+            success: function(unidades) {
+                if (unidades && unidades.length > 0) {
+                    if (unidades.length === 1) {
+                        $(uniSel).append(new Option(unidades[0], unidades[0], true, true));
+                        
+                        $(uniSel).prop('disabled', true).removeAttr('name');
+                        hiddenUni.name = `rateio[${i}][unidade]`;
+                        hiddenUni.value = unidades[0];
+                        
+                        $(uniSel).trigger('change');
+                    } else {
+                        $(uniSel).append('<option value="">Selecione a Unidade...</option>');
+                        unidades.forEach(u => $(uniSel).append(new Option(u, u, false, false)));
+                        
+                        if (unidadeValue && unidades.includes(unidadeValue)) {
+                            $(uniSel).val(unidadeValue);
+                            unidadeValue = ''; // Limpa após setar no restore
+                        }
+                        $(uniSel).trigger('change');
+                    }
+                } else {
+                    $(uniSel).append('<option value="">Selecione a Unidade...</option>').trigger('change');
+                }
+            },
+            error: function(err) {
+                console.error('Erro ao buscar unidades do rateio', err);
+                $(uniSel).append('<option value="">Selecione a Unidade...</option>').trigger('change');
+            }
+        });
+    };
+
+    // Init Select2 for Unidade
+    $(uniSel).select2({
+        theme: 'default',
+        width: '100%'
+    });
 
     $(typeSel).on('change', function() {
         loadOptions();
         $(newSel).val(null).trigger('change');
     });
-    loadOptions();
-    $(newSel).val(id).trigger('change');
 
-    btnRem.onclick = () => { $(newSel).select2('destroy'); div.remove(); updateHybridHidden(); };
+    $(newSel).on('change', fetchRowUnidades);
+
+    // Carrega initial
+    loadOptions();
+    if (codigoValue) {
+        $(newSel).val(codigoValue).trigger('change');
+    }
+
+    btnRem.onclick = () => { 
+        $(newSel).select2('destroy'); 
+        $(uniSel).select2('destroy');
+        div.remove(); 
+    };
+    
+    if (hiddenCheckRateio) hiddenCheckRateio.checked = true;
 }
 
+// Mantendo a retrocompatibilidade com validações antigas que usam obras_extras_list
 if (hiddenObras && hiddenObras.value) {
     const items = hiddenObras.value.split(',');
     items.forEach(item => {
         if(item.includes('_')) {
             const [type, id] = item.split('_');
-            if(type && id) restoreRateioRow(type, id);
+            if(type && id) createRateioRow(type, id, '');
         }
     });
     if(hiddenCheckRateio) hiddenCheckRateio.checked = true;
 }
 
 if (btnAddObra) {
-    btnAddObra.addEventListener('click', function() {
-        if (!wrapperObras) return;
-        const total = wrapperObras.children.length;
-        if (total >= 9) return alert("Limite de 10 atingido.");
-
-        const div = document.createElement('div');
-        div.className = "flex flex-row items-center gap-2 bg-slate-800/50 p-2 rounded border border-slate-700 mb-2 w-full animate-fadeIn";
-
-        const typeSel = document.createElement('select');
-        typeSel.className = "bg-slate-700 border border-slate-600 text-white text-sm rounded focus:ring-indigo-500 focus:border-indigo-500 block w-24 h-[42px] p-1 flex-shrink-0 cursor-pointer";
-        typeSel.innerHTML = '<option value="P">OBRA</option><option value="C">CLIENTE</option>';
-
-        const selectCont = document.createElement('div');
-        selectCont.className = "flex-1 min-w-0";
-        const newSel = document.createElement('select');
-        newSel.className = "form-control w-full input-rateio-target";
-        selectCont.appendChild(newSel);
-
-        const btnRem = document.createElement('button');
-        btnRem.type = "button"; 
-        btnRem.innerHTML = "&times;";
-        btnRem.className = "text-red-500 hover:text-red-400 transition-colors h-[42px] w-10 flex items-center justify-center text-2xl flex-shrink-0";
-
-        div.append(typeSel, selectCont, btnRem);
-        wrapperObras.appendChild(div);
-
-        const loadOptions = () => {
-            const isProj = typeSel.value === 'P';
-            const original = isProj ? document.getElementById('id_projeto') : document.getElementById('id_codigo_cliente');
-            
-            $(newSel).empty().select2({
-                theme: 'default',
-                data: $(original).find('option').map(function() { return {id: $(this).val(), text: $(this).text()}; }).get(),
-                placeholder: isProj ? "Selecione a Obra..." : "Selecione o Cliente...",
-                width: '100%' 
-            }).on('change', updateHybridHidden);
-        };
-
-        $(typeSel).on('change', loadOptions);
-        loadOptions();
-
-        btnRem.onclick = () => { $(newSel).select2('destroy'); div.remove(); updateHybridHidden(); };
-        
-        if (hiddenCheckRateio) hiddenCheckRateio.checked = true;
-    });
+    btnAddObra.addEventListener('click', () => createRateioRow());
 }
 
 // ========================================================================
@@ -1235,7 +1300,10 @@ if (btnMain) {
                 const resp = await fetch(CONFIG.timerStartUrl, { 
                     method: 'POST', 
                     body: payload,
-                    headers: { 'Accept': 'application/json' }
+                    headers: { 
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': CONFIG.csrfToken
+                    }
                 });
                 const data = await resp.json();
                 
@@ -1968,6 +2036,90 @@ document.addEventListener('DOMContentLoaded', function() {
     verificarPlantaoAjax();
 
     aplicarRegraVeiculoObrigatorio();
+
+    // ==========================================
+    // LÓGICA DE UNIDADES (AJAX)
+    // ==========================================
+    const unidadeSelect = $('#id_unidade');
+    const projetoSelect = $('#id_projeto');
+    const clienteSelect = $('#id_codigo_cliente');
+
+    function fetchUnidades() {
+        const codigoProjeto = projetoSelect.val();
+        const clienteId = clienteSelect.val();
+        const hiddenUnidade = $('#hidden_unidade');
+
+        // Reset default state
+        unidadeSelect.prop('disabled', false);
+        unidadeSelect.attr('name', 'unidade');
+        hiddenUnidade.removeAttr('name');
+        hiddenUnidade.val('');
+
+        // Limpa o select de unidade
+        unidadeSelect.empty();
+
+        // Se ambos estiverem vazios, não faz a requisição
+        if (!codigoProjeto && !clienteId) {
+            unidadeSelect.append('<option value="">Selecione...</option>').trigger('change');
+            return;
+        }
+
+        // Requisição AJAX para buscar unidades
+        $.ajax({
+            url: "{{ route('apontamentos.unidades') }}",
+            type: 'GET',
+            data: {
+                codigo_projeto: codigoProjeto,
+                cliente_id: clienteId
+            },
+            success: function(unidades) {
+                if (unidades && unidades.length > 0) {
+                    if (unidades.length === 1) {
+                        // Exatamente 1 unidade: Monta, seleciona e bloqueia
+                        unidadeSelect.append(new Option(unidades[0], unidades[0], true, true));
+                        
+                        // Atualiza estado: desabilita o select e transfere o 'name' para o hidden
+                        unidadeSelect.prop('disabled', true);
+                        unidadeSelect.removeAttr('name');
+                        
+                        hiddenUnidade.attr('name', 'unidade');
+                        hiddenUnidade.val(unidades[0]);
+                        
+                        unidadeSelect.trigger('change');
+                    } else {
+                        // Mais de 1 unidade: Adiciona placeholder e monta opções, deixa habilitado
+                        unidadeSelect.append('<option value="">Selecione...</option>');
+                        unidades.forEach(function(unidade) {
+                            unidadeSelect.append(new Option(unidade, unidade, false, false));
+                        });
+
+                        // Se houver valor antigo preenchido no input de unidade e a unidade existir no array
+                        let valorAntigo = "{{ old('unidade', $initial_values['unidade'] ?? '') }}";
+                        if (valorAntigo && unidades.includes(valorAntigo)) {
+                            unidadeSelect.val(valorAntigo);
+                        }
+                        
+                        unidadeSelect.trigger('change');
+                    }
+                } else {
+                    unidadeSelect.append('<option value="">Selecione...</option>').trigger('change');
+                }
+            },
+            error: function(err) {
+                console.error('Erro ao buscar unidades', err);
+                unidadeSelect.append('<option value="">Selecione...</option>').trigger('change');
+            }
+        });
+    }
+
+    // Escuta as mudanças de Obra ou Cliente
+    projetoSelect.on('change', fetchUnidades);
+    clienteSelect.on('change', fetchUnidades);
+
+    // Chama fetch na inicialização para preencher as unidades (se Obra ou Cliente já estiver preenchido)
+    if (projetoSelect.val() || clienteSelect.val()) {
+        fetchUnidades();
+    }
 });
 </script>
 <script src="{{ asset('js/offline-sync.js') }}"></script>

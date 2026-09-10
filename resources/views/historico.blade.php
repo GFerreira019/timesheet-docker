@@ -196,6 +196,9 @@
                         {{-- Obra --}}
                         <td class="py-3 px-4 text-sm text-slate-300">
                             {{ $item['local_ref'] }}
+                            @if(!empty($item['unidade_ref']) && $item['unidade_ref'] != 'N/A')
+                                | {{ $item['unidade_ref'] }}
+                            @endif
                         </td>
 
                         {{-- Colaborador --}}
@@ -500,7 +503,12 @@
                 {{-- Obra / Justificativa --}}
                 <div class="text-slate-200 text-sm font-medium flex items-start break-words min-w-0">
                     <i class="fas fa-map-marker-alt text-slate-500 mr-2 mt-1 w-4 text-center shrink-0"></i>
-                    <span class="break-words w-full">{{ $item['local_ref'] }}</span>
+                    <span class="break-words w-full">
+                        {{ $item['local_ref'] }}
+                        @if(!empty($item['unidade_ref']) && $item['unidade_ref'] != 'N/A')
+                            | {{ $item['unidade_ref'] }}
+                        @endif
+                    </span>
                 </div>
 
                 {{-- Horários --}}

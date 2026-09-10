@@ -20,12 +20,21 @@ async function handleFormSubmit(event) {
     event.preventDefault(); // Previne o reload padrão da página
     
     const form = event.target;
+
+    // 1. Bloqueio de Duplo Clique (Double Submit Prevention)
+    const submitBtn = form.querySelector('button[type="submit"]');
+    let originalBtnText = '';
+    if (submitBtn) {
+        originalBtnText = submitBtn.innerHTML;
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = 'Salvando...';
+    }
+
     const url = form.getAttribute("action") || window.location.href;
     const method = (form.querySelector('input[name="_method"]')?.value || form.getAttribute("method") || "POST").toUpperCase();
     
-    // Coleta os dados convertendo FormData para Objeto JSON
     const formData = new FormData(form);
-    const dados = parseFormData(formData);
+    const dadosUrlEncoded = new URLSearchParams(formData).toString();
     
     // Mostra o loader
     const pageLoader = document.getElementById("page-loader");
@@ -34,9 +43,17 @@ async function handleFormSubmit(event) {
         pageLoader.style.opacity = '1';
     }
 
+    // Função auxiliar para reabilitar o botão em caso de erro
+    const reabilitarBotao = () => {
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalBtnText;
+        }
+    };
+
     // 1. Tratamento Offline Explícito
     if (!navigator.onLine) {
-        salvarOffline(dados, url, method);
+        salvarOffline(dadosUrlEncoded, url, method);
         mostrarAlerta("Sem internet. Apontamento salvo no dispositivo e será sincronizado depois.", "warning");
         finalizarFluxoUI(form, true);
         return;
@@ -45,14 +62,15 @@ async function handleFormSubmit(event) {
     // 2. Tentativa Online com prevenção de Lie-Fi (Conexão instável)
     try {
         const response = await fetch(url, {
-            method: method === 'PUT' || method === 'PATCH' ? 'POST' : method, // Fetch lida com PUT/PATCH enviando _method no body via Laravel, mas para JSON puro no fetch, podemos enviar method diretamente, porém o Laravel aceita method override via header X-HTTP-Method-Override
+            method: method === 'PUT' || method === 'PATCH' ? 'POST' : method,
             headers: {
-                "Content-Type": "application/json",
-                "X-Requested-With": "XMLHttpRequest", // Força Laravel a responder com JSON
+                "Content-Type": "application/x-www-form-urlencoded",
+                "Accept": "application/json",
+                "X-Requested-With": "XMLHttpRequest",
                 "X-CSRF-TOKEN": document.querySelector('meta[name="csrf-token"]').getAttribute("content"),
                 ...(method === 'PUT' || method === 'PATCH' ? { "X-HTTP-Method-Override": method } : {})
             },
-            body: JSON.stringify(dados)
+            body: dadosUrlEncoded
         });
 
         if (response.ok || response.status === 201) {
@@ -69,6 +87,8 @@ async function handleFormSubmit(event) {
             console.error("Erros de validação:", erros);
             exibirErrosValidacao(erros);
             
+            reabilitarBotao(); // Reabilita para o usuário arrumar e tentar novamente
+            
             if(pageLoader) {
                 pageLoader.classList.add('hidden');
             }
@@ -80,34 +100,17 @@ async function handleFormSubmit(event) {
     } catch (error) {
         // Caiu aqui = falha na rede (net::ERR_INTERNET_DISCONNECTED) ou timeout forçado
         console.warn("Falha de comunicação, jogando para a fila offline. Erro:", error);
-        salvarOffline(dados, url, method);
+        console.error("Motivo do Catch:", error.message);
+        
+        reabilitarBotao(); // Reabilita em caso de erro da própria rede ou timeout
+        
+        salvarOffline(dadosUrlEncoded, url, method);
         mostrarAlerta("Conexão instável. Apontamento salvo no dispositivo e será sincronizado depois.", "warning");
         finalizarFluxoUI(form, true);
     }
 }
 
-// Converte FormData para JSON (trata inputs do tipo array)
-function parseFormData(formData) {
-    const dados = {};
-    for (const [key, value] of formData.entries()) {
-        // LocalStorage não suporta bem arquivos (Blob). Ignoramos se houver file vazio.
-        if (value instanceof File && value.name === '') continue; 
 
-        // Se a chave terminar em [], é um array (ex: name="projetos[]")
-        const isArrayKey = key.endsWith('[]');
-        const cleanKey = isArrayKey ? key.slice(0, -2) : key;
-
-        if (isArrayKey || dados[cleanKey]) {
-            if (!Array.isArray(dados[cleanKey])) {
-                dados[cleanKey] = dados[cleanKey] ? [dados[cleanKey]] : [];
-            }
-            dados[cleanKey].push(value);
-        } else {
-            dados[cleanKey] = value;
-        }
-    }
-    return dados;
-}
 
 // A Fila no LocalStorage
 function salvarOffline(dados, url, method) {
@@ -137,22 +140,36 @@ async function sincronizarFila() {
     
     for (const item of fila) {
         try {
-            // Injeta flags para o Laravel saber que é um sync retroativo
-            const payload = {
-                ...item.dados,
-                _is_offline_sync: true,
-                _timestamp_original: item.timestamp_original
-            };
+            // Como item.dados agora é uma string urlencoded, injetamos as flags reconstruindo os parâmetros
+            let urlParams;
+            if (typeof item.dados === 'string') {
+                urlParams = new URLSearchParams(item.dados);
+            } else {
+                // Fallback de transição: caso o LocalStorage ainda tenha itens antigos como Objeto
+                urlParams = new URLSearchParams();
+                for (const key in item.dados) {
+                    if (Array.isArray(item.dados[key])) {
+                        item.dados[key].forEach(val => urlParams.append(key + '[]', val));
+                    } else {
+                        urlParams.append(key, item.dados[key]);
+                    }
+                }
+            }
             
+            urlParams.append('_is_offline_sync', 'true');
+            urlParams.append('_timestamp_original', item.timestamp_original);
+            
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+
             const response = await fetch(item.url, {
                 method: item.method === 'PUT' || item.method === 'PATCH' ? 'POST' : item.method,
                 headers: {
-                    "Content-Type": "application/json",
+                    "Content-Type": "application/x-www-form-urlencoded",
                     "X-Requested-With": "XMLHttpRequest",
-                    "X-CSRF-TOKEN": document.querySelector('meta[name="csrf-token"]').getAttribute("content"),
+                    "X-CSRF-TOKEN": csrfToken,
                     ...(item.method === 'PUT' || item.method === 'PATCH' ? { "X-HTTP-Method-Override": item.method } : {})
                 },
-                body: JSON.stringify(payload)
+                body: urlParams.toString()
             });
 
             // Se salvou com sucesso OU se o Laravel recusou de vez (Ex: 422 validação impossível de passar)

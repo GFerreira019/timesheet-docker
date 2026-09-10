@@ -299,11 +299,13 @@
                                 @php
                                 $nomeObra = null;
                                 $codigoObra = null;
+                                $unidadeObra = null;
 
                                 // Tenta pegar do projeto primeiro
                                 if ($ap->projeto) {
                                     $nomeObra = $ap->projeto->nome;
                                     $codigoObra = $ap->projeto->codigo;
+                                    $unidadeObra = $ap->projeto->unidade;
                                 } 
                                 // Se não tiver, pega do cliente
                                 elseif ($ap->codigoCliente) {
@@ -317,11 +319,14 @@
                                 }
                                 @endphp
 
-                                {{ $nomeObra ?? '' }}
+                                {{ $codigoObra ?? '' }}
                                 @if($nomeObra && $codigoObra)
                                     -
                                 @endif
-                                {{ $codigoObra ?? '' }}
+                                {{ $nomeObra ?? '' }}
+                                @if($unidadeObra !== 'N/A')
+                                     | {{ $unidadeObra }}
+                                @endif
                             </span>
                         </div>
 

@@ -335,8 +335,7 @@
                     {{-- Colunas Dinâmicas via request('view') --}}
                     @if($viewMode === 'gestores')
                         <th class="py-3 px-4 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">Comercial</th>
-                        <th class="py-3 px-4 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">Implantação</th>
-                        <th class="py-3 px-4 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">Manutenção</th>
+                        <th class="py-3 px-4 text-left text-xs font-bold text-slate-400 uppercase tracking-wider" colspan="2">Gestores e Responsáveis do Projeto</th>
                     
                     @elseif($viewMode === 'financeiro')
                         <th class="py-3 px-4 text-right text-xs font-bold text-slate-400 uppercase tracking-wider">Venda</th>
@@ -400,13 +399,18 @@
                         <td class="py-3 px-4 text-sm text-slate-300">
                             <div class="text-slate-300 font-semibold" title="Responsável Comercial: {{ $obra->liderComercial->nome_completo ?? '-' }}">{{ $obra->liderComercial->nome_completo ?? '-' }}</div>
                         </td>
-                        <td class="py-3 px-4 text-sm text-slate-300">
-                            <div class="text-slate-300 font-semibold truncate max-w-[180px]" title="Gerente: {{ $obra->gerenteImplantacao->nome_completo ?? '-' }}">{{ $obra->gerenteImplantacao->nome_completo ?? '-' }}</div>
-                            <div class="text-xs text-slate-400 font-semibold truncate max-w-[180px]" title="Coordenadores: {{ $obra->coordenadoresProjeto->pluck('nome_completo')->join(', ') ?: '-' }}">{{ $obra->coordenadoresProjeto->pluck('nome_completo')->join(', ') ?: '-' }}</div>
-                        </td>
-                        <td class="py-3 px-4 text-sm text-slate-300">
-                            <div class="text-slate-300 font-semibold truncate max-w-[180px]" title="Gerente: {{ $obra->gerenteManutencao->nome_completo ?? '-' }}">{{ $obra->gerenteManutencao->nome_completo ?? '-' }}</div>
-                            <div class="text-xs text-slate-400 font-semibold truncate max-w-[180px]" title="Coordenadores: {{ $obra->coordenadoresProjeto->pluck('nome_completo')->join(', ') ?: '-' }}">{{ $obra->coordenadoresProjeto->pluck('nome_completo')->join(', ') ?: '-' }}</div>
+                        <td class="py-3 px-4 text-sm text-slate-300" colspan="2">
+                            @php
+                                $gestores = collect();
+                                // Agora garantimos que o projetoOperacional em memória é estritamente o daquela unidade
+                                if ($obra->projetoOperacional) {
+                                    $gestores = $obra->projetoOperacional->gestores;
+                                }
+                                $nomesGestores = $gestores->pluck('nome_completo')->join(', ') ?: 'Nenhum gestor atribuído';
+                            @endphp
+                            <div class="text-slate-300 font-semibold whitespace-normal break-words max-w-md" title="{{ $nomesGestores }}">
+                                {{ $nomesGestores }}
+                            </div>
                         </td>
 
                     @elseif($viewMode === 'financeiro')
@@ -924,22 +928,12 @@
                 }
             });
 
-            // Garante atribuição precisa dos gestores (mesmo com serialização de objetos ou appends)
+            // Garante atribuição precisa do líder comercial
             const valLider = dados.lider_comercial_id ?? (dados.lider_comercial?.id ?? dados.lider_comercial);
-            const valGerImp = dados.gerente_implantacao_id ?? (dados.gerente_implantacao?.id ?? dados.gerente_implantacao);
-            const valGerMan = dados.gerente_manutencao_id ?? (dados.gerente_manutencao?.id ?? dados.gerente_manutencao);
             
             if (valLider !== undefined && valLider !== null) {
                 const selLider = form.querySelector('[name="lider_comercial"]');
                 if (selLider) selLider.value = valLider;
-            }
-            if (valGerImp !== undefined && valGerImp !== null) {
-                const selGerImp = form.querySelector('[name="gerente_implantacao"]');
-                if (selGerImp) selGerImp.value = valGerImp;
-            }
-            if (valGerMan !== undefined && valGerMan !== null) {
-                const selGerMan = form.querySelector('[name="gerente_manutencao"]');
-                if (selGerMan) selGerMan.value = valGerMan;
             }
 
             // Dispara mudança no select de setor para ajustar visibilidade da Etapa
@@ -949,8 +943,8 @@
             }
 
             // Popula os selects múltiplos de coordenadores
-            const idsCoordenadores = (dados.coordenadores_projeto && Array.isArray(dados.coordenadores_projeto))
-                ? dados.coordenadores_projeto.map(c => c.id.toString())
+            const idsCoordenadores = (dados.gestores_ids && Array.isArray(dados.gestores_ids))
+                ? dados.gestores_ids.map(id => id.toString())
                 : [];
             
             const setSelectMultiple = (containerId, values) => {
