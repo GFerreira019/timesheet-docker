@@ -3,14 +3,32 @@
 /public/build/
 /bootstrap/cache/*
 !/bootstrap/cache/.gitignore
+
+# Credenciais e Arquivos Sensíveis
 /.env
-/.env.prod
-/.env.deploy
-/.env.github
-/.env.backup
-/.env.example
 /.env.*
 /.git/
+*.key
+/storage/*.key
+google-service-account.json
+*service-account*.json
+*credentials*.json
+/storage/app/private/*.json
+/storage/app/firebase-auth.json
+/auth.json
+/zap-server/tokens/
+
+# Bancos e Backups
+*.sqlite
+*.sqlite-journal
+/timesheet.db
+/database/timesheet.db
+/storage/**/*.zip
+/storage/**/*.sql
+/storage/**/*.dump
+/storage/app/backup-temp/
+
+# Storage e Logs
 /storage/app/public/*
 !/storage/app/public/.gitignore
 /storage/framework/cache/data/*
@@ -21,8 +39,9 @@
 !/storage/framework/views/.gitignore
 /storage/logs/*
 !/storage/logs/.gitignore
-/storage/app/firebase-auth.json
 *.log
+
+# Auxiliares
 docker-compose.yml
 /md-files-docker/
 build-and-push.ps1
