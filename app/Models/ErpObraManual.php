@@ -28,7 +28,7 @@ class ErpObraManual extends Model
         // Novos campos
         'projeto_unidade', 'projeto_objeto', 'setor_id', 'projeto_etapa', 'projeto_status',
         'cronograma_inicio', 'cronograma_fim', 'projeto_avanco',
-        'lider_comercial', 'gerente_implantacao', 'gerente_manutencao',
+        'lider_comercial',
         'target', 'contrato_assinatura', 'termo_entrega',
         'cnpj', 'razao_social', 'endereco', 'cidade', 'pedagio',
         'valor_venda', 'valor_monitoramento', 'valor_licenca', 'valor_manutencao', 'valor_locacao',
@@ -45,23 +45,38 @@ class ErpObraManual extends Model
      */
     protected $appends = [
         'lider_comercial_id',
-        'gerente_implantacao_id',
-        'gerente_manutencao_id',
+        'gestores_ids',
     ];
+
+    public function getGestoresIdsAttribute()
+    {
+        // 1. Aproveita a Eager Loading carregada no Controller (Evita N+1 Query)
+        if ($this->relationLoaded('projetoOperacional') && $this->projetoOperacional) {
+            // Check de Integridade: garante que a Unidade bate
+            if ($this->projetoOperacional->unidade === $this->projeto_unidade) {
+                return $this->projetoOperacional->gestores->pluck('id')->toArray();
+            }
+        }
+
+        // 2. Fallback caso a obra seja consultada isoladamente
+        if (!$this->projeto_codigo || !$this->projeto_unidade) {
+            return [];
+        }
+
+        $projetoOp = \App\Models\ProjetoOperacional::where('codigo', $this->projeto_codigo)
+            ->where('unidade', $this->projeto_unidade)
+            ->first();
+
+        if ($projetoOp) {
+            return $projetoOp->gestores()->pluck('produtividade_colaborador.id')->toArray();
+        }
+
+        return [];
+    }
 
     public function getLiderComercialIdAttribute()
     {
         return $this->attributes['lider_comercial'] ?? null;
-    }
-
-    public function getGerenteImplantacaoIdAttribute()
-    {
-        return $this->attributes['gerente_implantacao'] ?? null;
-    }
-
-    public function getGerenteManutencaoIdAttribute()
-    {
-        return $this->attributes['gerente_manutencao'] ?? null;
     }
 
     /**
@@ -106,24 +121,13 @@ class ErpObraManual extends Model
         return $this->belongsTo(Colaborador::class, 'lider_comercial');
     }
 
-    public function gerenteImplantacao()
-    {
-        return $this->belongsTo(Colaborador::class, 'gerente_implantacao');
-    }
-
-
-    public function gerenteManutencao()
-    {
-        return $this->belongsTo(Colaborador::class, 'gerente_manutencao');
-    }
-
 
     /**
-     * Sincronização de gestores na tabela pivot (colaborador_projeto_gerenciado)
+     * Projeto Operacional associado (link pelo código da obra)
      */
-    public function coordenadoresProjeto()
+    public function projetoOperacional()
     {
-        return $this->belongsToMany(Colaborador::class, 'colaborador_projeto_gerenciado', 'projeto_id', 'colaborador_id');
+        return $this->belongsTo(ProjetoOperacional::class, 'projeto_codigo', 'codigo');
     }
 
     /**

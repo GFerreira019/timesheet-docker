@@ -193,11 +193,11 @@ class Colaborador extends Model
     public function projetosGerenciados(): BelongsToMany
     {
         return $this->belongsToMany(
-            Projeto::class,
+            ProjetoOperacional::class,
             'colaborador_projeto_gerenciado',
             'colaborador_id',
-            'projeto_id'
-        );
+            'projeto_operacional_id'
+        )->using(\App\Models\Pivots\ColaboradorProjetoPivot::class);
     }
 
     /**
@@ -206,11 +206,27 @@ class Colaborador extends Model
     public function clientesGerenciados(): BelongsToMany
     {
         return $this->belongsToMany(
-            CodigoCliente::class,
+            ClienteOperacional::class,
             'colaborador_cliente_gerenciado',
             'colaborador_id',
-            'codigo_cliente_id'
+            'cliente_operacional_id'
         )->withTimestamps();
+    }
+
+    /**
+     * Retorna os IDs operacionais equivalentes aos projetos fiscais gerenciados.
+     */
+    public function getProjetosOperacionaisGerenciadosIds(): array
+    {
+        return $this->projetosGerenciados()->pluck('projetos_operacionais.id')->toArray();
+    }
+
+    /**
+     * Retorna os IDs operacionais equivalentes aos clientes fiscais gerenciados.
+     */
+    public function getClientesOperacionaisGerenciadosIds(): array
+    {
+        return $this->clientesGerenciados()->pluck('clientes_operacionais.id')->toArray();
     }
 
     /**

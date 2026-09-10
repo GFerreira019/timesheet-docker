@@ -68,18 +68,6 @@ class Projeto extends Model
         return $this->hasMany(Apontamento::class, 'projeto_id');
     }
 
-    /**
-     * Gestores vinculados a este projeto.
-     */
-    public function gestores(): BelongsToMany
-    {
-        return $this->belongsToMany(
-            Colaborador::class,
-            'colaborador_projeto_gerenciado',
-            'projeto_id',
-            'colaborador_id'
-        )->withTimestamps();
-    }
 
     /**
      * Cliente vinculado a este projeto.

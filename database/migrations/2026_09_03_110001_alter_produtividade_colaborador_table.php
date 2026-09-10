@@ -12,6 +12,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('produtividade_colaborador', function (Blueprint $table) {
+            $table->dropUnique('produtividade_colaborador_id_colaborador_unique');
             $table->dropColumn(['id_colaborador', 'nivel_acesso']);
         });
     }
