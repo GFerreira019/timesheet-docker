@@ -36,10 +36,13 @@ class ApontamentoRateioTest extends TestCase
 
         $this->actingAs($user);
 
-        // Setup: Projetos do ERP inseridos manualmente
-        $projeto1 = Projeto::create(['codigo' => 'OBR001', 'nome' => 'Edifício Alpha', 'ativo' => true]);
-        $projeto2 = Projeto::create(['codigo' => 'OBR002', 'nome' => 'Residencial Beta', 'ativo' => true]);
-        $projeto3 = Projeto::create(['codigo' => 'OBR003', 'nome' => 'Condomínio Gama', 'ativo' => true]);
+        // Setup: Cliente Operacional inserido manualmente
+        $cliente = \App\Models\ClienteOperacional::create(['codigo' => 'CLI001', 'nome' => 'Cliente Teste']);
+
+        // Setup: Projetos do ERP inseridos manualmente na nova estrutura
+        $projeto1 = \App\Models\ProjetoOperacional::create(['cliente_operacional_id' => $cliente->id, 'codigo' => 'OBR001', 'unidade' => 'A', 'ativo' => true]);
+        $projeto2 = \App\Models\ProjetoOperacional::create(['cliente_operacional_id' => $cliente->id, 'codigo' => 'OBR002', 'unidade' => 'A', 'ativo' => true]);
+        $projeto3 = \App\Models\ProjetoOperacional::create(['cliente_operacional_id' => $cliente->id, 'codigo' => 'OBR003', 'unidade' => 'A', 'ativo' => true]);
         $centroCusto = \App\Models\CentroCusto::create(['codigo' => 'CC001', 'nome' => 'Administrativo', 'ativo' => true, 'permite_alocacao' => true]);
 
         $dados = [
@@ -47,10 +50,15 @@ class ApontamentoRateioTest extends TestCase
             'data_apontamento' => '2026-06-25',
             'local_execucao' => 'INTERNO',
             'projeto_id' => $projeto1->id,
+            'unidade' => 'A',
             'hora_inicio' => '08:00',
             'hora_termino' => '17:00',
             'registrar_multiplas_obras' => true,
-            'obras_extras_list' => [$projeto1->id, $projeto2->id, $projeto3->id],
+            'rateio' => [
+                ['tipo' => 'P', 'codigo' => $projeto2->codigo, 'unidade' => 'A'],
+                ['tipo' => 'P', 'codigo' => $projeto3->codigo, 'unidade' => 'A'],
+            ],
+            'obras_extras_list' => [$projeto2->id, $projeto3->id], // fallback legacy
             'centro_custo_id' => $centroCusto->id,
             'descricao' => 'Trabalho rateado nas 3 obras',
             'acao' => 'STOP',
