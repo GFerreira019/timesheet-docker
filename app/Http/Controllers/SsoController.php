@@ -73,13 +73,29 @@ class SsoController extends Controller
             
             $user->save();
 
-            // Sincroniza a Role (Spatie Permission) - Padronizando para Maiúsculas
-            if (!empty($dadosUsuario['nivel_acesso'])) {
-                $role = strtoupper(trim($dadosUsuario['nivel_acesso']));
-                $user->syncRoles([$role]);
-            } elseif ($user->roles()->count() === 0) {
-                // Fallback caso não venha nivel_acesso e o usuário não tenha nenhuma role
-                $user->assignRole('OPERACIONAL');
+            // Sincroniza a Role (Spatie Permission) com mapeamento seguro
+            $roleMap = [
+                '1' => 'ADMIN', 'administrador' => 'ADMIN',
+                '2' => 'GERENCIAL', 'gerente' => 'GERENCIAL',
+                '3' => 'SAC', 'assistente' => 'SAC',
+                '4' => 'COORDENADOR', 'coordenadores' => 'COORDENADOR',
+                '5' => 'OPERACIONAL', 'operacional' => 'OPERACIONAL',
+            ];
+
+            $valorApi = $dadosUsuario['nivel_planejamento'] ?? null;
+            $chaveBusca = $valorApi ? strtolower(trim((string) $valorApi)) : null;
+
+            if ($chaveBusca && array_key_exists($chaveBusca, $roleMap)) {
+                $roleSpatie = $roleMap[$chaveBusca];
+            } else {
+                $roleSpatie = 'OPERACIONAL';
+                \Log::warning("SSO: Nível de planejamento desconhecido ou vazio (" . ($valorApi ?: 'NULO') . ") para o usuário {$user->id}. Fallback para OPERACIONAL aplicado.");
+            }
+
+            if (\Spatie\Permission\Models\Role::where('name', $roleSpatie)->exists()) {
+                $user->syncRoles([$roleSpatie]);
+            } else {
+                \Log::error("SSO: A Role '{$roleSpatie}' não existe no banco de dados. Sincronização ignorada para o usuário {$user->id}.");
             }
 
             // Loga o usuário no Laravel
@@ -131,12 +147,29 @@ class SsoController extends Controller
         $user->connect_user_id = $u['id_usuario'];
         $user->save();
 
-        // Sincroniza a Role (Spatie Permission) - Padronizando para Maiúsculas
-        if (!empty($u['nivel_acesso'])) {
-            $role = strtoupper(trim($u['nivel_acesso']));
-            $user->syncRoles([$role]);
-        } elseif ($user->roles()->count() === 0) {
-            $user->assignRole('OPERACIONAL');
+        // Sincroniza a Role (Spatie Permission) com mapeamento seguro
+        $roleMap = [
+            '1' => 'ADMIN', 'administrador' => 'ADMIN',
+            '2' => 'GERENCIAL', 'gerente' => 'GERENCIAL',
+            '3' => 'SAC', 'assistente' => 'SAC',
+            '4' => 'COORDENADOR', 'coordenadores' => 'COORDENADOR',
+            '5' => 'OPERACIONAL', 'operacional' => 'OPERACIONAL',
+        ];
+
+        $valorApi = $u['nivel_planejamento'] ?? null;
+        $chaveBusca = $valorApi ? strtolower(trim((string) $valorApi)) : null;
+
+        if ($chaveBusca && array_key_exists($chaveBusca, $roleMap)) {
+            $roleSpatie = $roleMap[$chaveBusca];
+        } else {
+            $roleSpatie = 'OPERACIONAL';
+            \Log::warning("SSO: Nível de planejamento desconhecido ou vazio (" . ($valorApi ?: 'NULO') . ") para o usuário {$user->id}. Fallback para OPERACIONAL aplicado.");
+        }
+
+        if (\Spatie\Permission\Models\Role::where('name', $roleSpatie)->exists()) {
+            $user->syncRoles([$roleSpatie]);
+        } else {
+            \Log::error("SSO: A Role '{$roleSpatie}' não existe no banco de dados. Sincronização ignorada para o usuário {$user->id}.");
         }
 
         Auth::login($user);
