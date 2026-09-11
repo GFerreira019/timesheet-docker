@@ -41,13 +41,19 @@ class SsoController extends Controller
             }
 
             $data = $response->json();
+            \Log::info('SSO [callback] Response Data:', ['payload' => $data]);
 
-            // Verifica acesso_liberado
-            if (!isset($data['acesso_liberado']) || $data['acesso_liberado'] !== true) {
+            // Verifica acesso_liberado (na raiz ou dentro de data)
+            $acesso = $data['acesso_liberado'] ?? ($data['data']['acesso_liberado'] ?? null);
+            if ($acesso !== true) {
                 return redirect()->route('login')->withErrors(['error' => 'Acesso negado pelo ERP.']);
             }
 
             $dadosUsuario = $data['data'] ?? $data; // Handle structure variation (data wrap vs root)
+            if (isset($dadosUsuario[0]) && is_array($dadosUsuario[0])) {
+                $dadosUsuario = $dadosUsuario[0];
+            }
+            \Log::info('SSO [callback] Dados Extraídos:', ['extracted' => $dadosUsuario]);
 
             if (!isset($dadosUsuario['id_usuario'])) {
                 Log::warning('SSO: Dados do usuário incompletos retornados pelo ERP.');
@@ -131,6 +137,8 @@ class SsoController extends Controller
         }
 
         $json = $r->json();
+        \Log::info('SSO [connect] Response Data:', ['payload' => $json]);
+        
         if (! $r->successful() || ! ($json['success'] ?? false)) {
             $erroApi = $json['error'] ?? $r->status();
             Log::info('[sso-connect] recusado: ' . $erroApi);
@@ -138,7 +146,13 @@ class SsoController extends Controller
         }
 
         $u = $json['data'] ?? [];
-        if (($u['acesso_liberado'] ?? false) !== true) {
+        if (isset($u[0]) && is_array($u[0])) {
+            $u = $u[0];
+        }
+        \Log::info('SSO [connect] Dados Extraídos:', ['extracted' => $u]);
+
+        $acesso = $json['acesso_liberado'] ?? ($u['acesso_liberado'] ?? false);
+        if ($acesso !== true) {
             return redirect('/login')->withErrors(['error' => 'Seu usuário não possui a flag "acesso_liberado" ativa no ERP.']);
         }
 

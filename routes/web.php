@@ -57,6 +57,7 @@ Route::middleware('auth')->group(function () {
     // Rotas Base (Home e Configurações)
     Route::get('/painel', [DashboardController::class, 'index'])->name('painel');
     Route::view('/timesheet', 'timesheet.index')->name('timesheet.index');
+    Route::view('/treinamento', 'treinamento.index')->name('treinamento.index');
 
     // Suporte
     Route::prefix('suporte')->name('suporte.')->group(function () {

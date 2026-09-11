@@ -331,8 +331,8 @@
         <input type="hidden" name="tipo_acao" id="id_tipo_acao" value="{{ $tipo_acao_inicial ?? 'MANUAL' }}">
         <input type="hidden" name="latitude" id="id_latitude" value="{{ old('latitude', $initial_values['latitude'] ?? '') }}">
         <input type="hidden" name="longitude" id="id_longitude" value="{{ old('longitude', $initial_values['longitude'] ?? '') }}">
-        <input type="hidden" name="data_plantao" id="id_data_plantao" value="{{ old('data_plantao') }}">
-        <input type="hidden" name="data_dorme_fora" id="id_data_dorme_fora" value="{{ old('data_dorme_fora') }}">
+        <input type="hidden" name="data_plantao" id="id_data_plantao" value="{{ old('data_plantao', $initial_values['data_plantao'] ?? '') }}">
+        <input type="hidden" name="data_dorme_fora" id="id_data_dorme_fora" value="{{ old('data_dorme_fora', $initial_values['data_dorme_fora'] ?? '') }}">
 
         {{-- ================================================================ --}}
         {{-- BLOCO 1: Identificação --}}
@@ -1392,6 +1392,22 @@ if(dormeCheck) {
         }
     });
 }
+
+// Inicializa a UI caso os checkboxes já venham marcados do backend (Modo Edição)
+function hydrateCheckboxDateUI(checkEl, inputId, displayId, feedbackId) {
+    if (checkEl && checkEl.checked) {
+        const dateInput = document.getElementById(inputId);
+        if (dateInput && dateInput.value) {
+            const parts = dateInput.value.split('-');
+            if (parts.length === 3) {
+                document.getElementById(displayId).textContent = `${parts[2]}/${parts[1]}/${parts[0]}`;
+                document.getElementById(feedbackId).classList.remove('hidden');
+            }
+        }
+    }
+}
+hydrateCheckboxDateUI(plantaoCheck, 'id_data_plantao', 'data-plantao-display', 'data-plantao-feedback');
+hydrateCheckboxDateUI(dormeCheck, 'id_data_dorme_fora', 'data-dorme-fora-display', 'data-dorme-fora-feedback');
 
 // Interceptar o input de data principal nativo
 document.getElementById('id_data_apontamento').addEventListener('click', function(e) {

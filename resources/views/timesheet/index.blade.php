@@ -174,6 +174,13 @@
             {{-- Lado direito: Theme Toggle + Usuário + Logout --}}
             <div class="flex items-center gap-2 sm:gap-4">
 
+                {{-- Botão de Treinamento --}}
+                <a href="{{ route('treinamento.index') }}"
+                   class="flex items-center justify-center p-2 rounded-lg hover:bg-slate-700/50 text-slate-400 hover:text-rose-500 transition"
+                   title="Treinamento">
+                    <i class="fas fa-graduation-cap text-lg"></i>
+                </a>
+
                 {{-- Toggle de Tema (conforme seção 5.10 e 14.1) --}}
                 <div class="hidden sm:flex items-center gap-2 sm:gap-4">
                     <x-theme-toggle />
