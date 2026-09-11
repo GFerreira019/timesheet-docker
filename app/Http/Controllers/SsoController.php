@@ -60,6 +60,31 @@ class SsoController extends Controller
                 return redirect()->route('login')->withErrors(['error' => 'Dados de usuário inválidos retornados pelo ERP.']);
             }
 
+            // PASSO 2: Buscar Perfil Completo
+            $idUsuario = $dadosUsuario['id_usuario'];
+            $perfilData = [];
+            
+            if ($idUsuario) {
+                $responsePerfil = \Illuminate\Support\Facades\Http::withHeaders([
+                    'accept' => 'application/json',
+                    'X-Api-Key' => $erpKey
+                ])->get(rtrim($erpUrlBase, '/') . "/usuarios.php", [
+                    'id' => $idUsuario,
+                    'status' => 1,
+                    'limit' => 1,
+                    'offset' => 0
+                ]);
+            
+                if ($responsePerfil->successful()) {
+                    $perfilData = $responsePerfil->json('data') ?? [];
+                    if (isset($perfilData[0]) && is_array($perfilData[0])) {
+                        $perfilData = $perfilData[0]; // Previne erro se voltar lista
+                    }
+                } else {
+                    \Log::error("SSO: Falha ao buscar perfil do id_usuario {$idUsuario}", ['status' => $responsePerfil->status()]);
+                }
+            }
+
             // Just-In-Time Provisioning
             $user = User::firstOrNew(['connect_user_id' => $dadosUsuario['id_usuario']]);
 
@@ -71,10 +96,10 @@ class SsoController extends Controller
 
             // Dados que devem ser atualizados em TODO login
             $user->email = $dadosUsuario['email'] ?? $user->email;
-            $user->solides_id = $dadosUsuario['tangerino_employee_id'] ?? $user->solides_id;
+            $user->solides_id = $perfilData['tangerino_employee_id'] ?? ($dadosUsuario['tangerino_employee_id'] ?? $user->solides_id);
             
-            if (isset($dadosUsuario['is_superuser'])) {
-                $user->is_superuser = filter_var($dadosUsuario['is_superuser'], FILTER_VALIDATE_BOOLEAN);
+            if (isset($perfilData['is_superuser']) || isset($dadosUsuario['is_superuser'])) {
+                $user->is_superuser = filter_var($perfilData['is_superuser'] ?? $dadosUsuario['is_superuser'], FILTER_VALIDATE_BOOLEAN);
             }
             
             $user->save();
@@ -88,7 +113,7 @@ class SsoController extends Controller
                 '5' => 'OPERACIONAL', 'operacional' => 'OPERACIONAL',
             ];
 
-            $valorApi = $dadosUsuario['nivel_planejamento'] ?? null;
+            $valorApi = $perfilData['nivel_planejamento'] ?? ($dadosUsuario['nivel_planejamento'] ?? null);
             $chaveBusca = $valorApi ? strtolower(trim((string) $valorApi)) : null;
 
             if ($chaveBusca && array_key_exists($chaveBusca, $roleMap)) {
@@ -156,10 +181,35 @@ class SsoController extends Controller
             return redirect('/login')->withErrors(['error' => 'Seu usuário não possui a flag "acesso_liberado" ativa no ERP.']);
         }
 
+        // PASSO 2: Buscar Perfil Completo
+        $idUsuario = $u['id_usuario'] ?? null;
+        $perfilData = [];
+        
+        if ($idUsuario) {
+            $responsePerfil = \Illuminate\Support\Facades\Http::withHeaders([
+                'accept' => 'application/json',
+                'X-Api-Key' => config('services.erp.key')
+            ])->get(rtrim(config('services.erp.url'), '/') . "/usuarios.php", [
+                'id' => $idUsuario,
+                'status' => 1,
+                'limit' => 1,
+                'offset' => 0
+            ]);
+        
+            if ($responsePerfil->successful()) {
+                $perfilData = $responsePerfil->json('data') ?? [];
+                if (isset($perfilData[0]) && is_array($perfilData[0])) {
+                    $perfilData = $perfilData[0];
+                }
+            } else {
+                \Log::error("SSO: Falha ao buscar perfil do id_usuario {$idUsuario}", ['status' => $responsePerfil->status()]);
+            }
+        }
+
         $user = User::firstOrNew(['email' => $u['email']]);
         $user->name = $u['nome'];
         $user->connect_user_id = $u['id_usuario'];
-        $user->solides_id = $u['tangerino_employee_id'] ?? $user->solides_id;
+        $user->solides_id = $perfilData['tangerino_employee_id'] ?? ($u['tangerino_employee_id'] ?? $user->solides_id);
         $user->save();
 
         // Sincroniza a Role (Spatie Permission) com mapeamento seguro
@@ -171,7 +221,7 @@ class SsoController extends Controller
             '5' => 'OPERACIONAL', 'operacional' => 'OPERACIONAL',
         ];
 
-        $valorApi = $u['nivel_planejamento'] ?? null;
+        $valorApi = $perfilData['nivel_planejamento'] ?? ($u['nivel_planejamento'] ?? null);
         $chaveBusca = $valorApi ? strtolower(trim((string) $valorApi)) : null;
 
         if ($chaveBusca && array_key_exists($chaveBusca, $roleMap)) {
