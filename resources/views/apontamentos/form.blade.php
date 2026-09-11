@@ -99,7 +99,7 @@
 <div id="toast-container" class="fixed top-5 right-5 z-[100] space-y-2 w-80"></div>
 
 <x-page-header 
-    backUrl="{{ route('painel') }}" 
+    backUrl="{{ route('timesheet.index') }}" 
     icon="fas fa-clock" 
     iconColor="text-indigo-400" 
     title="{{ $titulo ?? 'Novo Apontamento' }}" 

@@ -28,8 +28,8 @@
 <x-page-header 
     title="Espelho de Ponto" 
     subtitle="Integração em tempo real com API Sólides"
-    icon="fas fa-clock"
-    iconBg="from-indigo-500 to-indigo-700"
+    icon="fas fa-file-invoice"
+    iconBg="from-purple-500 to-purple-700"
     backUrl="{{ route('painel') }}">
 </x-page-header>
 

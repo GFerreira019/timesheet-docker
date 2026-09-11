@@ -39,7 +39,7 @@
 @section('content')
 
 <x-page-header 
-    backUrl="{{ route('painel') }}" 
+    backUrl="{{ route('timesheet.index') }}" 
     icon="fas fa-file-signature" 
     iconColor="text-amber-400" 
     title="{{ $titulo }}" 

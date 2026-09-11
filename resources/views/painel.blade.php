@@ -153,7 +153,7 @@
 
             {{-- Lado esquerdo: Voltar + Identificação do módulo --}}
             <div class="flex items-center gap-2 sm:gap-4">
-                <a href="{{ app()->environment('production') ? 'https://atgbconnect.com.br/dashboard-planejamento.php' : route('home') }}"
+                <a href="{{ app()->environment('production') ? 'https://atgbconnect.com.br/home.php' : route('home') }}"
                    class="p-2 rounded-lg hover:bg-slate-700/50 text-slate-400 hover:text-white transition"
                    title="Voltar ao Início">
                     <i class="fas fa-arrow-left text-lg"></i>
@@ -165,8 +165,8 @@
                     </div>
 
                     <div>
-                        <h1 class="text-lg font-bold text-white">Timesheet</h1>
-                        <p class="text-xs theme-text-muted">Apontamentos</p>
+                        <h1 class="text-lg font-bold text-white">Planejamento</h1>
+                        <p class="text-xs theme-text-muted">Gestão de Custos e Projetos</p>
                     </div>
                 </div>
             </div>
@@ -198,32 +198,32 @@
 
         <h1 class="text-xl sm:text-3xl lg:text-4xl font-bold mb-2 sm:mb-4 text-white">
             <i class="fas fa-project-diagram text-rose-500 mr-3"></i>
-            Gestão de <span class="text-rose-500">Timesheet</span>
+            Módulo <span class="text-rose-500">Planejamento</span>
         </h1>
 
         <p class="text-sm sm:text-lg lg:text-xl text-slate-400">
-            Apontamento de horas em projetos
+            Gestão e Planejamento de Projetos
         </p>
 
     </div>
 
     {{-- ============================================================
-         CATEGORIA 1 — TIMESHEET (Visível para TODOS)
+         CATEGORIA 1 — TIMESHEET
          ============================================================ --}}
     <div class="mb-8">
         <h2 class="text-lg font-bold mb-4 flex items-center gap-2 theme-text-primary">
             <i class="fas fa-clock text-rose-500"></i>
-            Timesheet
+            Gestão de Timesheet
         </h2>
         <div class="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
-            {{-- Card: Apontamento de Timesheet --}}
-            <a href="{{ route('apontamentos.create') }}" class="module-card relative theme-bg-card rounded-xl border border-slate-700 p-4 lg:p-6 hover:border-indigo-500/50 transition group">
+            {{-- Card: Gestão de Timesheet --}}
+            <a href="{{ route('timesheet.index') }}" class="module-card relative theme-bg-card rounded-xl border border-slate-700 p-4 lg:p-6 hover:border-indigo-500/50 transition group">
                 <div class="relative z-10">
                     <div class="module-icon w-12 h-12 lg:w-14 lg:h-14 bg-indigo-500/20 rounded-xl flex items-center justify-center mb-3 lg:mb-4 transition">
                         <i class="fas fa-stopwatch text-indigo-500 text-xl lg:text-2xl"></i>
                     </div>
-                    <h3 class="text-base lg:text-lg font-bold mb-1 lg:mb-2 theme-text-primary">Apontamento de Horas</h3>
-                    <p class="text-xs lg:text-sm theme-text-secondary mb-3 lg:mb-4 line-clamp-2">Registro diário de horas trabalhadas.</p>
+                    <h3 class="text-base lg:text-lg font-bold mb-1 lg:mb-2 theme-text-primary">Timesheet</h3>
+                    <p class="text-xs lg:text-sm theme-text-secondary mb-3 lg:mb-4 line-clamp-2">Apontamentos, histórico e aprovações.</p>
                     
                     <div class="flex items-center text-indigo-500 group-hover:opacity-80 transition">
                         <span class="text-xs lg:text-sm font-medium">Acessar</span>
@@ -232,73 +232,12 @@
                 </div>
             </a>
 
-            {{-- Card: Controle de Apontamentos --}}
-            <a href="{{ route('historico.index') }}" class="module-card relative theme-bg-card rounded-xl border border-slate-700 p-4 lg:p-6 hover:border-blue-500/50 transition group">
-                <div class="relative z-10">
-                    <div class="module-icon w-12 h-12 lg:w-14 lg:h-14 bg-blue-500/20 rounded-xl flex items-center justify-center mb-3 lg:mb-4 transition">
-                        <i class="fas fa-list text-blue-500 text-xl lg:text-2xl"></i>
-                    </div>
-                    <h3 class="text-base lg:text-lg font-bold mb-1 lg:mb-2 theme-text-primary">Histórico de Apontamentos</h3>
-                    <p class="text-xs lg:text-sm theme-text-secondary mb-3 lg:mb-4 line-clamp-2">Visualise todos os apontamentos de horas.</p>
-                    
-                    <div class="flex items-center text-blue-500 group-hover:opacity-80 transition">
-                        <span class="text-xs lg:text-sm font-medium">Acessar</span>
-                        <i class="fas fa-arrow-right ml-2 transform group-hover:translate-x-1 transition-transform"></i>
-                    </div>
-                </div>
-            </a>
-
-            {{-- Card: Aprovações (apenas Coordenadores, Admins e Gerenciais) --}}
-            @hasanyrole('ADMIN|GERENCIAL|COORDENADOR')
-            <a href="{{ route('aprovacoes.dashboard') }}" class="module-card relative theme-bg-card rounded-xl border border-slate-700 p-4 lg:p-6 hover:border-yellow-500/50 transition group">
-                <div class="relative z-10">
-                    <div class="module-icon w-12 h-12 lg:w-14 lg:h-14 bg-yellow-500/20 rounded-xl flex items-center justify-center mb-3 lg:mb-4 transition">
-                        <i class="fas fa-file-signature text-yellow-500 text-xl lg:text-2xl"></i>
-                    </div>
-                    <h3 class="text-base lg:text-lg font-bold mb-1 lg:mb-2 theme-text-primary">Aprovações</h3>
-                    <p class="text-xs lg:text-sm theme-text-secondary mb-3 lg:mb-4 line-clamp-2">Análise e aprovação de apontamentos.</p>
-                    
-                    <div class="flex items-center text-yellow-500 group-hover:opacity-80 transition">
-                        <span class="text-xs lg:text-sm font-medium">Acessar</span>
-                        <i class="fas fa-arrow-right ml-2 transform group-hover:translate-x-1 transition-transform"></i>
-                    </div>
-                </div>
-            </a>
-            @endhasanyrole
-        </div>
-    </div>
-
-    {{-- ============================================================
-         CATEGORIA 2 — GESTÃO (apenas ADMIN)
-         ============================================================ --}}
-    @role('ADMIN')
-    <div class="mb-8">
-        <h2 class="text-lg font-bold mb-4 flex items-center gap-2 theme-text-primary">
-            <i class="fas fa-tasks text-rose-500"></i>
-            Gestão
-        </h2>
-        <div class="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
-            {{-- Card: Controle de Envios --}}
-            <a href="{{ route('conformidade.dashboard') }}" class="module-card relative theme-bg-card rounded-xl border border-slate-700 p-4 lg:p-6 hover:border-green-500/50 transition group">
-                <div class="relative z-10">
-                    <div class="module-icon w-12 h-12 lg:w-14 lg:h-14 bg-green-500/20 rounded-xl flex items-center justify-center mb-3 lg:mb-4 transition">
-                        <i class="fas fa-check-circle text-green-500 text-xl lg:text-2xl"></i>
-                    </div>
-                    <h3 class="text-base lg:text-lg font-bold mb-1 lg:mb-2 theme-text-primary">Controle de Envios</h3>
-                    <p class="text-xs lg:text-sm theme-text-secondary mb-3 lg:mb-4 line-clamp-2">Monitor de horas, métricas diárias e notificações de pendências.</p>
-                    
-                    <div class="flex items-center text-green-500 group-hover:opacity-80 transition">
-                        <span class="text-xs lg:text-sm font-medium">Acessar</span>
-                        <i class="fas fa-arrow-right ml-2 transform group-hover:translate-x-1 transition-transform"></i>
-                    </div>
-                </div>
-            </a>
-
-            {{-- Card: Dashboard --}}
+            @role('ADMIN')
+            {{-- Card: Dashboard Gerencial --}}
             <a href="{{ route('dashboard.gerencial') }}" class="module-card relative theme-bg-card rounded-xl border border-slate-700 p-4 lg:p-6 hover:border-blue-500/50 transition group">
                 <div class="relative z-10">
                     <div class="module-icon w-12 h-12 lg:w-14 lg:h-14 bg-blue-500/20 rounded-xl flex items-center justify-center mb-3 lg:mb-4 transition">
-                        <i class="fas fa-chart-pie text-blue-500 text-xl lg:text-2xl"></i>
+                        <i class="fas fa-chart-line text-blue-500 text-xl lg:text-2xl"></i>
                     </div>
                     <h3 class="text-base lg:text-lg font-bold mb-1 lg:mb-2 theme-text-primary">Dashboard Gerencial</h3>
                     <p class="text-xs lg:text-sm theme-text-secondary mb-3 lg:mb-4 line-clamp-2">Métricas de apontamentos por obras e KPI's.</p>
@@ -310,14 +249,14 @@
                 </div>
             </a>
 
-            {{-- Card: Logs do Sistema --}}
-            <a href="{{ route('owner.auditoria') }}" class="module-card relative theme-bg-card rounded-xl border border-slate-700 p-4 lg:p-6 hover:border-purple-500/50 transition group">
+            {{-- Card: Espelho de Ponto --}}
+            <a href="{{ route('pontos.index') }}" class="module-card relative theme-bg-card rounded-xl border border-slate-700 p-4 lg:p-6 hover:border-purple-500/50 transition group">
                 <div class="relative z-10">
                     <div class="module-icon w-12 h-12 lg:w-14 lg:h-14 bg-purple-500/20 rounded-xl flex items-center justify-center mb-3 lg:mb-4 transition">
-                        <i class="fas fa-history text-purple-500 text-xl lg:text-2xl"></i>
+                        <i class="fas fa-file-invoice text-purple-500 text-xl lg:text-2xl"></i>
                     </div>
-                    <h3 class="text-base lg:text-lg font-bold mb-1 lg:mb-2 theme-text-primary">Trilha de Auditoria</h3>
-                    <p class="text-xs lg:text-sm theme-text-secondary mb-3 lg:mb-4 line-clamp-2">Histórico de atividades e acessos do sistema.</p>
+                    <h3 class="text-base lg:text-lg font-bold mb-1 lg:mb-2 theme-text-primary">Espelho de Ponto</h3>
+                    <p class="text-xs lg:text-sm theme-text-secondary mb-3 lg:mb-4 line-clamp-2">Consulta dos espelhos de ponto importados pela integração Sólides.</p>
                     
                     <div class="flex items-center text-purple-500 group-hover:opacity-80 transition">
                         <span class="text-xs lg:text-sm font-medium">Acessar</span>
@@ -325,18 +264,18 @@
                     </div>
                 </div>
             </a>
+            @endrole
         </div>
     </div>
-    @endrole
 
     {{-- ============================================================
-         CATEGORIA 3 — CONFIGURAÇÕES (apenas ADMIN)
+         CATEGORIA 2 — APIs DE INTEGRAÇÕES (apenas ADMIN)
          ============================================================ --}}
     @role('ADMIN')
     <div class="mb-8">
         <h2 class="text-lg font-bold mb-4 flex items-center gap-2 theme-text-primary">
-            <i class="fas fa-cog text-rose-500"></i>
-            Configurações
+            <i class="fas fa-rocket text-rose-500"></i>
+            Gestão de APIs
         </h2>
         <div class="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
 
@@ -350,23 +289,6 @@
                     <p class="text-xs lg:text-sm theme-text-secondary mb-3 lg:mb-4 line-clamp-2">Status dos servidores, banco de dados e APIs.</p>
                     
                     <div class="flex items-center text-rose-500 group-hover:opacity-80 transition">
-                        <span class="text-xs lg:text-sm font-medium">Acessar</span>
-                        <i class="fas fa-arrow-right ml-2 transform group-hover:translate-x-1 transition-transform"></i>
-                    </div>
-                </div>
-            </a>
-
-
-            {{-- Card: Espelho de Ponto --}}
-            <a href="{{ route('pontos.index') }}" class="module-card relative theme-bg-card rounded-xl border border-slate-700 p-4 lg:p-6 hover:border-sky-500/50 transition group">
-                <div class="relative z-10">
-                    <div class="module-icon w-12 h-12 lg:w-14 lg:h-14 bg-sky-500/20 rounded-xl flex items-center justify-center mb-3 lg:mb-4 transition">
-                        <i class="fas fa-file-invoice text-sky-500 text-xl lg:text-2xl"></i>
-                    </div>
-                    <h3 class="text-base lg:text-lg font-bold mb-1 lg:mb-2 theme-text-primary">Espelho de Ponto</h3>
-                    <p class="text-xs lg:text-sm theme-text-secondary mb-3 lg:mb-4 line-clamp-2">Consulta dos espelhos de ponto importados pela integração Sólides.</p>
-                    
-                    <div class="flex items-center text-sky-500 group-hover:opacity-80 transition">
                         <span class="text-xs lg:text-sm font-medium">Acessar</span>
                         <i class="fas fa-arrow-right ml-2 transform group-hover:translate-x-1 transition-transform"></i>
                     </div>
@@ -388,22 +310,52 @@
                     </div>
                 </div>
             </a>
+        </div>
+    </div>
+    @endrole
 
-            {{-- Card: Logs de Notificações --}}
-            <a href="{{ route('notificacoes.logs') }}" class="module-card relative theme-bg-card rounded-xl border border-slate-700 p-4 lg:p-6 hover:border-emerald-500/50 transition group">
+    {{-- ============================================================
+         CATEGORIA 3 — GESTÃO DE PROJETOS (apenas ADMIN)
+         ============================================================ --}}
+    @role('ADMIN')
+    <div class="mb-8">
+        <h2 class="text-lg font-bold mb-4 flex items-center gap-2 theme-text-primary">
+            <i class="fas fa-building text-rose-500"></i>
+            Projetos
+        </h2>
+        <div class="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
+            {{-- Card: Obras --}}
+            <a href="{{ route('erp-obras-manual.index') }}" class="module-card relative theme-bg-card rounded-xl border border-slate-700 p-4 lg:p-6 hover:border-green-500/50 transition group">
                 <div class="relative z-10">
-                    <div class="module-icon w-12 h-12 lg:w-14 lg:h-14 bg-emerald-500/20 rounded-xl flex items-center justify-center mb-3 lg:mb-4 transition">
-                        <i class="fas fa-envelope text-emerald-500 text-xl lg:text-2xl"></i>
+                    <div class="module-icon w-12 h-12 lg:w-14 lg:h-14 bg-green-500/20 rounded-xl flex items-center justify-center mb-3 lg:mb-4 transition">
+                        <i class="fas fa-hard-hat text-green-500 text-xl lg:text-2xl"></i>
                     </div>
-                    <h3 class="text-base lg:text-lg font-bold mb-1 lg:mb-2 theme-text-primary">Controle de Notificações</h3>
-                    <p class="text-xs lg:text-sm theme-text-secondary mb-3 lg:mb-4 line-clamp-2">Controle de envio e recebimento de notificações.</p>
+                    <h3 class="text-base lg:text-lg font-bold mb-1 lg:mb-2 theme-text-primary">Gestão de Projetos</h3>
+                    <p class="text-xs lg:text-sm theme-text-secondary mb-3 lg:mb-4 line-clamp-2">Cadastro de projetos e gerenciamento de responsáveis.</p>
                     
-                    <div class="flex items-center text-emerald-500 group-hover:opacity-80 transition">
+                    <div class="flex items-center text-green-500 group-hover:opacity-80 transition">
                         <span class="text-xs lg:text-sm font-medium">Acessar</span>
                         <i class="fas fa-arrow-right ml-2 transform group-hover:translate-x-1 transition-transform"></i>
                     </div>
                 </div>
             </a>
+
+            {{-- Card: Cronogramas --}}
+            <a href="{{ route('painel') }}" class="module-card relative theme-bg-card rounded-xl border border-slate-700 p-4 lg:p-6 hover:border-sky-500/50 transition group">
+                <div class="relative z-10">
+                    <div class="module-icon w-12 h-12 lg:w-14 lg:h-14 bg-sky-500/20 rounded-xl flex items-center justify-center mb-3 lg:mb-4 transition">
+                        <i class="fas fa-calendar-alt text-sky-500 text-xl lg:text-2xl"></i>
+                    </div>
+                    <h3 class="text-base lg:text-lg font-bold mb-1 lg:mb-2 theme-text-primary">Cronograma de Projetos</h3>
+                    <p class="text-xs lg:text-sm theme-text-secondary mb-3 lg:mb-4 line-clamp-2">Gestão e acompanhamento de projetos.</p>
+                    
+                    <div class="flex items-center text-sky-500 group-hover:opacity-80 transition">
+                        <span class="text-xs lg:text-sm font-medium">Acessar</span>
+                        <i class="fas fa-arrow-right ml-2 transform group-hover:translate-x-1 transition-transform"></i>
+                    </div>
+                </div>
+            </a>
+
         </div>
     </div>
     @endrole
@@ -450,22 +402,6 @@
                 </div>
             </a>
 
-            {{-- Card: Gestão de Obras/Projetos --}}
-            <a href="{{ route('projetos.index') }}" class="module-card relative theme-bg-card rounded-xl border border-slate-700 p-4 lg:p-6 hover:border-purple-500/50 transition group">
-                <div class="relative z-10">
-                    <div class="module-icon w-12 h-12 lg:w-14 lg:h-14 bg-purple-500/20 rounded-xl flex items-center justify-center mb-3 lg:mb-4 transition">
-                        <i class="fas fa-building text-purple-500 text-xl lg:text-2xl"></i>
-                    </div>
-                    <h3 class="text-base lg:text-lg font-bold mb-1 lg:mb-2 theme-text-primary">Gestão de Projetos</h3>
-                    <p class="text-xs lg:text-sm theme-text-secondary mb-3 lg:mb-4 line-clamp-2">Cadastro de projetos e vínculo com colaboradores.</p>
-                    
-                    <div class="flex items-center text-purple-500 group-hover:opacity-80 transition">
-                        <span class="text-xs lg:text-sm font-medium">Acessar</span>
-                        <i class="fas fa-arrow-right ml-2 transform group-hover:translate-x-1 transition-transform"></i>
-                    </div>
-                </div>
-            </a>
-
             {{-- Card: Gestão de Setores --}}
             <a href="{{ route('setores.index') }}" class="module-card relative theme-bg-card rounded-xl border border-slate-700 p-4 lg:p-6 hover:border-cyan-500/50 transition group">
                 <div class="relative z-10">
@@ -481,30 +417,17 @@
                     </div>
                 </div>
             </a>
-        </div>
-    </div>
-    @endrole
 
-    {{-- ============================================================
-         CATEGORIA 5 — GESTÃO DE PROJETOS (apenas ADMIN)
-         ============================================================ --}}
-    @role('ADMIN')
-    <div class="mb-8">
-        <h2 class="text-lg font-bold mb-4 flex items-center gap-2 theme-text-primary">
-            <i class="fas fa-building text-rose-500"></i>
-            Projetos
-        </h2>
-        <div class="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
-            {{-- Card: Obras --}}
-            <a href="{{ route('erp-obras-manual.index') }}" class="module-card relative theme-bg-card rounded-xl border border-slate-700 p-4 lg:p-6 hover:border-green-500/50 transition group">
+            {{-- Card: Gestão de Obras/Projetos --}}
+            <a href="{{ route('painel') }}" class="module-card relative theme-bg-card rounded-xl border border-slate-700 p-4 lg:p-6 hover:border-purple-500/50 transition group">
                 <div class="relative z-10">
-                    <div class="module-icon w-12 h-12 lg:w-14 lg:h-14 bg-green-500/20 rounded-xl flex items-center justify-center mb-3 lg:mb-4 transition">
-                        <i class="fas fa-hard-hat text-green-500 text-xl lg:text-2xl"></i>
+                    <div class="module-icon w-12 h-12 lg:w-14 lg:h-14 bg-purple-500/20 rounded-xl flex items-center justify-center mb-3 lg:mb-4 transition">
+                        <i class="fas fa-building text-purple-500 text-xl lg:text-2xl"></i>
                     </div>
-                    <h3 class="text-base lg:text-lg font-bold mb-1 lg:mb-2 theme-text-primary">Acompanhamento de Projetos</h3>
-                    <p class="text-xs lg:text-sm theme-text-secondary mb-3 lg:mb-4 line-clamp-2">Cadastro e acompanhamento de obras.</p>
+                    <h3 class="text-base lg:text-lg font-bold mb-1 lg:mb-2 theme-text-primary">Gestão de Projetos</h3>
+                    <p class="text-xs lg:text-sm theme-text-secondary mb-3 lg:mb-4 line-clamp-2">Cadastro de projetos e vínculo com colaboradores.</p>
                     
-                    <div class="flex items-center text-green-500 group-hover:opacity-80 transition">
+                    <div class="flex items-center text-purple-500 group-hover:opacity-80 transition">
                         <span class="text-xs lg:text-sm font-medium">Acessar</span>
                         <i class="fas fa-arrow-right ml-2 transform group-hover:translate-x-1 transition-transform"></i>
                     </div>
@@ -520,7 +443,7 @@
          bg-slate-700 hover:bg-slate-600 rounded-lg font-medium transition
          ============================================================ --}}
     <div class="text-center mt-8">
-        <a href="{{ app()->environment('production') ? 'https://atgbconnect.com.br/dashboard-planejamento.php' : route('home') }}"
+        <a href="{{ app()->environment('production') ? 'https://atgbconnect.com.br/home.php' : route('home') }}"
            class="inline-flex items-center gap-2 px-6 py-3 bg-slate-700 hover:bg-slate-600 rounded-lg font-medium transition">
             <i class="fas fa-arrow-left"></i>
             Voltar ao Início

@@ -56,6 +56,7 @@ Route::view('/login', 'auth.sso-intercept')->name('login');
 Route::middleware('auth')->group(function () {
     // Rotas Base (Home e Configurações)
     Route::get('/painel', [DashboardController::class, 'index'])->name('painel');
+    Route::view('/timesheet', 'timesheet.index')->name('timesheet.index');
 
     // Suporte
     Route::prefix('suporte')->name('suporte.')->group(function () {

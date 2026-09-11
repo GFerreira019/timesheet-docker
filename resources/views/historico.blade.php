@@ -30,7 +30,7 @@
 
 
 <x-page-header 
-    backUrl="{{ route('painel') }}" 
+    backUrl="{{ route('timesheet.index') }}" 
     icon="fas fa-list" 
     iconColor="text-indigo-400" 
     title="Histórico" 
