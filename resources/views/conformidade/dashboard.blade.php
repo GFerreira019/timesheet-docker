@@ -44,7 +44,7 @@
     subtitle="Monitoramento de carga horária diária"
     icon="fas fa-tasks"
     iconBg="from-cyan-500 to-cyan-700"
-    backUrl="{{ route('timesheet.index') }}">
+    backUrl="{{ route('painel') }}">
 </x-page-header>
 
 <div class="max-w-7xl mx-auto w-full px-4 sm:px-6 flex justify-end mb-3 -mt-6"> 

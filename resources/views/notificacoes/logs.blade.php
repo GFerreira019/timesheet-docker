@@ -32,7 +32,7 @@
     subtitle="Controle de envio e recebimento de notificações."
     icon="fas fa-envelope"
     iconBg="from-emerald-500 to-emerald-700"
-    backUrl="{{ route('timesheet.index') }}">
+    backUrl="{{ route('painel') }}">
 </x-page-header>
 
 <div class="max-w-7xl mx-auto px-4 sm:px-6 mb-8">

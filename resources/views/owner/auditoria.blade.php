@@ -38,7 +38,7 @@
     subtitle="Rastreabilidade completa de ações e segurança do sistema"
     icon="fas fa-history"
     iconBg="from-indigo-500 to-indigo-700"
-    backUrl="{{ route('timesheet.index') }}">
+    backUrl="{{ route('painel') }}">
 </x-page-header>
 
     {{-- ============================================================
