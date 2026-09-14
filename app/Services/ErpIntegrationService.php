@@ -71,15 +71,25 @@ class ErpIntegrationService
                         }
 
                         // 2. Colaborador (RH)
-                        $colaborador = \App\Models\Colaborador::updateOrCreate(
-                            ['id_colaborador' => $item['id_usuario']],
-                            [
+                        $colaborador = null;
+                        if ($user->produtividade_colaborador_id) {
+                            $colaborador = \App\Models\Colaborador::find($user->produtividade_colaborador_id);
+                        }
+
+                        if ($colaborador) {
+                            $colaborador->update([
                                 'nome_completo' => $item['nome'] ?? 'Sem Nome',
-                            ]
-                        );
+                            ]);
+                        } else {
+                            $colaborador = \App\Models\Colaborador::create([
+                                'nome_completo' => $item['nome'] ?? 'Sem Nome',
+                            ]);
+                        }
 
                         // 3. A Ponte (Vinculo)
-                        $user->update(['produtividade_colaborador_id' => $colaborador->id]);
+                        if ($user->produtividade_colaborador_id !== $colaborador->id) {
+                            $user->update(['produtividade_colaborador_id' => $colaborador->id]);
+                        }
 
                         $count++;
                     }

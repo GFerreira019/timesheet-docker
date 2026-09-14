@@ -19,7 +19,7 @@ class NotifyPendingApprovals extends Command
         $admins = \App\Models\Colaborador::whereHas('user', function ($query) {
             $query->whereHas('roles', function ($q) {
                 $q->where('name', 'ADMIN');
-            })->orWhere('is_superuser', true);
+            });
         })->get();
 
         // O eager loading carrega o colaborador titular, os gestores do projeto e seus setores vinculados.

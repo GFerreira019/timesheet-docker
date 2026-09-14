@@ -62,46 +62,48 @@ class AprovarApontamentosDiarios extends Command
             // Extraímos as datas únicas desse colaborador (podem ser de D-1, D-2...)
             $dias = $apontamentos->pluck('data_apontamento')->unique();
 
-            foreach ($dias as $dia) {
-                // Roda o motor de conformidade atualizando a flag `flag_atencao` no banco
-                ConformidadeCLTService::calcularRegrasClt($colaborador, $dia);
-            }
-
-            foreach ($apontamentos as $ap) {
-                $ap->refresh();
-
-                if ($ap->flag_atencao) {
-                    // LOG 2: Violação encontrada (barrado pela CLT)
-                    $this->warn("-> [BARRADO] Apontamento #{$ap->id} de {$colaborador->nome_completo} retido. Motivo: {$ap->motivo_alerta}");
-                    Log::warning("Aprovação automática barrada para apontamento #{$ap->id}. Motivo: {$ap->motivo_alerta}");
-                    $barrados++;
-                    continue; 
+            \Illuminate\Support\Facades\DB::transaction(function () use ($colaborador, $dias, $apontamentos, &$aprovados, &$barrados) {
+                foreach ($dias as $dia) {
+                    // Roda o motor de conformidade atualizando a flag `flag_atencao` no banco
+                    ConformidadeCLTService::calcularRegrasClt($colaborador, $dia);
                 }
 
-                $ap->status_aprovacao = 'APROVADO';
-                $ap->motivo_rejeicao  = null;
-                // Auditoria de aprovação automática
-                $ap->tipo_aprovacao   = 'automatica';
-                $ap->aprovador_id     = null; // Sistema — sem usuário humano
-                $ap->data_aprovacao   = now();
-                $salvou = $ap->save();
+                foreach ($apontamentos as $ap) {
+                    $ap->refresh();
 
-                // LOG 3: Confirmação estrita do save() no banco
-                if ($salvou) {
-                    $this->line("<info>-> [APROVADO]</info> Apontamento #{$ap->id} ({$colaborador->nome_completo}) atualizado no banco de dados.");
-                    Log::info("Aprovação automática concluída para apontamento #{$ap->id}.");
-                    
-                    AuditoriaService::registrarSistema(
-                        'APROVACAO', 
-                        'Apontamento', 
-                        $ap->id, 
-                        'Aprovação automática pelo sistema (Conformidade CLT)'
-                    );
-                    $aprovados++;
-                } else {
-                    $this->error("-> [ERRO] Falha ao tentar salvar o apontamento #{$ap->id} no banco.");
+                    if ($ap->flag_atencao) {
+                        // LOG 2: Violação encontrada (barrado pela CLT)
+                        $this->warn("-> [BARRADO] Apontamento #{$ap->id} de {$colaborador->nome_completo} retido. Motivo: {$ap->motivo_alerta}");
+                        Log::warning("Aprovação automática barrada para apontamento #{$ap->id}. Motivo: {$ap->motivo_alerta}");
+                        $barrados++;
+                        continue; 
+                    }
+
+                    $ap->status_aprovacao = 'APROVADO';
+                    $ap->motivo_rejeicao  = null;
+                    // Auditoria de aprovação automática
+                    $ap->tipo_aprovacao   = 'automatica';
+                    $ap->aprovador_id     = null; // Sistema — sem usuário humano
+                    $ap->data_aprovacao   = now();
+                    $salvou = $ap->save();
+
+                    // LOG 3: Confirmação estrita do save() no banco
+                    if ($salvou) {
+                        $this->line("<info>-> [APROVADO]</info> Apontamento #{$ap->id} ({$colaborador->nome_completo}) atualizado no banco de dados.");
+                        Log::info("Aprovação automática concluída para apontamento #{$ap->id}.");
+                        
+                        AuditoriaService::registrarSistema(
+                            'APROVACAO', 
+                            'Apontamento', 
+                            $ap->id, 
+                            'Aprovação automática pelo sistema (Conformidade CLT)'
+                        );
+                        $aprovados++;
+                    } else {
+                        $this->error("-> [ERRO] Falha ao tentar salvar o apontamento #{$ap->id} no banco.");
+                    }
                 }
-            }
+            });
         }
 
         $this->info("=====================================");
