@@ -23,3 +23,6 @@ Schedule::job(new \App\Jobs\ArchiveOldRecordsJob)->monthlyOn(1, '03:00')->withou
 
 // Notificação de Apontamentos Pendentes de Aprovação (Dias úteis às 09:00)
 Schedule::command('app:notify-pending-approvals')->dailyAt('09:00')->weekdays()->withoutOverlapping()->runInBackground()->sentryMonitor('app-notify-pending-approvals');
+
+// Expurgo automático de anexos de tickets (1x por mês)
+Schedule::command('tickets:prune-attachments')->monthly()->withoutOverlapping()->runInBackground()->sentryMonitor('prune-ticket-attachments');

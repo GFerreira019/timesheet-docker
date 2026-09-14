@@ -28,7 +28,7 @@ class DatabaseSeeder extends Seeder
         // SUPER ADMIN DE RESGATE (SSO FALLBACK)
         // ---------------------------------------------------------------
         $colaboradorSuperAdmin = Colaborador::firstOrCreate(
-            ['nome_completo' => 'Super Admin (Resgate)'],
+            ['nome_completo' => 'Super Admin'],
             [
                 'cargo'          => 'SUPORTE TI',
                 'cidade_moradia' => 'Remoto',
@@ -39,7 +39,7 @@ class DatabaseSeeder extends Seeder
         $superAdmin = User::updateOrCreate(
             ['email' => env('ADMIN_DEFAULT_EMAIL', 'suporte@timesheet.com')],
             [
-                'name'                         => 'Super Admin Resgate',
+                'name'                         => 'Super Admin',
                 'produtividade_colaborador_id' => $colaboradorSuperAdmin->id,
             ]
         );
@@ -50,7 +50,7 @@ class DatabaseSeeder extends Seeder
         $this->command->table(
             ['Tipo', 'Email', 'Role', 'Acesso Mágico'],
             [
-                ['Super Admin (Resgate)', env('ADMIN_DEFAULT_EMAIL', 'suporte@timesheet.com'), 'ADMIN', url('/dev/painel')],
+                ['Super Admin', env('ADMIN_DEFAULT_EMAIL', 'suporte@timesheet.com'), 'ADMIN', url('/dev/painel')],
             ]
         );
         $this->command->warn('⚠️  Demais usuários serão geridos pelo ERP via integração/SSO.');
