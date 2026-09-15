@@ -112,16 +112,21 @@ class ColaboradorController extends Controller
             'uf_moradia'          => 'sometimes|nullable|string|max:2',
             'uf_trabalho'         => 'sometimes|nullable|string|max:2',
             'data_demissao'       => 'sometimes|nullable|date',
-            'data_vigencia'       => 'required|date'
+            'data_vigencia'       => 'required_without:data_demissao|nullable|date'
         ]);
 
         $colaborador = Colaborador::findOrFail($id);
         
         $dados = $validated;
         
-        // Remove campos processados separadamente para não cair no fill()
+        // Se houver desligamento, a vigência deve ser obrigatoriamente a data de demissão
+        if (!empty($dados['data_demissao'])) {
+            $dados['data_vigencia'] = $dados['data_demissao'];
+        }
+
+        // Extrai a data para o Observer Virtual, mas MANTÉM no array $dados 
+        // para que seja salvo na tabela principal também.
         $dataVigencia = $dados['data_vigencia'];
-        unset($dados['data_vigencia']);
 
         $setoresVinculados = $request->input('setores_vinculados', []);
         unset($dados['setores_vinculados']);
@@ -283,6 +288,9 @@ class ColaboradorController extends Controller
         ]);
 
         $dados = $validated;
+
+        // Garante que todo novo colaborador tenha uma data de vigência inicial
+        $dados['data_vigencia'] = $request->input('data_vigencia', $dados['data_admissao']);
 
         // Remove campos processados separadamente para não cair no fill()
         $setoresVinculados = $request->input('setores_vinculados', []);

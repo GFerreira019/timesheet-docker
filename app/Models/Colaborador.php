@@ -70,6 +70,7 @@ class Colaborador extends Model
 
     protected $casts = [
         'recebe_notificacao' => 'boolean',
+        'data_vigencia' => 'date',
     ];
 
     /**
