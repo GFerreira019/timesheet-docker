@@ -148,28 +148,65 @@
                 <!-- Coluna: Gestores -->
                 <div>
                     <h4 class="text-sm font-bold text-indigo-400 uppercase tracking-wider mb-4 border-b border-slate-700 pb-2"><i class="fas fa-users mr-2"></i> Gestores</h4>
+                    
+                    @php
+                        $gestores = $obra->projetoOperacional->gestores ?? collect();
+
+                        $coordenadoresImplantacao = $gestores->filter(fn($g) => $g->isInGroup('COORDENADOR') && $g->pivot->implantacao);
+                        $coordenadoresManutencao = $gestores->filter(fn($g) => $g->isInGroup('COORDENADOR') && $g->pivot->manutencao);
+                        
+                        $gerentesImplantacao = $gestores->filter(fn($g) => $g->isInGroup('GERENCIAL') && $g->pivot->implantacao);
+                        $gerentesManutencao = $gestores->filter(fn($g) => $g->isInGroup('GERENCIAL') && $g->pivot->manutencao);
+                    @endphp
+
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div class="mb-2">
-                            <p class="text-xs text-slate-500 font-semibold mb-1">Responsável Comercial</p>
-                            <p class="text-sm text-slate-200">{{ $obra->liderComercial->nome_completo ?? $obra->lider_comercial ?? '-' }}</p>
-                        </div>
-                        <div class="mb-2">
-                            <p class="text-xs text-slate-500 font-semibold mb-1">Coordenadores</p>
+                            <p class="text-xs text-slate-500 font-semibold mb-1">Gerente de Implantação</p>
                             <div class="text-sm text-slate-200">
-                                @forelse(($obra->projetoOperacional->gestores ?? []) as $coordenador)
-                                    <span class="block">{{ $coordenador->nome_completo }}</span>
+                                @forelse($gerentesImplantacao as $gerente)
+                                    <span class="block">{{ $gerente->nome_completo }}</span>
                                 @empty
-                                    -
+                                    <span>-</span>
                                 @endforelse
                             </div>
                         </div>
                         <div class="mb-2">
-                            <p class="text-xs text-slate-500 font-semibold mb-1">Gerente de Implantação</p>
-                            <p class="text-sm text-slate-200">{{ $obra->gerenteImplantacao->nome_completo ?? '-' }}</p>
+                            <p class="text-xs text-slate-500 font-semibold mb-1">Gerente de Manutenção</p>
+                            <div class="text-sm text-slate-200">
+                                @forelse($gerentesManutencao as $gerente)
+                                    <span class="block">{{ $gerente->nome_completo }}</span>
+                                @empty
+                                    <span>-</span>
+                                @endforelse
+                            </div>
                         </div>
                         <div class="mb-2">
-                            <p class="text-xs text-slate-500 font-semibold mb-1">Gerente de Manutenção</p>
-                            <p class="text-sm text-slate-200">{{ $obra->gerenteManutencao->nome_completo ?? '-' }}</p>
+                            <p class="text-xs text-slate-500 font-semibold mb-1">Coordenador de Implantação</p>
+                            <div class="text-sm text-slate-200 space-y-2">
+                                <div>
+                                    @forelse($coordenadoresImplantacao as $coord)
+                                        <span class="block">{{ $coord->nome_completo }}</span>
+                                    @empty
+                                        <span>-</span>
+                                    @endforelse
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mb-2">
+                            <p class="text-xs text-slate-500 font-semibold mb-1">Coordenador de Manutenção</p>
+                            <div class="text-sm text-slate-200 space-y-2">
+                                <div>
+                                    @forelse($coordenadoresManutencao as $coord)
+                                        <span class="block">{{ $coord->nome_completo }}</span>
+                                    @empty
+                                        <span>-</span>
+                                    @endforelse
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mb-2">
+                            <p class="text-xs text-slate-500 font-semibold mb-1">Responsável Comercial</p>
+                            <p class="text-sm text-slate-200">{{ $obra->liderComercial->nome_completo ?? $obra->lider_comercial ?? '-' }}</p>
                         </div>
                     </div>
                 </div>

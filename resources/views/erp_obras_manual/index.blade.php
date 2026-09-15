@@ -406,10 +406,23 @@
                                 if ($obra->projetoOperacional) {
                                     $gestores = $obra->projetoOperacional->gestores;
                                 }
-                                $nomesGestores = $gestores->pluck('nome_completo')->join(', ') ?: 'Nenhum gestor atribuído';
+                                $coordImp = $gestores->filter(fn($g) => $g->isInGroup('COORDENADOR') && $g->pivot->implantacao)->pluck('nome_completo')->filter()->join(', ');
+                                $coordMan = $gestores->filter(fn($g) => $g->isInGroup('COORDENADOR') && $g->pivot->manutencao)->pluck('nome_completo')->filter()->join(', ');
+                                $gerImp = $gestores->filter(fn($g) => $g->isInGroup('GERENCIAL') && $g->pivot->implantacao)->pluck('nome_completo')->filter()->join(', ');
+                                $gerMan = $gestores->filter(fn($g) => $g->isInGroup('GERENCIAL') && $g->pivot->manutencao)->pluck('nome_completo')->filter()->join(', ');
+                                
+                                $strGerentes = array_filter([$gerImp, $gerMan]);
+                                $strCoordenadores = array_filter([$coordImp, $coordMan]);
                             @endphp
-                            <div class="text-slate-300 font-semibold whitespace-normal break-words max-w-md" title="{{ $nomesGestores }}">
-                                {{ $nomesGestores }}
+                            <div class="text-xs whitespace-normal break-words max-w-md space-y-2">
+                                <div>
+                                    <span class="font-bold text-slate-400">GERENTES:</span>
+                                    <span class="text-slate-300">{{ !empty($strGerentes) ? implode(' | ', $strGerentes) : '-' }}</span>
+                                </div>
+                                <div>
+                                    <span class="font-bold text-slate-400">COORDENADORES:</span>
+                                    <span class="text-slate-300">{{ !empty($strCoordenadores) ? implode(' | ', $strCoordenadores) : '-' }}</span>
+                                </div>
                             </div>
                         </td>
 
@@ -473,6 +486,14 @@
                                 <i class="fas fa-edit text-blue-400 text-lg"></i>
                             </button>
                             
+                            <!-- Botão Histórico -->
+                            <button type="button" 
+                                    class="p-2 rounded-md text-slate-400 hover:bg-slate-600 hover:text-white transition-colors"
+                                    title="Histórico de Alterações"
+                                    onclick="abrirModalHistorico({{ $obra->id }})">
+                                <i class="fas fa-history text-indigo-400 text-lg"></i>
+                            </button>
+
                             <!-- Botão Visualização -->
                             <a href="{{ route('erp-obras-manual.show', $obra->id) }}" 
                                class="p-2 rounded-md text-slate-400 hover:bg-slate-600 hover:text-white transition-colors"
@@ -945,12 +966,27 @@
             // Popula os selects múltiplos e únicos de gestores
             const gestores = dados.gestores && Array.isArray(dados.gestores) ? dados.gestores : [];
             
-            const idsImplantacao = gestores
-                .filter(g => g.pivot && (g.pivot.implantacao == 1 || g.pivot.implantacao === true))
+            // Separa gerentes e coordenadores com base nas opções disponíveis nos selects/checkboxes criados pelo backend
+            const selectGer = form.querySelector('select[name="gerente_implantacao"]');
+            const validGerentesIds = selectGer ? Array.from(selectGer.options).map(o => o.value).filter(v => v) : [];
+            
+            const checkboxCoord = document.querySelectorAll('#select-coord-imp input[type="checkbox"]');
+            const validCoordIds = Array.from(checkboxCoord).map(c => c.value);
+
+            const coordImplantacao = gestores
+                .filter(g => validCoordIds.includes(g.id.toString()) && g.pivot && (g.pivot.implantacao == 1 || g.pivot.implantacao === true))
                 .map(g => g.id.toString());
                 
-            const idsManutencao = gestores
-                .filter(g => g.pivot && (g.pivot.manutencao == 1 || g.pivot.manutencao === true))
+            const coordManutencao = gestores
+                .filter(g => validCoordIds.includes(g.id.toString()) && g.pivot && (g.pivot.manutencao == 1 || g.pivot.manutencao === true))
+                .map(g => g.id.toString());
+                
+            const gerImplantacao = gestores
+                .filter(g => validGerentesIds.includes(g.id.toString()) && g.pivot && (g.pivot.implantacao == 1 || g.pivot.implantacao === true))
+                .map(g => g.id.toString());
+                
+            const gerManutencao = gestores
+                .filter(g => validGerentesIds.includes(g.id.toString()) && g.pivot && (g.pivot.manutencao == 1 || g.pivot.manutencao === true))
                 .map(g => g.id.toString());
             
             const setSelectMultiple = (containerId, values) => {
@@ -965,8 +1001,8 @@
                 }
             };
 
-            setSelectMultiple('select-coord-imp', idsImplantacao);
-            setSelectMultiple('select-coord-man', idsManutencao);
+            setSelectMultiple('select-coord-imp', coordImplantacao);
+            setSelectMultiple('select-coord-man', coordManutencao);
 
             // Popula os selects únicos (Gerentes)
             const setSelectSingle = (inputName, values) => {
@@ -982,8 +1018,8 @@
                 }
             };
 
-            setSelectSingle('gerente_implantacao', idsImplantacao);
-            setSelectSingle('gerente_manutencao', idsManutencao);
+            setSelectSingle('gerente_implantacao', gerImplantacao);
+            setSelectSingle('gerente_manutencao', gerManutencao);
 
             // Popula o select múltiplo de etapas (separadas por " - ")
             let etapasArray = [];
@@ -1479,5 +1515,82 @@
             @endif
         @endif
     })();
+
+    // Lógica do Modal de Histórico
+    function abrirModalHistorico(id) {
+        const modal = document.getElementById('modal-historico');
+        const content = document.getElementById('modal-historico-content');
+        const listContainer = document.getElementById('historico-list');
+        const spinner = document.getElementById('historico-spinner');
+
+        modal.classList.remove('hidden');
+        
+        setTimeout(() => {
+            content.classList.remove('scale-95', 'opacity-0');
+            content.classList.add('scale-100', 'opacity-100');
+        }, 10);
+
+        // Estado de Loading
+        listContainer.innerHTML = '';
+        spinner.classList.remove('hidden');
+
+        fetch(`/erp-obras-manual/${id}/historico`)
+            .then(res => {
+                if(!res.ok) throw new Error('Erro ao buscar histórico');
+                return res.text();
+            })
+            .then(html => {
+                spinner.classList.add('hidden');
+                listContainer.innerHTML = html;
+            })
+            .catch(err => {
+                spinner.classList.add('hidden');
+                listContainer.innerHTML = `<div class="text-red-400 p-4 border border-red-500/30 bg-red-500/10 rounded-lg">Não foi possível carregar o histórico. Tente novamente mais tarde.</div>`;
+            });
+    }
+
+    function fecharModalHistorico() {
+        const modal = document.getElementById('modal-historico');
+        const content = document.getElementById('modal-historico-content');
+        
+        content.classList.remove('scale-100', 'opacity-100');
+        content.classList.add('scale-95', 'opacity-0');
+        
+        setTimeout(() => {
+            modal.classList.add('hidden');
+        }, 300);
+    }
 </script>
+
+{{-- ==========================================
+     MODAL DE HISTÓRICO DE AUDITORIA
+     ========================================== --}}
+<div id="modal-historico" class="fixed inset-0 hidden z-[60] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+    <div class="w-full max-w-5xl bg-[#0B1120] border border-slate-700/50 shadow-2xl rounded-xl overflow-hidden transform transition-all scale-95 opacity-0 duration-300 flex flex-col" id="modal-historico-content" style="max-height: 90vh;">
+        
+        <!-- Header -->
+        <div class="flex items-center justify-between px-6 py-4 border-b border-slate-700/50 flex-shrink-0 bg-slate-900 rounded-t-xl">
+            <h3 class="text-lg text-slate-200 font-bold flex items-center gap-2">
+                <i class="fas fa-history text-indigo-400"></i>
+                <span>Trilha de Auditoria do Projeto</span>
+            </h3>
+            <button type="button" onclick="fecharModalHistorico()" class="p-2 rounded-lg hover:bg-slate-700 transition text-slate-400">
+                <i class="fas fa-times text-lg"></i>
+            </button>
+        </div>
+
+        <!-- Body -->
+        <div class="p-6 flex-1 overflow-y-auto">
+            <div id="historico-spinner" class="flex flex-col items-center justify-center py-10 hidden">
+                <i class="fas fa-circle-notch fa-spin text-3xl text-indigo-400 mb-3"></i>
+                <span class="text-slate-400 text-sm font-semibold tracking-wider uppercase">Carregando Histórico...</span>
+            </div>
+            
+            <div id="historico-list" class="w-full">
+                <!-- O HTML retornado pelo controller será injetado aqui -->
+            </div>
+        </div>
+    </div>
+</div>
+
 @endpush

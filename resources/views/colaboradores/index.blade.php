@@ -87,7 +87,7 @@
 
             <!-- Botão Novo Colaborador -->
             <button type="button" onclick="abrirModalNovo()" class="flex-shrink-0 h-full px-3 sm:px-4 py-2 bg-indigo-600 border border-transparent hover:bg-indigo-500 text-white font-bold rounded-lg shadow-lg shadow-indigo-900/20 transition-all flex items-center gap-2 text-sm">
-                <i class="fas fa-plus"></i> <span class="hidden sm:inline">Novo Colaborador</span>
+                <i class="fas fa-user-plus"></i> <span class="hidden sm:inline">Novo Colaborador</span>
             </button>
         </div>
     </div>
@@ -105,7 +105,7 @@
                 </p>
             </div>
             <button type="button" onclick="document.getElementById('modal-pendentes').classList.remove('hidden')" class="px-4 py-2 bg-yellow-600 hover:bg-yellow-500 text-white font-bold rounded-lg text-sm transition-colors shadow-lg shadow-yellow-900/20">
-                Ver Pendentes
+                <i class="fas fa-eye"></i> Ver Pendentes
             </button>
         </div>
     @endif
@@ -267,7 +267,7 @@
                     <th class="py-3 px-4 text-left text-xs font-bold theme-text-primary uppercase tracking-wider">Setor</th>
                     <th class="py-3 px-4 text-left text-xs font-bold theme-text-primary uppercase tracking-wider">Nível Acesso</th>
                     <th class="py-3 px-4 text-left text-xs font-bold theme-text-primary uppercase tracking-wider">Status</th>
-                    <th class="py-3 px-4 text-center text-xs font-bold theme-text-primary uppercase tracking-wider">Vínculo SSO</th>
+                    <th class="py-3 px-4 text-center text-xs font-bold theme-text-primary uppercase tracking-wider">SSO</th>
                     <th class="py-3 px-4 text-center text-xs font-bold theme-text-primary uppercase tracking-wider">Ações</th>
                 </tr>
             </thead>
@@ -290,9 +290,9 @@
                     </td>
                     <td class="py-3 px-4 text-center whitespace-nowrap align-middle">
                         @if($colab->user)
-                            <span class="text-green-400" title="Usuário vinculado ({{ $colab->user->email }})"><i class="fas fa-link"></i> Vinculado</span>
+                            <span class="text-green-400" title="Usuário vinculado ({{ $colab->user->email }})"><i class="fas fa-link"></i></span>
                         @else
-                            <span class="text-red-400" title="Sem usuário vinculado"><i class="fas fa-unlink"></i> Pendente</span>
+                            <span class="text-red-400" title="Sem usuário vinculado"><i class="fas fa-unlink"></i></span>
                         @endif
                     </td>
                     <td class="py-3 px-4 text-center whitespace-nowrap align-middle">
