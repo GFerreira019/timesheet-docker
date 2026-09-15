@@ -196,7 +196,7 @@ class HistoricoController extends Controller
             $rowMain = [
                 'id'                 => $item->id,
                 'nome'               => $item->colaborador->nome_completo,
-                'cargo'              => $item->colaborador->cargo,
+                'cargo'              => $item->cargo_snapshot ?? $item->colaborador->cargo,
                 'data'               => $item->data_apontamento,
                 'local_ref'          => $localRef,
                 'unidade_ref'        => $item->projeto ? $item->projeto->unidade : null,
@@ -245,7 +245,7 @@ class HistoricoController extends Controller
             foreach ($auxiliares as $aux) {
                 $rowAux = $rowMain;
                 $rowAux['nome']          = $aux->nome_completo;
-                $rowAux['cargo']         = $aux->cargo;
+                $rowAux['cargo']         = $aux->cargo; // Auxiliares mantêm cargo atual na view
                 $rowAux['veiculo']       = '';
                 $rowAux['is_auxiliar']   = true;
                 $rowAux['is_last_of_day'] = false;
