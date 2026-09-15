@@ -1275,10 +1275,11 @@
                                             .map(el => el.name);
 
             // Lista de campos que exigem a data de vigência
-            const camposComVigencia = ['nome_completo', 'cargo', 'role', 'setor_id', 'cidade_moradia', 'cidade_trabalho', 'telefone', 'data_demissao'];
+            const camposComVigencia = ['nome_completo', 'cargo', 'role', 'setor_id', 'cidade_moradia', 'cidade_trabalho', 'telefone'];
 
-            // Se algum dos campos desbloqueados estiver na lista, mostra a vigência. Caso contrário, esconde.
-            const precisaVigencia = camposDesbloqueados.some(nome => camposComVigencia.includes(nome));
+            // Se estiver editando a demissão, o backend já assume a mesma como data de vigência.
+            const editandoDemissao = camposDesbloqueados.includes('data_demissao');
+            const precisaVigencia = camposDesbloqueados.some(nome => camposComVigencia.includes(nome)) && !editandoDemissao;
 
             if (precisaVigencia) {
                 document.getElementById('container-vigencia').classList.remove('hidden');
