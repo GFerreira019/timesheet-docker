@@ -83,6 +83,7 @@ class Apontamento extends Model
 
     protected $fillable = [
         'colaborador_id',
+        'cargo_snapshot',
         'data_apontamento',
         'hora_inicio',
         'hora_termino',

@@ -123,6 +123,11 @@ class AppServiceProvider extends ServiceProvider
          */
         \App\Models\Notificacao::observe(NotificacaoObserver::class);
 
+        /**
+         * Apontamento: Snapshot do cargo para manter integridade financeira.
+         */
+        \App\Models\Apontamento::observe(\App\Observers\ApontamentoObserver::class);
+
         // ─────────────────────────────────────────────────────────────
         // LISTENERS — Auditoria de Autenticação (equivalente aos signals Django)
         // ─────────────────────────────────────────────────────────────
