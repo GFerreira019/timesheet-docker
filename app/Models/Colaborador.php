@@ -197,7 +197,8 @@ class Colaborador extends Model
             'colaborador_projeto_gerenciado',
             'colaborador_id',
             'projeto_operacional_id'
-        )->using(\App\Models\Pivots\ColaboradorProjetoPivot::class);
+        )->using(\App\Models\Pivots\ColaboradorProjetoPivot::class)
+         ->withPivot('implantacao', 'manutencao');
     }
 
     /**

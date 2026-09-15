@@ -27,6 +27,7 @@ class ProjetoOperacional extends Model
             'projeto_operacional_id',
             'colaborador_id'
         )->using(\App\Models\Pivots\ColaboradorProjetoPivot::class)
+         ->withPivot('implantacao', 'manutencao')
          ->withTimestamps();
     }
 }

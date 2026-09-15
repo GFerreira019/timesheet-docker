@@ -153,17 +153,30 @@ class ErpObraManualController extends Controller
 
     private function sincronizarGestores(ErpObraManual $obra, ErpObraManualRequest $request)
     {
-        $coordImp = $request->input('coordenadores_implantacao', []);
-        $coordMan = $request->input('coordenadores_manutencao', []);
+        $syncData = [];
 
-        $coordenadoresCombinados = array_unique(array_filter(array_merge($coordImp, $coordMan)));
+        // Processa os de Implantação
+        $implantacaoIds = array_merge($request->input('coordenadores_implantacao', []), $request->input('gerente_implantacao') ? [$request->input('gerente_implantacao')] : []);
+        foreach ($implantacaoIds as $id) {
+            $syncData[$id] = ['implantacao' => true, 'manutencao' => false];
+        }
+
+        // Processa os de Manutenção (mesclando caso a mesma pessoa faça os dois papéis)
+        $manutencaoIds = array_merge($request->input('coordenadores_manutencao', []), $request->input('gerente_manutencao') ? [$request->input('gerente_manutencao')] : []);
+        foreach ($manutencaoIds as $id) {
+            if (isset($syncData[$id])) {
+                $syncData[$id]['manutencao'] = true;
+            } else {
+                $syncData[$id] = ['implantacao' => false, 'manutencao' => true];
+            }
+        }
 
         if ($obra->projeto_codigo && $obra->projeto_unidade) {
             $projetoOp = \App\Models\ProjetoOperacional::where('codigo', $obra->projeto_codigo)
                 ->where('unidade', $obra->projeto_unidade)
                 ->first();
             if ($projetoOp) {
-                $projetoOp->gestores()->sync($coordenadoresCombinados);
+                $projetoOp->gestores()->sync($syncData);
             }
         }
     }

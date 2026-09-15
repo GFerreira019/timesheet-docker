@@ -942,10 +942,16 @@
                 selSetor.dispatchEvent(new Event('change'));
             }
 
-            // Popula os selects múltiplos de coordenadores
-            const idsCoordenadores = (dados.gestores_ids && Array.isArray(dados.gestores_ids))
-                ? dados.gestores_ids.map(id => id.toString())
-                : [];
+            // Popula os selects múltiplos e únicos de gestores
+            const gestores = dados.gestores && Array.isArray(dados.gestores) ? dados.gestores : [];
+            
+            const idsImplantacao = gestores
+                .filter(g => g.pivot && (g.pivot.implantacao == 1 || g.pivot.implantacao === true))
+                .map(g => g.id.toString());
+                
+            const idsManutencao = gestores
+                .filter(g => g.pivot && (g.pivot.manutencao == 1 || g.pivot.manutencao === true))
+                .map(g => g.id.toString());
             
             const setSelectMultiple = (containerId, values) => {
                 const container = document.getElementById(containerId);
@@ -959,8 +965,25 @@
                 }
             };
 
-            setSelectMultiple('select-coord-imp', idsCoordenadores);
-            setSelectMultiple('select-coord-man', idsCoordenadores);
+            setSelectMultiple('select-coord-imp', idsImplantacao);
+            setSelectMultiple('select-coord-man', idsManutencao);
+
+            // Popula os selects únicos (Gerentes)
+            const setSelectSingle = (inputName, values) => {
+                const select = form.querySelector(`select[name="${inputName}"]`);
+                if (select) {
+                    select.value = '';
+                    for (let opt of select.options) {
+                        if (values.includes(opt.value)) {
+                            select.value = opt.value;
+                            break;
+                        }
+                    }
+                }
+            };
+
+            setSelectSingle('gerente_implantacao', idsImplantacao);
+            setSelectSingle('gerente_manutencao', idsManutencao);
 
             // Popula o select múltiplo de etapas (separadas por " - ")
             let etapasArray = [];

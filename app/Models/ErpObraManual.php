@@ -46,19 +46,17 @@ class ErpObraManual extends Model
     protected $appends = [
         'lider_comercial_id',
         'gestores_ids',
+        'gestores',
     ];
 
-    public function getGestoresIdsAttribute()
+    public function getGestoresAttribute()
     {
-        // 1. Aproveita a Eager Loading carregada no Controller (Evita N+1 Query)
         if ($this->relationLoaded('projetoOperacional') && $this->projetoOperacional) {
-            // Check de Integridade: garante que a Unidade bate
             if ($this->projetoOperacional->unidade === $this->projeto_unidade) {
-                return $this->projetoOperacional->gestores->pluck('id')->toArray();
+                return $this->projetoOperacional->gestores;
             }
         }
 
-        // 2. Fallback caso a obra seja consultada isoladamente
         if (!$this->projeto_codigo || !$this->projeto_unidade) {
             return [];
         }
@@ -68,11 +66,18 @@ class ErpObraManual extends Model
             ->first();
 
         if ($projetoOp) {
-            return $projetoOp->gestores()->pluck('produtividade_colaborador.id')->toArray();
+            return $projetoOp->gestores;
         }
 
         return [];
     }
+
+    public function getGestoresIdsAttribute()
+    {
+        $gestores = $this->getGestoresAttribute();
+        return collect($gestores)->pluck('id')->toArray();
+    }
+
 
     public function getLiderComercialIdAttribute()
     {
