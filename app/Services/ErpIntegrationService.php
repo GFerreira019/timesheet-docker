@@ -43,75 +43,74 @@ class ErpIntegrationService
             
             Log::info("Sincronizando usuários do ERP...");
 
-            $response = Http::timeout(30)
-                ->withToken($erpKey)
-                ->get($endpoint);
+            $limit = 200;
+            $offset = 0;
+            $countProcessados = 0;
 
-            if ($response->successful() && $response->json('success') === true) {
-                $usuarios = $response->json('data');
-                $count = 0;
+            do {
+                $response = Http::timeout(30)
+                    ->withToken($erpKey)
+                    ->get($endpoint, [
+                        'limit' => $limit,
+                        'offset' => $offset
+                    ]);
 
-                if (is_array($usuarios) && !empty($usuarios)) {
-                    foreach ($usuarios as $item) {
-                        if (!isset($item['id_usuario'])) {
-                            continue;
+                if ($response->successful() && $response->json('success') === true) {
+                    $json = $response->json();
+                    $usuarios = $json['data'] ?? [];
+                    $apiCount = $json['count'] ?? count($usuarios);
+                    $apiTotal = $json['total'] ?? 0;
+
+                    if (is_array($usuarios) && !empty($usuarios)) {
+                        foreach ($usuarios as $item) {
+                            if (!isset($item['id_usuario'])) {
+                                continue;
+                            }
+
+                            // 1. User
+                            $user = \App\Models\User::updateOrCreate(
+                                ['connect_user_id' => $item['id_usuario']],
+                                [
+                                    'name' => $item['nome'] ?? 'Sem Nome',
+                                    'email' => $item['email'] ?? null,
+                                    'solides_id' => $item['tangerino_employee_id'] ?? null,
+                                ]
+                            );
+
+                            if ($user->wasRecentlyCreated || $user->roles()->count() === 0) {
+                                $user->assignRole('OPERACIONAL'); 
+                            }
+
+                            $countProcessados++;
                         }
-
-                        // 1. User
-                        $user = \App\Models\User::updateOrCreate(
-                            ['connect_user_id' => $item['id_usuario']],
-                            [
-                                'name' => $item['nome'] ?? 'Sem Nome',
-                                'email' => $item['email'] ?? null,
-                            ]
-                        );
-
-                        if ($user->wasRecentlyCreated || $user->roles()->count() === 0) {
-                            $user->assignRole('OPERACIONAL'); 
-                        }
-
-                        // 2. Colaborador (RH)
-                        $colaborador = null;
-                        if ($user->produtividade_colaborador_id) {
-                            $colaborador = \App\Models\Colaborador::find($user->produtividade_colaborador_id);
-                        }
-
-                        if ($colaborador) {
-                            $colaborador->update([
-                                'nome_completo' => $item['nome'] ?? 'Sem Nome',
-                            ]);
-                        } else {
-                            $colaborador = \App\Models\Colaborador::create([
-                                'nome_completo' => $item['nome'] ?? 'Sem Nome',
-                            ]);
-                        }
-
-                        // 3. A Ponte (Vinculo)
-                        if ($user->produtividade_colaborador_id !== $colaborador->id) {
-                            $user->update(['produtividade_colaborador_id' => $colaborador->id]);
-                        }
-
-                        $count++;
                     }
+
+                    // Controle de paginação segundo a documentação: offset + count < total
+                    if (($offset + $apiCount) < $apiTotal) {
+                        $offset += $limit;
+                    } else {
+                        break; // Fim da paginação
+                    }
+
+                } else {
+                    Log::warning("ErpIntegration: Falha ao sincronizar usuários do ERP (offset: {$offset})", [
+                        'status' => $response->status(),
+                        'body' => $response->body()
+                    ]);
+
+                    return [
+                        'success' => false,
+                        'message' => "Erro na API do ERP: " . $response->status(),
+                        'detalhes' => $response->json()
+                    ];
                 }
+            } while (true);
 
-                return [
-                    'success' => true,
-                    'message' => "Sincronização de usuários concluída. {$count} registros processados.",
-                    'total_usuarios' => $count
-                ];
-            } else {
-                Log::warning("ErpIntegration: Falha ao sincronizar usuários do ERP", [
-                    'status' => $response->status(),
-                    'body' => $response->body()
-                ]);
-
-                return [
-                    'success' => false,
-                    'message' => "Erro na API do ERP: " . $response->status(),
-                    'detalhes' => $response->json()
-                ];
-            }
+            return [
+                'success' => true,
+                'message' => "Sincronização de usuários concluída. {$countProcessados} registros processados.",
+                'total_usuarios' => $countProcessados
+            ];
 
         } catch (\Exception $e) {
             report($e);
