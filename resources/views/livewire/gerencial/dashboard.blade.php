@@ -4,10 +4,12 @@
     modalOpen: false, 
     modalTitle: '', 
     modalContent: '',
-    openModal(title, content)
+    modalActionUrl: null,
+    openModal(title, content, actionUrl = null)
     {
         this.modalTitle = title;
         this.modalContent = content;
+        this.modalActionUrl = actionUrl;
         this.modalOpen = true;
     }
 }">
@@ -21,7 +23,7 @@
         icon="fas fa-chart-line" 
         iconColor="text-indigo-400" 
         title="Dashboard Gerencial" 
-        subtitle="Visão geral da produção e utilização dos colaboradores">
+        subtitle="Acompanhamento de apontamentos e conformidades">
     </x-page-header>
 
     <div class="flex justify-end gap-2 mb-4">
@@ -85,6 +87,78 @@
         </div>
     </div>
 
+    <!-- ALERTAS TRABALHISTAS -->
+    @if(count($alertasTrabalhistas) > 0)
+    <div class="bg-slate-800 rounded-xl border border-red-500/30 p-6 shadow-lg shadow-red-500/10 relative overflow-hidden mb-8">
+        <div class="absolute top-0 left-0 w-1.5 h-full bg-red-500 animate-pulse"></div>
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-red-400 font-bold text-lg uppercase tracking-wider flex items-center gap-2">
+                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                Atenção Requerida (Alertas)
+            </h3>
+            <span class="bg-red-500/20 text-red-400 text-xs font-bold px-3 py-1 rounded-full border border-red-500/30">
+                {{ count($alertasTrabalhistas) }} ocorrência(s)
+            </span>
+        </div>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-h-64 overflow-y-auto custom-scrollbar pr-2">
+            @foreach($alertasTrabalhistas as $alerta)
+                @php
+                    $detalheAlerta = "Data: " . $alerta->data_apontamento->format('d/m/Y') . "\n";
+                    $detalheAlerta .= "Colaborador: " . ($alerta->colaborador->nome_completo ?? 'N/A') . "\n";
+                    $detalheAlerta .= "Motivo do Alerta: " . $alerta->motivo_alerta . "\n";
+                    $detalheAlerta .= "Status de Aprovação: " . ($alerta->status_aprovacao ?? 'PENDENTE') . "\n";
+                    if ($alerta->motivo_rejeicao) $detalheAlerta .= "Motivo Rejeição: " . $alerta->motivo_rejeicao . "\n";
+                    if ($alerta->motivo_ajuste) $detalheAlerta .= "Motivo Ajuste: " . $alerta->motivo_ajuste . "\n";
+                    
+                    // Tratamento simples para quebras de linha virarem espaço para a função JS
+                    $detalheAlerta = str_replace(["\r", "\n"], ["", "\\n"], addslashes($detalheAlerta));
+                    
+                    // Cálculo da URL para "Ver Contexto no Histórico"
+                    $dtApontamento = $alerta->data_apontamento;
+                    $dtStart = $dtApontamento->copy()->subDays(7)->format('Y-m-d');
+                    $dtEnd = $dtApontamento->copy()->addDays(3);
+                    if ($dtEnd->gt(now())) {
+                        $dtEnd = now();
+                    }
+                    $urlHistorico = route('historico.index', [
+                        'colaborador_id' => $alerta->colaborador_id,
+                        'start_date' => $dtStart,
+                        'end_date' => $dtEnd->format('Y-m-d'),
+                    ]);
+                @endphp
+                <div @click="openModal('Detalhes do Alerta', '{{ $detalheAlerta }}', '{{ $urlHistorico }}')" 
+                     class="bg-slate-900/80 border border-slate-700 hover:border-red-500/50 hover:bg-slate-800 p-4 rounded-lg cursor-pointer transition-all group relative flex flex-col justify-between">
+                    <div>
+                        <div class="flex justify-between items-start mb-2">
+                            <span class="text-white font-bold text-sm truncate pr-2">{{ $alerta->colaborador->nome_completo ?? 'N/A' }}</span>
+                            <span class="text-[10px] font-mono text-gray-500">{{ $alerta->data_apontamento->format('d/m') }}</span>
+                        </div>
+                        <p class="text-xs text-red-300/80 line-clamp-2 mb-3 min-h-[32px]">{{ $alerta->motivo_alerta }}</p>
+                    </div>
+                    
+                    <div class="flex justify-between items-center pt-3 border-t border-slate-800">
+                        @php
+                            $statusCor = 'bg-gray-500/10 text-gray-500';
+                            if (in_array($alerta->status_aprovacao, ['PENDENTE', 'EM_ANALISE'])) {
+                                $statusCor = 'bg-yellow-500/10 text-yellow-500 border border-yellow-500/20';
+                            } elseif ($alerta->status_aprovacao == 'APROVADO') {
+                                $statusCor = 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20';
+                            } elseif (in_array($alerta->status_aprovacao, ['REJEITADO', 'SOLICITACAO_AJUSTE'])) {
+                                $statusCor = 'bg-red-500/10 text-red-500 border border-red-500/20';
+                            }
+                        @endphp
+                        <span class="text-[9px] font-bold px-2 py-0.5 rounded {{ $statusCor }}">
+                            {{ str_replace('_', ' ', $alerta->status_aprovacao ?? 'PENDENTE') }}
+                        </span>
+                        <span class="text-[10px] text-gray-500 group-hover:text-red-400 transition-colors flex items-center gap-1">Detalhes <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg></span>
+                    </div>
+                </div>
+            @endforeach
+        </div>
+    </div>
+    @endif
+
     <div class="bg-slate-800 rounded-xl border border-slate-800 p-6 shadow-lg relative overflow-hidden mb-8">
         <div class="absolute top-0 left-0 w-1.5 h-full bg-purple-500"></div>
         <div class="flex flex-col sm:flex-row items-center justify-between mb-6 gap-4">
@@ -140,10 +214,10 @@
             <div class="flex justify-between items-center mb-6">
                 <h3 class="text-indigo-400 font-bold text-lg uppercase tracking-wider">Evolução Diária</h3>
                 @if($filtroValor)
-                    <span class="text-xs bg-indigo-500/20 text-indigo-300 px-2 py-1 rounded border border-indigo-500/30 flex items-center gap-1 animate-fade-in">
+                    <span class="text-xs bg-indigo-500/20 text-indigo-300 px-2 py-1 rounded border border-indigo-500/30 flex items-center gap-1 animate-fade-in max-w-[280px]">
                         <span class="opacity-50 uppercase text-[10px]">{{ $tipoFiltro }}:</span>
-                        <span class="font-bold">{{ Str::limit($filtroValor, 15) }}</span>
-                        <button wire:click="filtrarPorItem('{{ $filtroValor }}')" class="ml-1 hover:text-white bg-indigo-500/20 rounded-full w-4 h-4 flex items-center justify-center">&times;</button>
+                        <span class="font-bold truncate" title="{{ $nomeFiltroSelecionado }}">{{ Str::limit($nomeFiltroSelecionado, 25) }}</span>
+                        <button wire:click="filtrarPorItem('{{ $filtroValor }}')" class="ml-1 hover:text-white bg-indigo-500/20 rounded-full w-4 h-4 flex items-center justify-center shrink-0">&times;</button>
                     </span>
                 @endif
             </div>
@@ -261,8 +335,15 @@
                         
                         <td class="py-3 px-3">
                             <div class="flex flex-col">
-                                <span class="text-gray-300 font-medium text-xs">{{ $l->projeto->codigo ?? 'N/A' }}</span>
-                                <span class="text-[11px] text-gray-500 uppercase">{{ Str::limit($l->projeto->nome ?? 'N/A', 30) }}</span>
+                                @if($l->projeto)
+                                    <span class="text-gray-300 font-medium text-xs" title="{{ $l->projeto->codigo }}">{{ $l->projeto->codigo }}</span>
+                                    <span class="text-[11px] text-gray-500 uppercase" title="{{ $l->projeto->nome }}">{{ Str::limit($l->projeto->nome, 30) }}</span>
+                                @elseif($l->centroCusto)
+                                    <span class="text-gray-300 font-medium text-xs">SETOR</span>
+                                    <span class="text-[11px] text-gray-500 uppercase" title="{{ $l->centroCusto->nome }}">{{ Str::limit($l->centroCusto->nome, 30) }}</span>
+                                @else
+                                    <span class="text-gray-500 italic text-xs">Não informado</span>
+                                @endif
                             </div>
                         </td>
 
@@ -538,8 +619,13 @@
             <div class="bg-slate-950/50 p-4 rounded-lg border border-slate-800/50">
                 <p class="text-gray-300 text-sm whitespace-pre-line leading-relaxed" x-text="modalContent"></p>
             </div>
-            <div class="mt-6 flex justify-end">
-                <button @click="modalOpen = false" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-bold transition">Fechar</button>
+            <div class="mt-6 flex justify-end gap-3">
+                <template x-if="modalActionUrl">
+                    <a :href="modalActionUrl" class="bg-indigo-600/20 border border-indigo-500/30 text-indigo-400 hover:bg-indigo-600 hover:text-white px-4 py-2 rounded-lg text-sm font-bold transition">
+                        Ver Contexto no Histórico
+                    </a>
+                </template>
+                <button @click="modalOpen = false" class="bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded-lg text-sm font-bold transition">Fechar</button>
             </div>
         </div>
     </div>

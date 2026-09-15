@@ -35,10 +35,11 @@ class HistoricoController extends Controller
         $ehGestor = AcessoHelper::isGerente($user);
         $podeVerAlertas = $ehOwner || $ehGestor;
 
-        // ─── Filtros de Data (equivalente ao Django) ───────────────────────────
+        // ─── Filtros de Data e Outros Parâmetros ───────────────────────────────
         $period        = $request->query('period');
         $startDateStr  = $request->query('start_date');
         $endDateStr    = $request->query('end_date');
+        $colaboradorId = $request->query('colaborador_id');
 
         $endDate       = now()->toDateString();
         $startDate     = now()->subDays(2)->toDateString();
@@ -81,6 +82,10 @@ class HistoricoController extends Controller
                   ->whereDate('data_apontamento', '<=', $endDate);
         } else {
             $query->whereDate('data_apontamento', '>=', $startDate);
+        }
+
+        if ($colaboradorId) {
+            $query->where('colaborador_id', $colaboradorId);
         }
 
         // ─── Filtro de Visibilidade (Row-Level Security) ───────────
@@ -260,6 +265,7 @@ class HistoricoController extends Controller
             'start_date_val'      => $startDate,
             'end_date_val'        => $endDate,
             'bloqueia_data_antiga'=> $bloqueiaDataAntiga,
+            'colaborador_id_val'  => $colaboradorId,
         ]);
     }
 }

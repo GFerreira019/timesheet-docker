@@ -17,6 +17,7 @@ class Dashboard extends Component
     // --- FILTROS ---
     public $tipoFiltro = 'obra'; 
     public $filtroValor = null;
+    public $nomeFiltroSelecionado = '';
     public $termoBusca = '';
     public $mostrarBusca = false;
 
@@ -27,6 +28,7 @@ class Dashboard extends Component
     public $tituloLista = 'Códigos de Obras';
     public $lancamentos = [];
     public $dadosCalendario = [];
+    public $alertasTrabalhistas = [];
     
     // --- CALENDÁRIO ---
     public $mesAtual;
@@ -73,7 +75,17 @@ class Dashboard extends Component
         if ($this->tipoFiltro !== $novoTipo) {
             $this->tipoFiltro = $novoTipo;
             $this->filtroValor = null;
+            $this->nomeFiltroSelecionado = '';
             $this->termoBusca = '';
+            
+            $titulos = [
+                'obra' => 'Códigos de Obras',
+                'colaborador' => 'Colaboradores',
+                'cargo' => 'Cargos',
+                'veiculo' => 'Veículos',
+            ];
+            $this->tituloLista = $titulos[$novoTipo] ?? 'Lista';
+
             $this->atualizarDados();
         }
     }
@@ -142,6 +154,39 @@ class Dashboard extends Component
         $this->lancamentos = $service->getLancamentosRecentes($this->expandirTabela, $filtros);
         $this->dadosCalendario = $service->getDadosCalendario($this->mesAtual, $this->anoAtual, $filtros);
 
+        // Buscar Alertas Trabalhistas Pendentes do mês
+        $queryAlertas = \App\Models\Apontamento::with('colaborador')
+            ->where('flag_atencao', true)
+            ->whereMonth('data_apontamento', $this->mesAtual)
+            ->whereYear('data_apontamento', $this->anoAtual)
+            ->orderBy('data_apontamento', 'desc');
+            
+        if (!empty($filtros['tipo']) && !empty($filtros['valor'])) {
+            if ($filtros['tipo'] == 'obra') $queryAlertas->where('projeto_id', $filtros['valor']);
+            if ($filtros['tipo'] == 'colaborador') $queryAlertas->where('colaborador_id', $filtros['valor']);
+            if ($filtros['tipo'] == 'veiculo') $queryAlertas->where('veiculo_id', $filtros['valor']);
+        }
+
+        $this->alertasTrabalhistas = $queryAlertas->get();
+
+        // Identifica o nome do item selecionado para exibir no topo do gráfico
+        if ($this->filtroValor) {
+            if ($this->tipoFiltro == 'colaborador') {
+                $c = \App\Models\Colaborador::find($this->filtroValor);
+                $this->nomeFiltroSelecionado = $c ? $c->nome_completo . ' - ' . $c->cargo : $this->filtroValor;
+            } elseif ($this->tipoFiltro == 'obra') {
+                $p = \App\Models\Projeto::find($this->filtroValor);
+                $this->nomeFiltroSelecionado = $p ? $p->nome : $this->filtroValor;
+            } elseif ($this->tipoFiltro == 'veiculo') {
+                $v = \App\Models\Veiculo::find($this->filtroValor);
+                $this->nomeFiltroSelecionado = $v ? $v->placa . ' - ' . $v->modelo : $this->filtroValor;
+            } else {
+                $this->nomeFiltroSelecionado = $this->filtroValor;
+            }
+        } else {
+            $this->nomeFiltroSelecionado = '';
+        }
+
         $this->carregando = false;
     }
 
@@ -188,13 +233,13 @@ class Dashboard extends Component
         // Pega nomes (IDs) que enviaram hoje
         $enviaramIds = $registrosDia->pluck('colaborador_id')->unique();
         
-        // Pendentes: todos que enviaram no mes - os que enviaram hoje (simplificando)
-        $todosNomesMes = \App\Models\Apontamento::with('colaborador')
-            ->whereMonth('data_apontamento', $this->mesAtual)
-            ->distinct('colaborador_id')
-            ->get()
-            ->map(fn($a) => $a->colaborador ? $a->colaborador->nome_completo : '')
-            ->filter();
+        // CORREÇÃO N+1 e PROBLEMA DE MEMÓRIA: 
+        // Em vez de carregar TODOS os apontamentos do mês e agrupar em PHP, 
+        // buscamos apenas os nomes dos colaboradores ativos no período na base.
+        $todosNomesMes = \App\Models\Colaborador::whereHas('apontamentos', function ($q) {
+            $q->whereMonth('data_apontamento', $this->mesAtual)
+              ->whereYear('data_apontamento', $this->anoAtual);
+        })->pluck('nome_completo');
             
         $enviaramNomes = $registrosDia->map(fn($a) => $a->colaborador ? $a->colaborador->nome_completo : '')->unique();
         

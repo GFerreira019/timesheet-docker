@@ -724,10 +724,18 @@
                         </button>
                     </div>
 
-                    <!-- Matrícula / ID (Bloqueado definitivo) -->
-                    <div>
-                        <label class="block text-xs font-medium mb-1 text-slate-400">Matrícula *</label>
-                        <input type="text" name="id_colaborador" disabled class="w-full bg-slate-900/50 border border-slate-700 text-slate-500 rounded-lg p-3 outline-none cursor-not-allowed">
+                    <!-- Cargo -->
+                    <div class="relative group">
+                        <label class="block text-xs font-medium mb-1 text-slate-400">Cargo *</label>
+                        <select name="cargo" disabled required class="w-full bg-slate-900/50 border border-slate-700 text-slate-400 rounded-lg p-3 pr-10 focus:ring-2 focus:ring-indigo-500 outline-none transition-all appearance-none">
+                            <option value="">Selecione</option>
+                            @foreach($cargos as $cargo)
+                                <option value="{{ $cargo }}">{{ $cargo }}</option>
+                            @endforeach
+                        </select>
+                        <button type="button" onclick="desbloquearCampo(this)" class="absolute right-1.5 top-[22px] p-1 text-slate-500 hover:text-indigo-400 transition-colors opacity-50 hover:opacity-100 z-10" title="Editar informação">
+                            <i class="fas fa-pencil-alt text-[10px]"></i>
+                        </button>
                     </div>
 
                     <!-- Nivel Acesso -->
@@ -753,20 +761,6 @@
                             </button>
                         </div>
                         <div id="hidden-inputs-gerenciados-ficha"></div>
-                    </div>
-
-                    <!-- Cargo -->
-                    <div class="relative group">
-                        <label class="block text-xs font-medium mb-1 text-slate-400">Cargo *</label>
-                        <select name="cargo" disabled required class="w-full bg-slate-900/50 border border-slate-700 text-slate-400 rounded-lg p-3 pr-10 focus:ring-2 focus:ring-indigo-500 outline-none transition-all appearance-none">
-                            <option value="">Selecione</option>
-                            @foreach($cargos as $cargo)
-                                <option value="{{ $cargo }}">{{ $cargo }}</option>
-                            @endforeach
-                        </select>
-                        <button type="button" onclick="desbloquearCampo(this)" class="absolute right-1.5 top-[22px] p-1 text-slate-500 hover:text-indigo-400 transition-colors opacity-50 hover:opacity-100 z-10" title="Editar informação">
-                            <i class="fas fa-pencil-alt text-[10px]"></i>
-                        </button>
                     </div>
 
                     <!-- Setor -->

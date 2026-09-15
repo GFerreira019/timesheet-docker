@@ -66,6 +66,13 @@
                 <!-- Dropdown do Formulário -->
                 <div id="dateFilterDropdown" class="hidden absolute top-full left-0 mt-2 p-4 bg-slate-800 border border-slate-700 rounded-xl shadow-xl z-50 w-[calc(100vw-3rem)] sm:w-auto sm:min-w-[350px]">
                     <form action="{{ route('historico.index') }}" method="GET" class="flex flex-col gap-3">
+                        @if(!empty($colaborador_id_val))
+                            <input type="hidden" name="colaborador_id" value="{{ $colaborador_id_val }}">
+                            <div class="bg-indigo-500/10 border border-indigo-500/30 px-3 py-2 rounded-lg mb-2 flex items-center justify-between">
+                                <span class="text-indigo-400 text-xs font-bold"><i class="fas fa-filter mr-1"></i> Filtrando 1 Colaborador (Alerta)</span>
+                                <a href="{{ route('historico.index') }}" class="text-slate-400 hover:text-red-400 text-xs" title="Remover filtro"><i class="fas fa-times"></i></a>
+                            </div>
+                        @endif
                         <div class="flex flex-col sm:flex-row gap-3">
                             <div class="flex-1">
                                 <label class="block text-[10px] text-slate-400 uppercase tracking-wider mb-1 font-bold">De</label>
