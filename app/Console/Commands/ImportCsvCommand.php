@@ -27,6 +27,9 @@ class ImportCsvCommand extends Command
      */
     public function handle()
     {
+        // Evita timeout silencioso na execução do container Docker na VPS
+        set_time_limit(0);
+
         $table = $this->argument('table');
         $filePath = $this->argument('file');
         $delimiter = $this->option('delimiter') ?: ';';
