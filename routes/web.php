@@ -199,6 +199,7 @@ Route::middleware('auth')->group(function () {
             Route::post('/', [ErpObraManualController::class, 'store'])->name('store');
             Route::post('/verificar-cliente', [ErpObraManualController::class, 'verificarCliente'])->name('verificar-cliente');
             Route::get('/sugestoes-nome', [ErpObraManualController::class, 'sugestoesNome'])->name('sugestoes-nome');
+            Route::get('/{id}/historico', [ErpObraManualController::class, 'historico'])->name('historico');
             Route::get('/{id}', [ErpObraManualController::class, 'show'])->name('show');
             Route::put('/{id}', [ErpObraManualController::class, 'update'])->name('update');
             Route::delete('/{id}', [ErpObraManualController::class, 'destroy'])->name('destroy');

@@ -192,7 +192,154 @@ class ErpObraManualController extends Controller
         }
     }
 
+    public function historico($id)
+    {
+        $obra = ErpObraManual::findOrFail($id);
+        
+        $historicos = \App\Models\ControleProjetoHistorico::with('editadoPor')
+            ->where('projeto_original_id', $id)
+            ->orderBy('numero_edicao', 'asc')
+            ->get();
+
+        $timeline = [];
+        $snapshotAnterior = null;
+
+        $dicionario = [
+            'projeto_nome' => 'Nome do Projeto',
+            'projeto_status' => 'Status do Projeto',
+            'status_ativo' => 'Status (Ativo)',
+            'valor_contrato' => 'Valor do Contrato',
+            'cliente_codigo' => 'Código do Cliente',
+            'projeto_codigo' => 'Código do Projeto',
+            'projeto_unidade' => 'Unidade do Projeto',
+            'cnpj' => 'CNPJ',
+            'razao_social' => 'Razão Social',
+            'endereco' => 'Endereço',
+            'cidade' => 'Cidade',
+            'tipo_categoria' => 'Categoria',
+            'setor_id' => 'Setor Responsável',
+            'projeto_etapa' => 'Etapa do Projeto',
+            'cronograma_inicio' => 'Início do Cronograma',
+            'cronograma_fim' => 'Fim do Cronograma',
+            'target' => 'Data Target',
+            'contrato_assinatura' => 'Assinatura do Contrato',
+            'termo_entrega' => 'Termo de Entrega',
+            'projeto_avanco' => 'Avanço do Projeto (%)',
+            'pedagio' => 'Pedágio',
+            'ausencia_cronograma' => 'Ausência de Cronograma',
+            'ausencia_contrato' => 'Ausência de Contrato',
+            'ausencia_termo' => 'Ausência de Termo',
+            'valor_venda' => 'Valor de Venda',
+            'valor_monitoramento' => 'Valor de Monitoramento',
+            'valor_licenca' => 'Valor de Licença',
+            'valor_manutencao' => 'Valor de Manutenção',
+            'valor_locacao' => 'Valor de Locação',
+            'comentarios' => 'Comentários',
+            'lider_comercial_id' => 'Responsável Comercial',
+            'gestores' => 'Gestores e Responsáveis',
+        ];
+
+        // Cache para IDs de Setor e Colaborador para não fazer query em loop
+        $setores = \App\Models\Setor::pluck('nome', 'id')->toArray();
+        $colaboradores = \App\Models\Colaborador::pluck('nome_completo', 'id')->toArray();
+
+        foreach ($historicos as $hist) {
+            $snapshotAtual = is_array($hist->dados_snapshot) ? $hist->dados_snapshot : json_decode($hist->dados_snapshot, true);
+            $mudancas = [];
+
+            if ($snapshotAnterior === null) {
+                // É a criação
+                $snapshotAnterior = $snapshotAtual;
+                $timeline[] = [
+                    'edicao' => $hist->numero_edicao,
+                    'data' => $hist->data_edicao ? $hist->data_edicao->format('d/m/Y H:i:s') : 'Desconhecida',
+                    'autor' => $hist->editadoPor ? $hist->editadoPor->name : 'Sistema',
+                    'mudancas' => [[
+                        'campo_formatado' => 'Criação',
+                        'de' => '',
+                        'para' => 'Registro Inicial Criado'
+                    ]]
+                ];
+                continue; 
+            }
+
+            foreach ($snapshotAtual as $campo => $valorAtualRaw) {
+                if (in_array($campo, ['updated_at', 'created_at', 'id', 'gestores_ids', 'lider_comercial'])) {
+                    continue; // Ignorar timestamps, ids e helpers
+                }
+
+                $valorAntigoRaw = $snapshotAnterior[$campo] ?? null;
+
+                // Tratamento especial para Gestores (array de objetos)
+                if ($campo === 'gestores') {
+                    $atualGestores = collect($valorAtualRaw)->map(function($g) {
+                        return $g['nome_completo'] ?? '';
+                    })->filter()->implode('\n');
+                    
+                    $antigoGestores = collect($valorAntigoRaw)->map(function($g) {
+                        return ($g['nome_completo'] ?? '');
+                    })->filter()->implode('\n');
+                    
+                    if ($atualGestores !== $antigoGestores) {
+                        $mudancas[] = [
+                            'campo_raw' => $campo,
+                            'campo_formatado' => $dicionario[$campo] ?? 'Gestores',
+                            'de' => $antigoGestores ?: 'Nenhum',
+                            'para' => $atualGestores ?: 'Nenhum'
+                        ];
+                    }
+                    continue;
+                }
+
+                // Normalização para string (para floats, nulls, booleanos, etc)
+                $valorAtual = is_array($valorAtualRaw) ? json_encode($valorAtualRaw) : strval($valorAtualRaw);
+                $valorAntigo = is_array($valorAntigoRaw) ? json_encode($valorAntigoRaw) : strval($valorAntigoRaw);
+                
+                // Formatar booleanos
+                if (is_bool($valorAtualRaw) || in_array($campo, ['status_ativo', 'pedagio', 'ausencia_cronograma', 'ausencia_contrato', 'ausencia_termo'])) {
+                    $valorAtual = $valorAtualRaw ? 'Sim' : 'Não';
+                    $valorAntigo = $valorAntigoRaw ? 'Sim' : 'Não';
+                }
+
+                if ($valorAtual !== $valorAntigo) {
+                    
+                    // Tradução de FKs (Join manual)
+                    if ($campo === 'setor_id') {
+                        $valorAntigo = $setores[$valorAntigoRaw] ?? $valorAntigo;
+                        $valorAtual = $setores[$valorAtualRaw] ?? $valorAtual;
+                    } elseif ($campo === 'lider_comercial_id') {
+                        $valorAntigo = $colaboradores[$valorAntigoRaw] ?? $valorAntigo;
+                        $valorAtual = $colaboradores[$valorAtualRaw] ?? $valorAtual;
+                    }
+
+                    $mudancas[] = [
+                        'campo_raw' => $campo,
+                        'campo_formatado' => $dicionario[$campo] ?? ucfirst(str_replace('_', ' ', $campo)),
+                        'de' => $valorAntigo,
+                        'para' => $valorAtual
+                    ];
+                }
+            }
+
+            if (!empty($mudancas)) {
+                $timeline[] = [
+                    'edicao' => $hist->numero_edicao,
+                    'data' => $hist->data_edicao ? $hist->data_edicao->format('d/m/Y H:i:s') : 'Desconhecida',
+                    'autor' => $hist->editadoPor ? $hist->editadoPor->name : 'Sistema',
+                    'mudancas' => $mudancas
+                ];
+            }
+
+            $snapshotAnterior = $snapshotAtual;
+        }
+
+        $timeline = array_reverse($timeline);
+
+        return view('erp_obras_manual.partials.historico_modal', compact('obra', 'timeline'));
+    }
+
     public function sugestoesNome(Request $request)
+
     {
         $clienteCodigo = $request->query('cliente_codigo');
         $cnpj = $request->query('cnpj');
