@@ -9,7 +9,7 @@ class ColaboradorController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Colaborador::with(['setorRelacionamento', 'setoresVinculados:id', 'setoresGerenciados:id', 'user.roles']);
+        $query = Colaborador::with(['setorRelacionamento', 'setoresVinculados:id', 'setoresGerenciados:id', 'user.roles', 'notificacoes' => fn($q) => $q->where('lida', false)->latest()->limit(10)]);
 
         if ($request->filled('nome')) {
             $query->where('nome_completo', 'ilike', '%' . $request->nome . '%');
@@ -62,7 +62,7 @@ class ColaboradorController extends Controller
                                 ->where('ignorado_erp', true)
                                 ->get();
 
-        $colaboradoresParaVinculo = Colaborador::with(['user', 'setorRelacionamento'])->orderBy('nome_completo')->get();
+        $colaboradoresParaVinculo = Colaborador::with(['user', 'setorRelacionamento', 'notificacoes' => fn($q) => $q->where('lida', false)->latest()->limit(10)])->orderBy('nome_completo')->get();
 
         return view('colaboradores.index', compact('colaboradores', 'cargos', 'setores', 'cidades', 'cidades_trabalho', 'roles', 'usuariosPendentes', 'usuariosIgnorados', 'colaboradoresParaVinculo'));
     }

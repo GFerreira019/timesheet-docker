@@ -1534,7 +1534,10 @@
         listContainer.innerHTML = '';
         spinner.classList.remove('hidden');
 
-        fetch(`/erp-obras-manual/${id}/historico`)
+        // Adiciona um timestamp para evitar cache do navegador na requisição AJAX
+        const timestamp = new Date().getTime();
+
+        fetch(`/erp-obras-manual/${id}/historico?t=${timestamp}`)
             .then(res => {
                 if(!res.ok) throw new Error('Erro ao buscar histórico');
                 return res.text();

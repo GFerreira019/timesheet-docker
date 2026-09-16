@@ -50,7 +50,7 @@ class CalendarioApiController extends Controller
             return response()->json(['error' => 'Parâmetros inválidos'], 400);
         }
 
-        $numDays   = cal_days_in_month(CAL_GREGORIAN, $month, $year);
+        $numDays   = \Carbon\Carbon::create($year, $month, 1)->daysInMonth;
         $today     = now()->toDateString();
         $user      = auth()->user();
         $daysData  = [];

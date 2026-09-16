@@ -1,4 +1,4 @@
-# Fase 2: Arquitetura e Integração
+# 1. Arquitetura e Integração
 
 O Sistema de Timesheet foi desenhado para atuar em conjunto com o ERP matriz corporativo. Entender o fluxo de dados e os limites de onde o sistema atua como dono da informação é fundamental para o desenvolvimento e manutenção das integrações.
 

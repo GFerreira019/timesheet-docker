@@ -60,6 +60,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Força a prevenção de Lazy Loading no Eloquent, disparando exceção se não estiver em Produção
+        \Illuminate\Database\Eloquent\Model::preventLazyLoading(! $this->app->isProduction());
+
         // ─────────────────────────────────────────────────────────────
         // INTEGRAÇÕES EXTERNAS (Discos customizados)
         // ─────────────────────────────────────────────────────────────

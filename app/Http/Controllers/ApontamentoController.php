@@ -120,7 +120,7 @@ class ApontamentoController extends Controller
             'clientes'                 => \App\Models\ClienteOperacional::where('ativo', true)->orderBy('nome')->get(),
             'centros_custo'            => CentroCusto::where('ativo', true)->orderBy('nome')->get(),
             'veiculos'                 => Veiculo::ativos()->orderBy('placa')->get(),
-            'auxiliares'               => Colaborador::ativos()
+            'auxiliares'               => Colaborador::ativos()->with(['notificacoes' => fn($q) => $q->where('lida', false)->latest()->limit(10)])
                                             ->whereHas('setorRelacionamento', fn($q) => $q->where('ativo', true))
                                             ->whereIn('cargo', ['AUXILIAR TECNICO', 'OFICIAL DE SISTEMAS'])
                                             ->orderBy('nome_completo')->get(),
@@ -293,7 +293,7 @@ class ApontamentoController extends Controller
                                                     $q->orWhere('id', $apontamento->veiculo_id);
                                                 }
                                             })->orderBy('placa')->get(),
-            'auxiliares'               => Colaborador::where(function($q) use ($apontamento) {
+            'auxiliares'               => Colaborador::with(['notificacoes' => fn($q) => $q->where('lida', false)->latest()->limit(10)])->where(function($q) use ($apontamento) {
                                                 $q->ativos()->whereHas('setorRelacionamento', fn($s) => $s->where('ativo', true));
                                                 if ($apontamento->auxiliar_id) {
                                                     $q->orWhere('id', $apontamento->auxiliar_id);
@@ -905,7 +905,7 @@ class ApontamentoController extends Controller
     private function getColaboradoresPermitidos($user, $apontamento = null)
     {
         if (AcessoHelper::isAdmin($user)) {
-            return Colaborador::where(function($q) use ($apontamento) {
+            return Colaborador::with(['notificacoes' => fn($q) => $q->where('lida', false)->latest()->limit(10)])->where(function($q) use ($apontamento) {
                 $q->ativos()->whereHas('setorRelacionamento', fn($s) => $s->where('ativo', true));
                 if ($apontamento && $apontamento->colaborador_id) {
                     $q->orWhere('id', $apontamento->colaborador_id);
@@ -920,9 +920,9 @@ class ApontamentoController extends Controller
             }
             $setoresGerenciados = collect($colab->getSetoresGerenciadosIds());
             if ($setoresGerenciados->isEmpty()) {
-                return Colaborador::where('id', $colab->id)->get();
+                return Colaborador::with(['notificacoes' => fn($q) => $q->where('lida', false)->latest()->limit(10)])->where('id', $colab->id)->get();
             }
-            return Colaborador::where(function ($q) use ($setoresGerenciados, $colab) {
+            return Colaborador::with(['notificacoes' => fn($q) => $q->where('lida', false)->latest()->limit(10)])->where(function ($q) use ($setoresGerenciados, $colab) {
                 $q->whereIn('setor_id', $setoresGerenciados)
                   ->orWhere('id', $colab->id);
             })->where(function($q) use ($apontamento) {
@@ -942,7 +942,7 @@ class ApontamentoController extends Controller
         if (AcessoHelper::isAcessoExpandido($user)) {
             $setoresPermitidos = collect($colab->getSetoresPermitidosIds());
 
-            return Colaborador::where(function ($q) use ($setoresPermitidos, $colab) {
+            return Colaborador::with(['notificacoes' => fn($q) => $q->where('lida', false)->latest()->limit(10)])->where(function ($q) use ($setoresPermitidos, $colab) {
                 $q->whereIn('setor_id', $setoresPermitidos)
                   ->orWhere('id', $colab->id);
             })->where(function($q) use ($apontamento) {
@@ -954,7 +954,7 @@ class ApontamentoController extends Controller
         }
 
         // COORDENADOR / OPERACIONAL (sem permissão de acesso expandido)
-        return Colaborador::where('id', $colab->id)->get();
+        return Colaborador::with(['notificacoes' => fn($q) => $q->where('lida', false)->latest()->limit(10)])->where('id', $colab->id)->get();
     }
 
     /**

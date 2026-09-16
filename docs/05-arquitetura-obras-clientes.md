@@ -1,4 +1,4 @@
-# Dossiê Técnico: Arquitetura de Obras e Clientes (ERP Manual)
+# 5. Arquitetura de Obras e Clientes (ERP Manual)
 
 Este documento serve como guia definitivo sobre o funcionamento e a arquitetura do módulo de Obras e Clientes, refatorado para garantir consistência de dados, prevenção de duplicidades e sincronização inteligente com o modelo legado do sistema.
 

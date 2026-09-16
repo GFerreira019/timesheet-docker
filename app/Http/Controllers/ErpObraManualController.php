@@ -93,14 +93,14 @@ class ErpObraManualController extends Controller
         }
 
         // Buscar Gerentes
-        $gerentes = Colaborador::ativos()->whereHas('user.roles', function($q) {
+        $gerentes = Colaborador::ativos()->with(['notificacoes' => fn($q) => $q->where('lida', false)->latest()->limit(10)])->whereHas('user.roles', function($q) {
                                             $q->where('name', 'GERENCIAL');
                                         })
                                         ->orderBy('nome_completo')
                                         ->get();
 
         // Buscar Coordenadores
-        $coordenadores = Colaborador::ativos()->whereHas('user.roles', function($q) {
+        $coordenadores = Colaborador::ativos()->with(['notificacoes' => fn($q) => $q->where('lida', false)->latest()->limit(10)])->whereHas('user.roles', function($q) {
                                             $q->where('name', 'COORDENADOR');
                                         })
                                         ->orderBy('nome_completo')
@@ -110,7 +110,7 @@ class ErpObraManualController extends Controller
         $setores = Setor::ativos()->orderBy('nome')->get();
 
         // Buscar Responsáveis Comerciais (Setores: COMERCIAL - 3, DIRETORIA - 5)
-        $lideresComerciais = Colaborador::ativos()->whereIn('setor_id', [3, 5])
+        $lideresComerciais = Colaborador::ativos()->with(['notificacoes' => fn($q) => $q->where('lida', false)->latest()->limit(10)])->whereIn('setor_id', [3, 5])
                                         ->orderBy('nome_completo')
                                         ->get();
 
