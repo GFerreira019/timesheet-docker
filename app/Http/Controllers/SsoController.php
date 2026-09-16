@@ -43,6 +43,12 @@ class SsoController extends Controller
             $data = $response->json();
             \Log::info('SSO [callback] Response Data:', ['payload' => $data]);
 
+            // Validação preventiva adicional
+            if (empty($data) || !is_array($data)) {
+                Log::error('SSO: Payload vazio ou inválido retornado pelo ERP no callback.');
+                return redirect()->route('login')->withErrors(['error' => 'Falha na autenticação: O ERP não retornou dados válidos.']);
+            }
+
             // Verifica acesso_liberado (na raiz ou dentro de data)
             $acesso = $data['acesso_liberado'] ?? ($data['data']['acesso_liberado'] ?? null);
             if ($acesso !== true) {
@@ -55,9 +61,9 @@ class SsoController extends Controller
             }
             \Log::info('SSO [callback] Dados Extraídos:', ['extracted' => $dadosUsuario]);
 
-            if (!isset($dadosUsuario['id_usuario'])) {
-                Log::warning('SSO: Dados do usuário incompletos retornados pelo ERP.');
-                return redirect()->route('login')->withErrors(['error' => 'Dados de usuário inválidos retornados pelo ERP.']);
+            if (empty($dadosUsuario) || empty($dadosUsuario['id_usuario']) || empty($dadosUsuario['email'])) {
+                Log::warning('SSO: Dados do usuário incompletos retornados pelo ERP.', ['extracted' => $dadosUsuario]);
+                return redirect()->route('login')->withErrors(['error' => 'Dados de usuário inválidos ou incompletos retornados pelo ERP.']);
             }
 
             // PASSO 2: Buscar Perfil Completo
@@ -164,6 +170,11 @@ class SsoController extends Controller
         $json = $r->json();
         \Log::info('SSO [connect] Response Data:', ['payload' => $json]);
         
+        if (empty($json) || !is_array($json)) {
+            Log::error('[sso-connect] Payload vazio ou inválido retornado pelo ERP.', ['status' => $r->status()]);
+            return redirect('/login')->withErrors(['error' => 'Falha na autenticação: O ERP não retornou dados válidos (Payload vazio).']);
+        }
+
         if (! $r->successful() || ! ($json['success'] ?? false)) {
             $erroApi = $json['error'] ?? $r->status();
             Log::info('[sso-connect] recusado: ' . $erroApi);
@@ -176,13 +187,19 @@ class SsoController extends Controller
         }
         \Log::info('SSO [connect] Dados Extraídos:', ['extracted' => $u]);
 
+        // Validação preventiva: não seguir com JIT Provisioning sem os dados essenciais
+        if (empty($u) || empty($u['email']) || empty($u['id_usuario'])) {
+            Log::error('[sso-connect] Dados obrigatórios (email, id_usuario) ausentes no payload.', ['extracted' => $u]);
+            return redirect('/login')->withErrors(['error' => 'Dados de usuário incompletos ou ausentes no retorno do ERP.']);
+        }
+
         $acesso = $json['acesso_liberado'] ?? ($u['acesso_liberado'] ?? false);
         if ($acesso !== true) {
             return redirect('/login')->withErrors(['error' => 'Seu usuário não possui a flag "acesso_liberado" ativa no ERP.']);
         }
 
         // PASSO 2: Buscar Perfil Completo
-        $idUsuario = $u['id_usuario'] ?? null;
+        $idUsuario = $u['id_usuario'];
         $perfilData = [];
         
         if ($idUsuario) {
@@ -207,7 +224,7 @@ class SsoController extends Controller
         }
 
         $user = User::firstOrNew(['email' => $u['email']]);
-        $user->name = $u['nome'];
+        $user->name = $u['nome'] ?? 'Usuário SSO';
         $user->connect_user_id = $u['id_usuario'];
         $user->solides_id = $perfilData['tangerino_employee_id'] ?? ($u['tangerino_employee_id'] ?? $user->solides_id);
         $user->save();
