@@ -50,10 +50,14 @@ class ColaboradorApiController extends Controller
         // Cache de 12h (43200 segundos) — equivalente ao Django
         $auxiliares = Cache::remember($cacheKey, 43200, function () {
             return Colaborador::ativos()
-                ->whereIn('cargo', ['AUXILIAR TECNICO', 'OFICIAL DE SISTEMAS'])
+                ->where(function($q) {
+                    $q->where('cargo', 'like', '%AUXILIAR TECNICO%')
+                      ->orWhere('cargo', 'OFICIAL DE SISTEMAS');
+                })
                 ->orderBy('nome_completo')
-                ->get(['id', 'nome_completo', 'data_demissao'])
-                ->map(fn($a) => ['id' => $a->id, 'nome_completo' => $a->nome_exibicao])
+                ->with('setorRelacionamento')
+                ->get(['id', 'nome_completo', 'data_demissao', 'setor_id'])
+                ->map(fn($a) => ['id' => $a->id, 'nome_completo' => $a->nome_exibicao . ' (' . ($a->setorRelacionamento->nome ?? 'Sem Setor') . ')'])
                 ->values()
                 ->all();
         });

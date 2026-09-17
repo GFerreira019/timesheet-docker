@@ -120,9 +120,12 @@ class ApontamentoController extends Controller
             'clientes'                 => \App\Models\ClienteOperacional::where('ativo', true)->orderBy('nome')->get(),
             'centros_custo'            => CentroCusto::where('ativo', true)->orderBy('nome')->get(),
             'veiculos'                 => Veiculo::ativos()->orderBy('placa')->get(),
-            'auxiliares'               => Colaborador::ativos()->with(['notificacoes' => fn($q) => $q->where('lida', false)->latest()->limit(10)])
+            'auxiliares'               => Colaborador::ativos()->with(['setorRelacionamento', 'notificacoes' => fn($q) => $q->where('lida', false)->latest()->limit(10)])
                                             ->whereHas('setorRelacionamento', fn($q) => $q->where('ativo', true))
-                                            ->whereIn('cargo', ['AUXILIAR TECNICO', 'OFICIAL DE SISTEMAS'])
+                                            ->where(function($q) {
+                                                $q->where('cargo', 'like', '%AUXILIAR TECNICO%')
+                                                  ->orWhere('cargo', 'OFICIAL DE SISTEMAS');
+                                            })
                                             ->orderBy('nome_completo')->get(),
             'ultimoVeiculo'            => $ultimoVeiculo,
             'ultimoAuxiliar'           => $ultimoAuxiliar,
@@ -293,7 +296,7 @@ class ApontamentoController extends Controller
                                                     $q->orWhere('id', $apontamento->veiculo_id);
                                                 }
                                             })->orderBy('placa')->get(),
-            'auxiliares'               => Colaborador::with(['notificacoes' => fn($q) => $q->where('lida', false)->latest()->limit(10)])->where(function($q) use ($apontamento) {
+            'auxiliares'               => Colaborador::with(['setorRelacionamento', 'notificacoes' => fn($q) => $q->where('lida', false)->latest()->limit(10)])->where(function($q) use ($apontamento) {
                                                 $q->ativos()->whereHas('setorRelacionamento', fn($s) => $s->where('ativo', true));
                                                 if ($apontamento->auxiliar_id) {
                                                     $q->orWhere('id', $apontamento->auxiliar_id);
@@ -302,7 +305,10 @@ class ApontamentoController extends Controller
                                                     $q->orWhereIn('id', $apontamento->auxiliaresExtras->pluck('id')->toArray());
                                                 }
                                             })
-                                            ->whereIn('cargo', ['AUXILIAR TECNICO', 'OFICIAL DE SISTEMAS'])
+                                            ->where(function($q) {
+                                                $q->where('cargo', 'like', '%AUXILIAR TECNICO%')
+                                                  ->orWhere('cargo', 'OFICIAL DE SISTEMAS');
+                                            })
                                             ->orderBy('nome_completo')->get(),
         ]);
     }

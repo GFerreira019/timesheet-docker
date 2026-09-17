@@ -581,7 +581,7 @@
                                 <option value="">Nenhum</option>
                                 @foreach($auxiliares as $a)
                                 <option value="{{ $a->id }}" {{ old('auxiliar_id', $initial_values['auxiliar_id'] ?? $ultimoAuxiliar ?? '') == $a->id ? 'selected' : '' }}>
-                                    {{ $a->nome_exibicao }} ({{ $a->cargo }})
+                                    {{ $a->nome_exibicao }} ({{ $a->setorRelacionamento->nome ?? 'Sem Setor' }})
                                 </option>
                                 @endforeach
                             </select>
