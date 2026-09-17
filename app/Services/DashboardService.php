@@ -127,14 +127,24 @@ class DashboardService
                     })
                     ->select('id', 'nome_completo as desc', 'cargo')
                     ->get()
-                    ->map(fn($c) => (object)['id' => $c->id, 'desc' => $c->desc, 'display' => $c->cargo]);
+                    ->map(fn($c) => (object)['id' => $c->id, 'desc' => $c->cargo, 'display' => $c->desc]);
+                break;
+            case 'cargo':
+                $lista = Colaborador::whereHas('apontamentos', function($q) use ($dataLimite30) {
+                        $q->where('data_apontamento', '>=', $dataLimite30);
+                    })
+                    ->select('cargo')
+                    ->whereNotNull('cargo')
+                    ->distinct()
+                    ->get()
+                    ->map(fn($c) => (object)['id' => $c->cargo, 'desc' => 'Cargo', 'display' => $c->cargo]);
                 break;
             case 'veiculo':
-                // Assumindo que Veiculo tem 'placa' e 'modelo'
+                // Assumindo que Veiculo tem 'placa' e 'descricao'
                 $lista = \App\Models\Veiculo::whereHas('apontamentos', function($q) use ($dataLimite30) {
                         $q->where('data_apontamento', '>=', $dataLimite30);
                     })
-                    ->select('id', 'placa as display', 'modelo as desc')
+                    ->select('id', 'placa as display', 'descricao as desc')
                     ->get()
                     ->map(fn($v) => (object)['id' => $v->id, 'desc' => $v->desc, 'display' => $v->display]);
                 break;
@@ -174,7 +184,7 @@ class DashboardService
      */
     public function getLancamentosRecentes($expandido, $filtros = [])
     {
-        $query = Apontamento::with(['colaborador', 'projeto', 'veiculo', 'centroCusto']);
+        $query = Apontamento::with(['colaborador', 'projeto.cliente', 'veiculo', 'centroCusto', 'codigoCliente']);
         $query = $this->aplicarFiltros($query, $filtros);
 
         if ($expandido) {
@@ -203,6 +213,11 @@ class DashboardService
                     break;
                 case 'colaborador':
                     $query->where('colaborador_id', $filtros['valor']);
+                    break;
+                case 'cargo':
+                    $query->whereHas('colaborador', function($q) use ($filtros) {
+                        $q->where('cargo', $filtros['valor']);
+                    });
                     break;
                 case 'veiculo':
                     $query->where('veiculo_id', $filtros['valor']);

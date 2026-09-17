@@ -165,6 +165,7 @@ class Dashboard extends Component
             if ($filtros['tipo'] == 'obra') $queryAlertas->where('projeto_id', $filtros['valor']);
             if ($filtros['tipo'] == 'colaborador') $queryAlertas->where('colaborador_id', $filtros['valor']);
             if ($filtros['tipo'] == 'veiculo') $queryAlertas->where('veiculo_id', $filtros['valor']);
+            if ($filtros['tipo'] == 'cargo') $queryAlertas->whereHas('colaborador', fn($q) => $q->where('cargo', $filtros['valor']));
         }
 
         $this->alertasTrabalhistas = $queryAlertas->get();
@@ -179,7 +180,7 @@ class Dashboard extends Component
                 $this->nomeFiltroSelecionado = $p ? $p->nome : $this->filtroValor;
             } elseif ($this->tipoFiltro == 'veiculo') {
                 $v = \App\Models\Veiculo::find($this->filtroValor);
-                $this->nomeFiltroSelecionado = $v ? $v->placa . ' - ' . $v->modelo : $this->filtroValor;
+                $this->nomeFiltroSelecionado = $v ? $v->placa . ' - ' . $v->descricao : $this->filtroValor;
             } else {
                 $this->nomeFiltroSelecionado = $this->filtroValor;
             }
@@ -207,6 +208,7 @@ class Dashboard extends Component
             if ($filtros['tipo'] == 'obra') $query->where('projeto_id', $filtros['valor']);
             if ($filtros['tipo'] == 'colaborador') $query->where('colaborador_id', $filtros['valor']);
             if ($filtros['tipo'] == 'veiculo') $query->where('veiculo_id', $filtros['valor']);
+            if ($filtros['tipo'] == 'cargo') $query->whereHas('colaborador', fn($q) => $q->where('cargo', $filtros['valor']));
         }
 
         $registrosDia = $query->get();
@@ -254,6 +256,14 @@ class Dashboard extends Component
     
     public function render()
     {
+        if ($this->lancamentos instanceof \Illuminate\Support\Collection) {
+            $this->lancamentos->loadMissing(['colaborador', 'projeto.cliente', 'centroCusto', 'veiculo', 'codigoCliente']);
+        }
+        
+        if ($this->alertasTrabalhistas instanceof \Illuminate\Support\Collection) {
+            $this->alertasTrabalhistas->loadMissing(['colaborador', 'projeto.cliente', 'centroCusto', 'veiculo', 'codigoCliente']);
+        }
+
         $startOfMonth = Carbon::createFromDate($this->anoAtual, $this->mesAtual, 1)->startOfMonth();
         
         return view('livewire.gerencial.dashboard', [

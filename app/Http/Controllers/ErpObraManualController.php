@@ -53,18 +53,26 @@ class ErpObraManualController extends Controller
             return $q->where('target', $request->query('target'));
         });
 
-        // Coordenadores (Relacionamento N:N)
-        $query->when($request->filled('coordenador_implantacao'), function ($q) use ($request) {
-            return $q->whereHas('projetoOperacional.gestores', function ($q2) use ($request) {
-                $q2->where('colaborador_id', $request->query('coordenador_implantacao'));
+        // Gestores e Coordenadores (Relacionamento N:N)
+        $gestoresFiltros = [
+            'gerente_implantacao' => 'implantacao',
+            'gerente_manutencao' => 'manutencao',
+            'coordenador_implantacao' => 'implantacao',
+            'coordenador_manutencao' => 'manutencao',
+        ];
+
+        foreach ($gestoresFiltros as $campo => $pivotColumn) {
+            $query->when($request->filled($campo), function ($q) use ($request, $campo, $pivotColumn) {
+                return $q->whereHas('projetoOperacional', function ($q1) use ($request, $campo, $pivotColumn) {
+                    // Garante a correspondência pela chave composta (Código + Unidade)
+                    $q1->whereColumn('projetos_operacionais.unidade', 'erp_obras_manual.projeto_unidade')
+                       ->whereHas('gestores', function ($q2) use ($request, $campo, $pivotColumn) {
+                           $q2->where('colaborador_id', $request->query($campo))
+                              ->where($pivotColumn, true);
+                       });
+                });
             });
-        });
-        
-        $query->when($request->filled('coordenador_manutencao'), function ($q) use ($request) {
-            return $q->whereHas('projetoOperacional.gestores', function ($q2) use ($request) {
-                $q2->where('colaborador_id', $request->query('coordenador_manutencao'));
-            });
-        });
+        }
 
         // 1. Paginação carregando apenas relações simples
         $obras = $query->with(['setor', 'liderComercial'])->paginate(15);

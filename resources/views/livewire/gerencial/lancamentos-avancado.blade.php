@@ -51,7 +51,7 @@
                         <select wire:model.live="advancedColaboradorId" class="w-full bg-slate-900 border border-slate-700 text-slate-300 text-sm rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-indigo-500 outline-none">
                             <option value="">Todos os Colaboradores...</option>
                             @foreach($colaboradoresOptions as $colab)
-                                <option value="{{ $colab->id }}">{{ $colab->nome_completo }}</option>
+                                <option value="{{ $colab->id }}">{{ $colab->nome_completo }} - {{ $colab->cargo ?? 'Sem Cargo' }}</option>
                             @endforeach
                         </select>
                         <p class="text-[10px] text-slate-500 mt-1">Analise onde este colaborador trabalhou.</p>

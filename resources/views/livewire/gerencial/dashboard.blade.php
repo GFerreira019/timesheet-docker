@@ -271,7 +271,7 @@
                         <div wire:click="filtrarPorItem('{{ $item->id }}')" class="cursor-pointer p-3 rounded-lg border transition-all relative group {{ $filtroValor === $item->id ? 'bg-slate-800 border-white/20 ring-1 ring-white/30 shadow-lg' : 'bg-slate-800/40 border-slate-700 hover:bg-slate-800 hover:border-slate-600' }}">
                             <div class="flex justify-between items-start gap-3">
                                 <div class="overflow-hidden">
-                                    <span class="block text-sm font-bold truncate {{ $filtroValor === $item->id ? 'text-white' : 'text-gray-300 group-hover:text-white' }}">{{ Str::limit($item->id, 25) }}</span>
+                                    <span class="block text-sm font-bold truncate {{ $filtroValor === $item->id ? 'text-white' : 'text-gray-300 group-hover:text-white' }}">{{ Str::limit($item->display ?? $item->id, 25) }}</span>
                                     @if(isset($item->desc) && $item->desc != $item->id)
                                         <span class="text-xs text-gray-500 block truncate mt-0.5 group-hover:text-gray-400">{{ Str::limit($item->desc, 30) }}</span>
                                     @endif

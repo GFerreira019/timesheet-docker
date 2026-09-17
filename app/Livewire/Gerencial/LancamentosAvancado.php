@@ -98,25 +98,20 @@ class LancamentosAvancado extends Component
         }
 
         // --- Filtros Avançados (Relacionamentos Exatos) ---
-        if (!empty($this->advancedObraId)) {
-            $query->where('projeto_id', $this->advancedObraId);
-        }
-
-        if (!empty($this->advancedColaboradorId)) {
-            $query->where('colaborador_id', $this->advancedColaboradorId);
-        }
-
-        if (!empty($this->advancedCargoId)) {
-            $query->whereHas('colaborador', function($q) {
-                $q->where('cargo', $this->advancedCargoId);
+        return $query->when($this->advancedObraId, function ($q) {
+            $q->where('projeto_id', $this->advancedObraId);
+        })
+        ->when($this->advancedColaboradorId, function ($q) {
+            $q->where('colaborador_id', $this->advancedColaboradorId);
+        })
+        ->when($this->advancedCargoId, function ($q) {
+            $q->whereHas('colaborador', function($q2) {
+                $q2->where('cargo', $this->advancedCargoId);
             });
-        }
-
-        if (!empty($this->advancedVeiculoId)) {
-            $query->where('veiculo_id', $this->advancedVeiculoId);
-        }
-
-        return $query;
+        })
+        ->when($this->advancedVeiculoId, function ($q) {
+            $q->where('veiculo_id', $this->advancedVeiculoId);
+        });
     }
 
     public function render()
@@ -129,7 +124,7 @@ class LancamentosAvancado extends Component
 
         // Opções para os Selects Avançados
         $obrasOptions = Projeto::with('cliente')->get()->sortBy('nome');
-        $colaboradoresOptions = Colaborador::orderBy('nome_completo')->get();
+        $colaboradoresOptions = Colaborador::select('id', 'nome_completo', 'cargo')->orderBy('nome_completo')->get();
         $cargosOptions = Colaborador::select('cargo')->distinct()->whereNotNull('cargo')->pluck('cargo');
         $veiculosOptions = Veiculo::orderBy('descricao')->get();
 
