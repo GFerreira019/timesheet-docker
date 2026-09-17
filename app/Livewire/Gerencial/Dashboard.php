@@ -155,7 +155,7 @@ class Dashboard extends Component
         $this->dadosCalendario = $service->getDadosCalendario($this->mesAtual, $this->anoAtual, $filtros);
 
         // Buscar Alertas Trabalhistas Pendentes do mês
-        $queryAlertas = \App\Models\Apontamento::with('colaborador')
+        $queryAlertas = \App\Models\Apontamento::with(['colaborador', 'projeto.cliente', 'centroCusto', 'veiculo'])
             ->where('flag_atencao', true)
             ->whereMonth('data_apontamento', $this->mesAtual)
             ->whereYear('data_apontamento', $this->anoAtual)
@@ -200,7 +200,7 @@ class Dashboard extends Component
             'valor' => $this->filtroValor
         ];
 
-        $query = \App\Models\Apontamento::with('colaborador')
+        $query = \App\Models\Apontamento::with(['colaborador', 'projeto.cliente', 'centroCusto', 'veiculo'])
             ->whereDate('data_apontamento', $data);
             
         if (!empty($filtros['tipo']) && !empty($filtros['valor'])) {

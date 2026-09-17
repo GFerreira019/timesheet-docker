@@ -14,6 +14,7 @@ class NotificacaoObserver
     {
         // Apenas notificações automáticas são bloqueadas. Notificações manuais (INFO) passam.
         if ($notificacao->tipo !== 'INFO') {
+            $notificacao->loadMissing('colaborador');
             if ($notificacao->colaborador && $notificacao->colaborador->recebe_notificacao === false) {
                 return false; // Trava a criação no banco de dados e consequentemente o disparo do Job
             }

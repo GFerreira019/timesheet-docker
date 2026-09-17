@@ -40,7 +40,7 @@ class AprovacaoController extends Controller
         $isAdmin       = AcessoHelper::isAdmin($user);
         $nivelAcesso = AcessoHelper::isAdmin($user) ? 'ADMIN' : strtoupper($user->roles->first()?->name ?? 'OPERACIONAL');
         // 1. Query Base blindada
-        $queryBase = Apontamento::with(['colaborador', 'projeto', 'centroCusto', 'auxiliar', 'auxiliaresExtras']);
+        $queryBase = Apontamento::with(['colaborador', 'projeto.cliente', 'codigoCliente', 'centroCusto', 'veiculo', 'auxiliar', 'auxiliaresExtras']);
         if (!$isAdmin) {
             // Regras normais (Gestor/Gerencial)
             $queryBase->visibilidadePermitida($user)
@@ -94,7 +94,7 @@ class AprovacaoController extends Controller
         $setores = [];
         if ($isAdmin) {
             $colaboradores = \App\Models\Colaborador::ativos()->orderBy('nome_completo')->get();
-            $projetos = \App\Models\Projeto::ativos()->orderBy('codigo')->get();
+            $projetos = \App\Models\Projeto::with('cliente')->ativos()->orderBy('codigo')->get();
             $setores = \App\Models\Setor::ativos()->orderBy('nome')->get();
         }
         return view('aprovacoes.dashboard', [
@@ -120,11 +120,12 @@ class AprovacaoController extends Controller
     public function analise(int $id): View
     {
         $apontamento = Apontamento::with([
-            'colaborador', 'projeto', 'codigoCliente',
+            'colaborador', 'projeto.cliente', 'codigoCliente',
             'centroCusto', 'veiculo', 'auxiliar', 'auxiliaresExtras'
         ])->findOrFail($id);
         // Pega o histórico mais recente (equivalente ao .first() com order by -numero_edicao do Django)
-        $historico = ApontamentoHistorico::where('apontamento_original_id', $id)
+        $historico = ApontamentoHistorico::with('editadoPor')
+            ->where('apontamento_original_id', $id)
             ->orderByDesc('numero_edicao')
             ->first();
         $diffData    = [];

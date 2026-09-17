@@ -56,6 +56,7 @@ class ConformidadeController extends Controller
 
         // Colaboradores operacionais (exclui ADMIN e GERENCIAL que são pessoais)
         $colaboradores = Colaborador::ativos()
+            ->with('user')
             ->whereHas('setorRelacionamento', fn($q) => $q->where('ativo', true))
             ->orderBy('nome_completo')
             ->get();
@@ -262,6 +263,7 @@ class ConformidadeController extends Controller
         }
 
         $colaboradores = Colaborador::ativos()
+            ->with('user')
             ->whereHas('setorRelacionamento', fn($q) => $q->where('ativo', true))
             ->get();
 

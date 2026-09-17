@@ -69,6 +69,7 @@ class HistoricoController extends Controller
             'registradoPor',
             'auxiliar',
             'auxiliaresExtras',
+            'aprovador',
         ])
         ->orderByDesc('data_apontamento')
         ->orderBy('colaborador_id')

@@ -61,7 +61,8 @@ class ErpObraManual extends Model
             return [];
         }
 
-        $projetoOp = \App\Models\ProjetoOperacional::where('codigo', $this->projeto_codigo)
+        $projetoOp = \App\Models\ProjetoOperacional::with('gestores')
+            ->where('codigo', $this->projeto_codigo)
             ->where('unidade', $this->projeto_unidade)
             ->first();
 

@@ -18,6 +18,8 @@ class ApontamentoObserver
             return;
         }
 
+        // Previne Lazy Loading explicitamente carregando a relação caso ainda não esteja na memória
+        $apontamento->loadMissing('colaborador');
         $colaborador = $apontamento->colaborador;
         
         // Se o colaborador não for encontrado (ex: deletado ou erro de dados), sai silenciosamente

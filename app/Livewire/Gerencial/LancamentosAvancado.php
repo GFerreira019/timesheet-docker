@@ -55,7 +55,7 @@ class LancamentosAvancado extends Component
     {
         $query = Apontamento::with([
             'colaborador', 
-            'projeto', 
+            'projeto.cliente', 
             'veiculo',
             'codigoCliente',
             'centroCusto',

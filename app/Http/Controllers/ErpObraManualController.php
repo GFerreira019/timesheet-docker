@@ -467,7 +467,7 @@ class ErpObraManualController extends Controller
 
     public function show($id)
     {
-        $obra = ErpObraManual::findOrFail($id);
+        $obra = ErpObraManual::with(['setor', 'liderComercial', 'projetoOperacional.gestores'])->findOrFail($id);
         return view('erp_obras_manual.show', compact('obra'));
     }
 }
