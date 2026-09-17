@@ -56,7 +56,7 @@ class ApontamentoController extends Controller
         $initialData          = [];
 
         if ($colab) {
-            $apontamentoAtivo = Apontamento::where('colaborador_id', $colab->id)
+            $apontamentoAtivo = Apontamento::with(['projeto', 'auxiliaresExtras'])->where('colaborador_id', $colab->id)
                 ->whereNull('hora_termino')
                 ->orderByDesc('id')
                 ->first();
@@ -200,7 +200,7 @@ class ApontamentoController extends Controller
      */
     public function edit(int $id): View|RedirectResponse
     {
-        $apontamento = Apontamento::findOrFail($id);
+        $apontamento = Apontamento::with(['colaborador', 'projeto', 'auxiliaresExtras'])->findOrFail($id);
         $user        = auth()->user();
 
         // Segurança: só o autor ou Owner pode editar (equivalente ao Django)
@@ -445,7 +445,7 @@ class ApontamentoController extends Controller
      */
     public function destroy(int $id): RedirectResponse
     {
-        $apontamento = Apontamento::findOrFail($id);
+        $apontamento = Apontamento::with('colaborador')->findOrFail($id);
         $user        = auth()->user();
         // Segurança: só Admin ou Owner podem excluir de terceiros
         if (!AcessoHelper::isAdmin($user) && !AcessoHelper::isOwner($user)) {
@@ -579,6 +579,9 @@ class ApontamentoController extends Controller
 
         // Auxiliares extras (M2M) — sync recebe o array inteiro de uma vez
         $this->syncAuxiliaresExtras($ap, $request);
+
+        // Previne o Lazy Loading: carrega as relações que serão usadas a seguir
+        $ap->loadMissing(['colaborador', 'projeto', 'codigoCliente', 'centroCusto']);
 
         $localRef = $this->resolveLocalRef($ap);
         AuditoriaService::registrar(
@@ -723,6 +726,9 @@ class ApontamentoController extends Controller
 
                     // Auxiliares extras (M2M) — sync recebe o array inteiro de uma vez
                     $this->syncAuxiliaresExtras($ap, $request);
+
+                    // Previne o Lazy Loading para auditoria
+                    $ap->loadMissing(['projeto', 'codigoCliente', 'colaborador']);
 
                     // Auditoria
                     $nomeObra = $ap->projeto?->nome ?? $ap->codigoCliente?->nome ?? 'Obra Indefinida';

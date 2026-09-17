@@ -8,7 +8,7 @@
 Esta aplicação atua exclusivamente sob um regime de **Single Sign-On (SSO)** integrado ao ERP corporativo. Não existe registro, recuperação ou validação de senha local.
 
 - **Passwordless**: A model `User` e a tabela `users` **não possuem** os campos `password` ou `remember_token`. Futuros desenvolvedores não devem tentar reativar ou usar os traits nativos de autenticação padrão do Laravel (como `Illuminate\Auth\Passwords\CanResetPassword`).
-- **Ciclo de Login**: O usuário faz login no ERP. O ERP redireciona para a rota de callback do Timesheet com um token temporário (JWT/Ticket). O sistema valida o token na API do ERP e, se válido, autentica o usuário localmente via `Auth::login()`.
+- **Ciclo de Login**: O usuário faz login no ERP. O ERP redireciona para a rota de callback do Timesheet com um token temporário (JWT/Ticket). O sistema valida o token na API do ERP. Para evitar falhas silenciosas e vulnerabilidades, o `SsoController` executa uma checagem rigorosa do payload da API; caso dados essenciais faltem (ex: id_usuario), o processo é abortado com uma mensagem clara de fallback. Se válido, os papéis são espelhados via campo `nivel_planejamento` e o usuário autenticado via `Auth::login()`.
 
 ## 2. Mapeamento de Perfis, Dashboards e Visibilidade (RLS)
 
@@ -17,8 +17,8 @@ O sistema conta com 5 principais perfis de acesso centralizados na classe `App\H
 ### ADMIN
 - **Escopo do Dashboard (Interface):**
   - **Acesso Total (4 colunas):**
-    - **Timesheet:** Apontamentos, Histórico, Aprovações
-    - **Gestão:** Controle de Envios, Dashboard, Logs
+    - **Timesheet:** Apontamentos, Histórico, Aprovações, Módulo de Treinamento
+    - **Gestão:** Hub de Gestão de Timesheet, Controle de Envios, Dashboard, Logs
     - **Configurações:** Health Check, Espelho, Feriados, Notificações
     - **Movimentações:** Colaboradores, Veículos, Projetos, Setores
 - **Nível de Visibilidade e Acesso Geral (RLS):**
@@ -29,7 +29,7 @@ O sistema conta com 5 principais perfis de acesso centralizados na classe `App\H
 - **Escopo do Dashboard (Interface):**
   - **Módulo Timesheet:** Apontamentos, Histórico e Central de Aprovações.
 - **Nível de Visibilidade e Acesso Geral (RLS):**
-  - **Acesso Expandido (Setores):** Enxerga a si mesmo e aos colaboradores vinculados aos seus setores gerenciados/vinculados (`setoresVinculados()` N:N).
+  - **Acesso Expandido (Setores):** Enxerga a si mesmo e aos colaboradores vinculados aos seus setores gerenciados/vinculados (`setoresVinculados()` N:N). A arquitetura atual segrega os gestores por setor para garantir blindagem horizontal de dados entre gerentes.
 
 ### SAC
 - **Escopo do Dashboard (Interface):**

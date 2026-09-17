@@ -69,9 +69,15 @@ Para evitar que constraints quebrem por erros de digitação (ex: CNPJ com másc
 
 ---
 
-## 4. Comportamento do Frontend (UX/UI)
+## 4. Comportamento do Frontend (UX/UI) e Gestão Visual
 
 Para evitar que o usuário só descubra que a obra é duplicada após submeter o formulário, a view `index.blade.php` implementa uma UX assíncrona agressiva, orientada pelo backend.
+
+### Estruturação de Gestores
+A interface de Obras e Clientes foi refatorada para segregar visualmente os Gestores (Gerente de Implantação, Manutenção, etc) respeitando os seus **Setores Vinculados**. Isso blinda a seleção na UI, impedindo que um projeto seja acidentalmente atribuído a um gerente que não tem escopo para aquele setor.
+
+### Trilha de Auditoria Visual
+A trilha de auditoria salva em `controle_projetos_historico` (via Observer) é renderizada em modais interativos na UI. Para evitar dados em cache stale, a listagem do histórico de alterações dispara requests dinâmicos com um timestamp anti-cache gerado em Javascript, garantindo que o usuário veja a linha do tempo atualizada das modificações feitas em qualquer obra.
 
 ### Rota e Lógica AJAX
 Sempre que os campos CNPJ ou Código do Projeto sofrem interação, uma requisição `POST /erp-obras-manual/verificar-cliente` é disparada (protegida por CSRF). O Controller avalia os dados e responde como o DOM deve se comportar:

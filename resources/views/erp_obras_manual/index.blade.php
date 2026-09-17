@@ -406,10 +406,10 @@
                                 if ($obra->projetoOperacional) {
                                     $gestores = $obra->projetoOperacional->gestores;
                                 }
-                                $coordImp = $gestores->filter(fn($g) => $g->isInGroup('COORDENADOR') && $g->pivot->implantacao)->pluck('nome_completo')->filter()->join(', ');
-                                $coordMan = $gestores->filter(fn($g) => $g->isInGroup('COORDENADOR') && $g->pivot->manutencao)->pluck('nome_completo')->filter()->join(', ');
-                                $gerImp = $gestores->filter(fn($g) => $g->isInGroup('GERENCIAL') && $g->pivot->implantacao)->pluck('nome_completo')->filter()->join(', ');
-                                $gerMan = $gestores->filter(fn($g) => $g->isInGroup('GERENCIAL') && $g->pivot->manutencao)->pluck('nome_completo')->filter()->join(', ');
+                                $coordImp = $gestores->filter(fn($g) => $coordenadores->contains('id', $g->id) && $g->pivot->implantacao)->pluck('nome_completo')->filter()->join(', ');
+                                $coordMan = $gestores->filter(fn($g) => $coordenadores->contains('id', $g->id) && $g->pivot->manutencao)->pluck('nome_completo')->filter()->join(', ');
+                                $gerImp = $gestores->filter(fn($g) => $gerentes->contains('id', $g->id) && $g->pivot->implantacao)->pluck('nome_completo')->filter()->join(', ');
+                                $gerMan = $gestores->filter(fn($g) => $gerentes->contains('id', $g->id) && $g->pivot->manutencao)->pluck('nome_completo')->filter()->join(', ');
                                 
                                 $strGerentes = array_filter([$gerImp, $gerMan]);
                                 $strCoordenadores = array_filter([$coordImp, $coordMan]);

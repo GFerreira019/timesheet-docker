@@ -7,7 +7,8 @@ O coração do sistema é o gerenciamento da jornada de trabalho. Este documento
 O fluxo de Apontamento atua como o registro oficial para cálculo de horas da empresa:
 - **Criação e Encerramento**: Cada apontamento possui data, hora de início e hora de término.
 - **Vínculos Obrigatórios/Opcionais**: Apontamentos podem exigir vínculos como Projetos, Códigos de Cliente, Centros de Custo, bem como detalhes geográficos (Latitude/Longitude) e utilização de Veículos.
-- **Histórico Snapshot**: Ao editar um Apontamento existente (seja pelo colaborador ou gestor), o Laravel salva um snapshot integral do estado anterior na tabela de `apontamento_historicos`, gerando uma trilha inviolável de auditoria.
+- **Histórico Snapshot e Observer Temporal**: Ao criar ou editar um Apontamento (seja pelo colaborador ou gestor), o Laravel utiliza um Observer Temporal para salvar um snapshot integral do estado (incluindo o cargo/nível do colaborador no momento exato do registro) na tabela de `apontamento_historicos`. Isso gera uma trilha inviolável de auditoria e garante a integridade do cálculo de custo de Homem-Hora (HH), preservando o valor histórico mesmo que o colaborador seja promovido no futuro.
+- **Trilha de Auditoria Visual e Alertas**: O histórico na interface exibe este cargo congelado. Além disso, o dashboard gerencial injeta alertas trabalhistas dinâmicos e filtros contextuais no histórico para mitigar riscos de passivos trabalhistas.
 
 ## 2. A Regra Crítica do Plantão / Ocorrências
 
