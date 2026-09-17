@@ -111,6 +111,6 @@ class Notificacao extends Model
      */
     public function __toString(): string
     {
-        return "{$this->colaborador?->nome_completo} - {$this->titulo}";
+        return "{$this->loadMissing('colaborador')->colaborador?->nome_completo} - {$this->titulo}";
     }
 }

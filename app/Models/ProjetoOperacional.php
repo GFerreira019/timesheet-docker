@@ -16,7 +16,7 @@ class ProjetoOperacional extends Model
 
     public function getNomeAttribute(): string
     {
-        return $this->cliente ? $this->cliente->nome : 'N/A';
+        return $this->loadMissing('cliente')->cliente ? $this->cliente->nome : 'N/A';
     }
 
     public function gestores()

@@ -65,7 +65,7 @@ class Colaborador extends Model
     // controllers, SolidesService ou qualquer outro código existente.
     public function getSolidesIdAttribute(): ?string
     {
-        return $this->user?->solides_id;
+        return $this->loadMissing('user')->user?->solides_id;
     }
 
     protected $casts = [
@@ -297,7 +297,7 @@ class Colaborador extends Model
      */
     public function isAdmin(): bool
     {
-        return $this->user?->is_superuser ?? false;
+        return $this->loadMissing('user')->user?->is_superuser ?? false;
     }
 
     /**
@@ -307,7 +307,7 @@ class Colaborador extends Model
      */
     public function isInGroup(string $groupName): bool
     {
-        return $this->user?->hasRole($groupName) ?? false;
+        return $this->loadMissing('user')->user?->hasRole($groupName) ?? false;
     }
 
     // -------------------------------------------------------------------------

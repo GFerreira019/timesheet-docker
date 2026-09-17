@@ -281,7 +281,7 @@ class Apontamento extends Model
      */
     public function __toString(): string
     {
-        return "{$this->colaborador?->nome_completo} - {$this->data_apontamento}";
+        return "{$this->loadMissing('colaborador')->colaborador?->nome_completo} - {$this->data_apontamento}";
     }
 
     // -------------------------------------------------------------------------

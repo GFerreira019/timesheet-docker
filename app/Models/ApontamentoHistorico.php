@@ -73,6 +73,6 @@ class ApontamentoHistorico extends Model
      */
     public function __toString(): string
     {
-        return "V{$this->numero_edicao} - {$this->apontamentoOriginal}";
+        return "V{$this->numero_edicao} - {$this->loadMissing('apontamentoOriginal')->apontamentoOriginal}";
     }
 }

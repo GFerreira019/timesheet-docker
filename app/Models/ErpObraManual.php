@@ -53,7 +53,7 @@ class ErpObraManual extends Model
     {
         if ($this->relationLoaded('projetoOperacional') && $this->projetoOperacional) {
             if ($this->projetoOperacional->unidade === $this->projeto_unidade) {
-                return $this->projetoOperacional->gestores;
+                return $this->projetoOperacional->loadMissing('gestores')->gestores;
             }
         }
 
