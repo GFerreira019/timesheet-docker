@@ -240,6 +240,16 @@ class ApontamentoRequest extends FormRequest
                 }
             }
 
+            // ==============================================================
+            // 3.2 CONFLITO DE DORME FORA (DUPLICIDADE NA MESMA DATA)
+            // ==============================================================
+            $dormeFora = filter_var($data['dorme_fora'] ?? false, FILTER_VALIDATE_BOOLEAN);
+            $dataDormeFora = $data['data_dorme_fora'] ?? $data['data_apontamento'] ?? null;
+            
+            if ($dormeFora && $dataDormeFora && $colaboradorId) {
+                $this->validarDormeForaDuplicado($validator, (int) $colaboradorId, $dataDormeFora);
+            }
+
             // ==================================================================
             // 4. VALIDAÇÃO DE CONTEXTO (INT x EXT)
             // ==================================================================
@@ -658,6 +668,67 @@ class ApontamentoRequest extends FormRequest
     // =========================================================================
     // MENSAGENS CUSTOMIZADAS
     // =========================================================================
+
+    /**
+     * Valida duplicidade de apontamento "Dorme Fora" no mesmo dia.
+     */
+    private function validarDormeForaDuplicado(
+        Validator $validator,
+        int $colaboradorId,
+        string $dataDormeFora
+    ): void {
+        try {
+            $dataFmt = \Carbon\Carbon::parse($dataDormeFora)->format('Y-m-d');
+        } catch (\Throwable) {
+            return;
+        }
+
+        $apontamentoId = $this->route('apontamento')?->id ?? $this->route('id') ?? null;
+
+        $query = \App\Models\Apontamento::with(['projeto', 'codigoCliente', 'centroCusto', 'colaborador'])
+            ->where('colaborador_id', $colaboradorId)
+            ->whereDate('data_dorme_fora', $dataFmt)
+            ->where('dorme_fora', 1)
+            ->where('status_aprovacao', '!=', 'REJEITADO');
+
+        if ($apontamentoId) {
+            $query->where('id', '!=', $apontamentoId);
+        }
+
+        $conflito = $query->first();
+
+        if ($conflito) {
+            $colabNome = $conflito->colaborador->nome_completo ?? $conflito->colaborador->nome ?? "ID {$colaboradorId}";
+
+            if ($conflito->local_execucao === 'EXTERNO') {
+                if ($conflito->projeto) {
+                    $p = $conflito->projeto;
+                    $referencia = $p->codigo . ' - ' . $p->nome . ($p->unidade ? ' | ' . $p->unidade : '');
+                } else if ($conflito->codigoCliente) {
+                    $c = $conflito->codigoCliente;
+                    $referencia = $c->codigo . ' - ' . $c->nome;
+                } else {
+                    $referencia = 'Obra/Cliente';
+                }
+            } else {
+                $referencia = $conflito->centroCusto
+                    ? $conflito->centroCusto->nome
+                    : 'Atividade Interna';
+            }
+
+            $validator->errors()->add('__conflito__', 'Duplicidade de Dorme Fora detectada.');
+            $validator->errors()->add('dorme_fora', "{$colabNome} já possui um apontamento de 'Dorme Fora' nesta data no projeto: {$referencia}");
+
+            session()->flash('conflito_details', [
+                'tipo'        => 'Duplicidade de Dorme Fora',
+                'colaborador' => $colabNome,
+                'referencia'  => "Projeto/Referência: {$referencia}",
+                'data'        => \Carbon\Carbon::parse($dataFmt)->format('d/m/Y'),
+                'inicio'      => '-',
+                'termino'     => '-'
+            ]);
+        }
+    }
 
     /**
      * @return array<string, string>
