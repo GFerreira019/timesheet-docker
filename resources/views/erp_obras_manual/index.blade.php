@@ -586,7 +586,6 @@
                             <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Nome do Projeto *</label>
                             <input type="hidden" name="projeto_nome" id="hidden-projeto-nome">
                             <input type="text" id="ui-nome-bloqueado" class="w-full bg-slate-900 border border-slate-700 text-slate-500 rounded-lg p-2.5 outline-none cursor-not-allowed hidden opacity-80" readonly tabindex="-1" placeholder="Nome automático pelo CNPJ">
-                            <select id="ui-nome-select" class="w-full bg-slate-900 border border-slate-700 text-slate-300 rounded-lg p-2.5 focus:ring-1 focus:ring-indigo-500 outline-none hidden"></select>
                             <input type="text" id="ui-nome-livre" class="w-full bg-slate-900 border border-slate-700 text-slate-300 rounded-lg p-2.5 focus:ring-1 focus:ring-indigo-500 outline-none" placeholder="Digite o nome do projeto...">
                         </div>
                     </div>
@@ -939,7 +938,6 @@
                             // Reflete o valor do projeto_nome (hidden) no input livre se estiver em edição
                             if (key === 'projeto_nome') {
                                 document.getElementById('ui-nome-bloqueado').classList.add('hidden');
-                                document.getElementById('ui-nome-select').classList.add('hidden');
                                 const inputLivre = document.getElementById('ui-nome-livre');
                                 inputLivre.classList.remove('hidden');
                                 inputLivre.value = val || '';
@@ -1051,8 +1049,6 @@
             // Reset visual dos nomes
             document.getElementById('ui-nome-bloqueado').classList.add('hidden');
             document.getElementById('ui-nome-bloqueado').value = '';
-            document.getElementById('ui-nome-select').classList.add('hidden');
-            document.getElementById('ui-nome-select').innerHTML = '';
             document.getElementById('ui-nome-livre').classList.remove('hidden');
             document.getElementById('ui-nome-livre').value = '';
             document.getElementById('hidden-projeto-nome').value = '';
@@ -1214,15 +1210,16 @@
         const cnpj = document.getElementById('input-cliente-cnpj').value;
         
         const uiBloqueado = document.getElementById('ui-nome-bloqueado');
-        const uiSelect = document.getElementById('ui-nome-select');
         const uiLivre = document.getElementById('ui-nome-livre');
         const hiddenNome = document.getElementById('hidden-projeto-nome');
         const inputRazao = document.getElementById('input-razao-social');
 
-        // Se não tiver pelo menos o clienteCodigo, volta pro estado livre limpo
-        if (!clienteCodigo || clienteCodigo.length < 4) {
+        const temCliente = clienteCodigo && clienteCodigo.length >= 4;
+        const temCnpj = cnpj && cnpj.length >= 14;
+
+        // Retorna pro estado livre limpo se não tiver nenhum dos dois
+        if (!temCliente && !temCnpj) {
             uiBloqueado.classList.add('hidden');
-            uiSelect.classList.add('hidden');
             uiLivre.classList.remove('hidden');
             if (inputRazao) {
                 inputRazao.classList.remove('cursor-not-allowed', 'opacity-80', 'text-slate-500');
@@ -1253,7 +1250,6 @@
 
             // Reseta interfaces do nome
             uiBloqueado.classList.add('hidden');
-            uiSelect.classList.add('hidden');
             uiLivre.classList.add('hidden');
             
             // --- Trava Global de Razão Social baseada no CNPJ ---
@@ -1280,36 +1276,8 @@
                 hiddenNome.value = data.nome || '';
                 
             } 
-            else if (data.acao === 'sugerir' && data.sugestoes && data.sugestoes.length > 0) {
-                // 2. TEM SUGESTÕES MAS NÃO É EXATO
-                uiSelect.innerHTML = '<option value="">Selecione uma sugestão...</option>';
-                data.sugestoes.forEach(nome => {
-                    const opt = document.createElement('option');
-                    opt.value = nome;
-                    opt.textContent = nome;
-                    uiSelect.appendChild(opt);
-                });
-                
-                uiSelect.innerHTML += '<option value="outro" class="font-bold text-indigo-400">Outro (Digitar novo)</option>';
-                
-                uiSelect.classList.remove('hidden');
-                hiddenNome.value = ''; // Exige escolha do usuário
-                
-                // Listener pro select
-                uiSelect.onchange = function() {
-                    if (this.value === 'outro') {
-                        uiSelect.classList.add('hidden');
-                        uiLivre.classList.remove('hidden');
-                        uiLivre.value = '';
-                        hiddenNome.value = '';
-                        uiLivre.focus();
-                    } else {
-                        hiddenNome.value = this.value;
-                    }
-                };
-            } 
             else {
-                // 3. NOVO CADASTRO / SEM REFERÊNCIA (LIVRE)
+                // 2. NOVO CADASTRO / SEM REFERÊNCIA (LIVRE)
                 uiLivre.classList.remove('hidden');
                 // Se já tinha digitado algo no input livre, mantem
                 hiddenNome.value = uiLivre.value;
@@ -1319,7 +1287,6 @@
             console.error('Erro ao verificar cliente:', e);
             // Fallback
             uiBloqueado.classList.add('hidden');
-            uiSelect.classList.add('hidden');
             uiLivre.classList.remove('hidden');
         }
     }

@@ -441,28 +441,12 @@ class ErpObraManualController extends Controller
             ]);
         }
 
-        if ($cnpj && !empty($cnpjLimpo)) {
-            $obraExata = $obrasDoCliente->firstWhere('cnpj', $cnpjLimpo);
-            
-            if ($obraExata && !empty($obraExata->projeto_nome)) {
-                return response()->json([
-                    'acao' => 'travar',
-                    'nome' => $obraExata->projeto_nome,
-                    'razao_social' => $razaoSocial ?? $obraExata->razao_social
-                ]);
-            }
-        }
-
-        $nomesUnicos = $obrasDoCliente->pluck('projeto_nome')
-                                      ->filter()
-                                      ->unique()
-                                      ->values()
-                                      ->toArray();
-
-        if (count($nomesUnicos) > 0) {
+        $obraComNome = $obrasDoCliente->firstWhere('projeto_nome', '!=', null);
+        
+        if ($obraComNome && !empty($obraComNome->projeto_nome)) {
             return response()->json([
-                'acao' => 'sugerir',
-                'sugestoes' => $nomesUnicos,
+                'acao' => 'travar',
+                'nome' => $obraComNome->projeto_nome,
                 'razao_social' => $razaoSocial
             ]);
         }
