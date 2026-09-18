@@ -135,6 +135,12 @@ Route::middleware('auth')->group(function () {
         Route::post('/{id}/processar', [AprovacaoController::class, 'processar'])->name('processar');
     });
 
+    // Relatórios
+    Route::prefix('relatorios')->name('relatorios.')->group(function () {
+        Route::get('/', [\App\Http\Controllers\RelatorioController::class, 'index'])->name('index');
+        Route::post('/exportar', [\App\Http\Controllers\RelatorioController::class, 'exportar'])->name('exportar');
+    });
+
     // Conformidade e Painel Administrativo (apenas Admins)
     Route::middleware('role:ADMIN')->group(function () {
         Route::get('/configuracoes/health', [\App\Http\Controllers\ConfiguracaoController::class, 'index'])->name('configuracoes.health');
