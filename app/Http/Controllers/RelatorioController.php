@@ -4,9 +4,42 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Carbon\Carbon;
+use App\Models\Apontamento;
+use App\Helpers\AcessoHelper;
 
 class RelatorioController extends Controller
 {
+    /**
+     * Aplica o filtro de segurança de Row Level Security (RLS)
+     * e retorna a query base de apontamentos isolada.
+     */
+    private function getApontamentosBaseQuery(Carbon $dataInicial, Carbon $dataFinal)
+    {
+        $query = Apontamento::with([
+            'colaborador', 
+            'projeto', 
+            'codigoCliente', 
+            'centroCusto', 
+            'auxiliar',
+            'auxiliaresExtras'
+        ])
+        ->whereBetween('data_apontamento', [$dataInicial->format('Y-m-d'), $dataFinal->format('Y-m-d')]);
+
+        $user = auth()->user();
+
+        if (!AcessoHelper::isAdmin($user)) {
+            if (AcessoHelper::isAcessoExpandido($user)) {
+                $setoresIds = $user->colaborador->getSetoresPermitidosIds();
+                $query->whereHas('colaborador', function ($q) use ($setoresIds) {
+                    $q->whereIn('setor_id', $setoresIds);
+                });
+            } else {
+                $query->where('colaborador_id', $user->colaborador->id ?? 0);
+            }
+        }
+
+        return $query;
+    }
     /**
      * Exibe a tela de extração de relatórios.
      */
@@ -22,17 +55,9 @@ class RelatorioController extends Controller
             $dataInicial = Carbon::parse($request->input('data_inicial'));
             $dataFinal = Carbon::parse($request->input('data_final'));
 
-            $apontamentos = \App\Models\Apontamento::with([
-                'colaborador', 
-                'projeto', 
-                'codigoCliente', 
-                'centroCusto', 
-                'auxiliar',
-                'auxiliaresExtras'
-            ])
-            ->whereBetween('data_apontamento', [$dataInicial->format('Y-m-d'), $dataFinal->format('Y-m-d')])
-            ->where('dorme_fora', true)
-            ->get();
+            $apontamentos = $this->getApontamentosBaseQuery($dataInicial, $dataFinal)
+                ->where('dorme_fora', true)
+                ->get();
 
             $dadosAchatados = collect();
 
@@ -77,17 +102,9 @@ class RelatorioController extends Controller
             $dataInicial = Carbon::parse($request->input('data_inicial'));
             $dataFinal = Carbon::parse($request->input('data_final'));
 
-            $apontamentos = \App\Models\Apontamento::with([
-                'colaborador', 
-                'projeto', 
-                'codigoCliente', 
-                'centroCusto', 
-                'auxiliar',
-                'auxiliaresExtras'
-            ])
-            ->whereBetween('data_apontamento', [$dataInicial->format('Y-m-d'), $dataFinal->format('Y-m-d')])
-            ->where('local_execucao', 'EXTERNO')
-            ->get();
+            $apontamentos = $this->getApontamentosBaseQuery($dataInicial, $dataFinal)
+                ->where('local_execucao', 'EXTERNO')
+                ->get();
 
             $dadosAchatados = collect();
 
@@ -152,18 +169,10 @@ class RelatorioController extends Controller
         $dataInicial = Carbon::parse($request->input('data_inicial'));
         $dataFinal = Carbon::parse($request->input('data_final'));
 
-        $apontamentos = \App\Models\Apontamento::with([
-            'colaborador', 
-            'projeto', 
-            'codigoCliente', 
-            'centroCusto', 
-            'auxiliar',
-            'auxiliaresExtras'
-        ])
-        ->whereBetween('data_apontamento', [$dataInicial->format('Y-m-d'), $dataFinal->format('Y-m-d')]);
+        $apontamentosQuery = $this->getApontamentosBaseQuery($dataInicial, $dataFinal);
 
         if ($tipoRelatorio === 'dorme_fora') {
-            $apontamentos = $apontamentos->where('dorme_fora', true)->get();
+            $apontamentos = $apontamentosQuery->where('dorme_fora', true)->get();
 
             $dadosAchatados = collect();
 
@@ -207,7 +216,7 @@ class RelatorioController extends Controller
 
             return view('relatorios.imprimir-dorme-fora', compact('dadosRelatorio', 'dataInicial', 'dataFinal'));
         } elseif ($tipoRelatorio === 'sefip') {
-            $apontamentos = $apontamentos->where('local_execucao', 'EXTERNO')->get();
+            $apontamentos = $apontamentosQuery->where('local_execucao', 'EXTERNO')->get();
 
             $dadosAchatados = collect();
 
