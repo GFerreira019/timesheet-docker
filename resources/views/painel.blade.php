@@ -232,7 +232,7 @@
                 </div>
             </a>
 
-            @role('ADMIN')
+            @if(\App\Helpers\AcessoHelper::isAdminAutorizadoPorDepartamento($user))
             {{-- Card: Dashboard Gerencial --}}
             <a href="{{ route('dashboard.gerencial') }}" class="module-card relative theme-bg-card rounded-xl border border-slate-700 p-4 lg:p-6 hover:border-blue-500/50 transition group">
                 <div class="relative z-10">
@@ -312,14 +312,14 @@
                     </div>
                 </div>
             </a>
-            @endrole
+            @endif
         </div>
     </div>
 
     {{-- ============================================================
          CATEGORIA 2 — APIs DE INTEGRAÇÕES (apenas ADMIN)
          ============================================================ --}}
-    @role('ADMIN')
+    @if(\App\Helpers\AcessoHelper::isAdminAutorizadoPorDepartamento($user))
     <div class="mb-8">
         <h2 class="text-lg font-bold mb-4 flex items-center gap-2 theme-text-primary">
             <i class="fas fa-rocket text-rose-500"></i>
@@ -376,12 +376,12 @@
             </a>
         </div>
     </div>
-    @endrole
+    @endif
 
     {{-- ============================================================
          CATEGORIA 3 — GESTÃO DE PROJETOS (apenas ADMIN)
          ============================================================ --}}
-    @role('ADMIN')
+    @if(\App\Helpers\AcessoHelper::isAdminAutorizadoPorDepartamento($user))
     <div class="mb-8">
         <h2 class="text-lg font-bold mb-4 flex items-center gap-2 theme-text-primary">
             <i class="fas fa-building text-rose-500"></i>
@@ -422,12 +422,12 @@
 
         </div>
     </div>
-    @endrole
+    @endif
 
     {{-- ============================================================
          CATEGORIA 4 — MOVIMENTAÇÕES (apenas ADMIN)
          ============================================================ --}}
-    @role('ADMIN')
+    @if(\App\Helpers\AcessoHelper::isAdminAutorizadoPorDepartamento($user))
     <div class="mb-8">
         <h2 class="text-lg font-bold mb-4 flex items-center gap-2 theme-text-primary">
             <i class="fas fa-chart-line text-rose-500"></i>
@@ -499,7 +499,7 @@
             </a>
         </div>
     </div>
-    @endrole
+    @endif
 
     {{-- ============================================================
          14.4 BOTÃO DE AÇÃO INFERIOR (Voltar Geral)

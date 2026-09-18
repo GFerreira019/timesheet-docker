@@ -135,6 +135,12 @@ class SsoController extends Controller
                 \Log::error("SSO: A Role '{$roleSpatie}' não existe no banco de dados. Sincronização ignorada para o usuário {$user->id}.");
             }
 
+            // Captura e salva o id_departamento na sessão
+            $idDepartamento = $perfilData['id_departamento'] ?? ($dadosUsuario['id_departamento'] ?? null);
+            if ($idDepartamento) {
+                session(['id_departamento' => $idDepartamento]);
+            }
+
             // Loga o usuário no Laravel
             Auth::login($user);
 
@@ -252,6 +258,12 @@ class SsoController extends Controller
             $user->syncRoles([$roleSpatie]);
         } else {
             \Log::error("SSO: A Role '{$roleSpatie}' não existe no banco de dados. Sincronização ignorada para o usuário {$user->id}.");
+        }
+
+        // Captura e salva o id_departamento na sessão
+        $idDepartamento = $perfilData['id_departamento'] ?? ($u['id_departamento'] ?? null);
+        if ($idDepartamento) {
+            session(['id_departamento' => $idDepartamento]);
         }
 
         Auth::login($user);

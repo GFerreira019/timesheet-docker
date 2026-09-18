@@ -62,7 +62,10 @@ class ColaboradorController extends Controller
                                 ->where('ignorado_erp', true)
                                 ->get();
 
-        $colaboradoresParaVinculo = Colaborador::with(['user', 'setorRelacionamento', 'notificacoes' => fn($q) => $q->where('lida', false)->latest()->limit(10)])->orderBy('nome_completo')->get();
+        $colaboradoresParaVinculo = Colaborador::with(['user', 'setorRelacionamento', 'notificacoes' => fn($q) => $q->where('lida', false)->latest()->limit(10)])
+            ->whereDoesntHave('user')
+            ->orderBy('nome_completo')
+            ->get();
 
         return view('colaboradores.index', compact('colaboradores', 'cargos', 'setores', 'cidades', 'cidades_trabalho', 'roles', 'usuariosPendentes', 'usuariosIgnorados', 'colaboradoresParaVinculo'));
     }

@@ -144,6 +144,25 @@ class AcessoHelper
     }
 
     /**
+     * Verifica se o usuário é Admin e possui id_departamento autorizado no SSO.
+     */
+    public static function isAdminAutorizadoPorDepartamento(?User $user = null): bool
+    {
+        if (!self::isAdmin($user)) {
+            return false;
+        }
+
+        // Exceção para o ambiente de desenvolvimento local:
+        // Como o payload do SSO nem sempre está disponível, liberamos se o usuário já for ADMIN.
+        if (app()->environment('local')) {
+            return true;
+        }
+
+        $idDepartamento = session('id_departamento');
+        return in_array((int) $idDepartamento, [11, 12, 29], true);
+    }
+
+    /**
      * Verifica se o usuário tem acesso expandido de setor (GERENCIAL ou SAC).
      */
     public static function isAcessoExpandido(?User $user = null): bool
