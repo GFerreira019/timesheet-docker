@@ -54,47 +54,155 @@
 
 <div class="max-w-full xl:max-w-7xl mx-auto px-4 pb-4 pt-1 sm:px-6 sm:pb-6 sm:pt-1">
 
-    <div class="flex items-center gap-4 sm:gap-4 relative justify-between -mb-6">
-        
-        <form method="GET" action="{{ route('colaboradores.index') }}" class="flex flex-1 relative items-center">
-            @if(request('cargo')) <input type="hidden" name="cargo" value="{{ request('cargo') }}"> @endif
-            @if(request('setor')) <input type="hidden" name="setor" value="{{ request('setor') }}"> @endif
-            @if(request('cidade_trabalho')) <input type="hidden" name="cidade_trabalho" value="{{ request('cidade_trabalho') }}"> @endif
-            @if(request('status')) <input type="hidden" name="status" value="{{ request('status') }}"> @endif
+    @php
+        $activeFilters = array_filter(request()->except(['page', 'nome']), function($value) {
+            return $value !== null && $value !== '';
+        });
+        $hasFilters = count($activeFilters) > 0;
+    @endphp
 
-            <div class="relative group/search w-full sm:w-64 lg:w-96" id="container-live-search">
-                <i class="fas fa-user absolute left-3 top-2.5 text-slate-500"></i>
-                <input type="text" id="input-busca-nome" name="nome" value="{{ request('nome') }}" autocomplete="off" placeholder="Buscar colaborador..." 
-                    class="w-full bg-slate-900 border border-slate-700 text-slate-200 placeholder-slate-500 text-sm rounded-lg pl-10 pr-10 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-colors shadow-sm">
-            
-                @if(request('nome'))
-                    <a href="{{ route('colaboradores.index', request()->except('nome')) }}" class="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-red-400 transition-colors z-10" title="Limpar busca">
+    <div class="flex items-center gap-2 sm:gap-4 relative justify-between mb-3">
+                
+        <div class="flex flex-col sm:flex-row items-center gap-3 w-full sm:flex-1">
+            <form method="GET" action="{{ route('colaboradores.index') }}" class="relative w-full sm:w-80 lg:w-96 flex gap-2" id="searchContainer">
+                <div class="relative flex-1 group/search" id="container-live-search">
+                    <input type="text" id="input-busca-nome" name="nome" value="{{ request('nome') }}" autocomplete="off" placeholder="Buscar colaborador..." class="w-full bg-slate-900 border border-slate-700 rounded-lg pl-10 pr-10 py-2 text-sm text-white focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition" oninput="debounce(buscarNomesAoVivo, 300)()">
+                    <i class="fas fa-search absolute left-3 top-2.5 text-slate-400"></i>
+                    
+                    @if(request('nome'))
+                        <a href="{{ route('colaboradores.index', request()->except('nome')) }}" class="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-red-400 transition-colors z-10" title="Limpar busca">
+                            <i class="fas fa-times"></i>
+                        </a>
+                    @endif
+                    <div id="dropdown-busca-nome" class="absolute z-[100] w-full mt-1 bg-slate-800 border border-slate-600 rounded-lg shadow-2xl hidden max-h-60 overflow-y-auto"></div>        
+                </div>
+
+                @if($hasFilters)
+                    <a href="{{ route('colaboradores.index') }}" class="px-3 py-2 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400 hover:text-white hover:bg-red-500 transition flex items-center justify-center" title="Limpar Filtros">
                         <i class="fas fa-times"></i>
                     </a>
-                @else
-                    <button type="submit" class="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-500 hover:text-indigo-400 transition-colors z-10" title="Pesquisar">
-                        <i class="fas fa-search"></i>
-                    </button>
                 @endif
-                <div id="dropdown-busca-nome" class="absolute z-[100] w-full mt-1 bg-slate-800 border border-slate-600 rounded-lg shadow-2xl hidden max-h-60 overflow-y-auto"></div>        
-            </div>
-        </form>
-        <div class="flex items-stretch gap-2 relative z-10">
-            <!-- Botão Filtrar -->
-            <button type="button" onclick="abrirModalFiltros()" class="hidden sm:flex px-3 sm:px-4 py-2 bg-slate-800 border border-slate-700 hover:bg-slate-700 text-slate-300 font-bold rounded-lg transition-colors items-center gap-2 text-sm flex-shrink-0">
-                <i class="fas fa-filter"></i> <span class="hidden sm:inline">Filtrar</span>
-            </button>
 
+                <button type="button" onclick="document.getElementById('advancedFiltersPanel').classList.toggle('hidden')" class="px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-300 hover:text-white hover:bg-slate-700 transition flex items-center justify-center" title="Filtros Avançados">
+                    <i class="fas fa-filter"></i>
+                </button>
+            </form>
+        </div>
+
+        <div class="flex flex-wrap sm:flex-nowrap items-center gap-3 relative z-10">
             <!-- Botão Novo Colaborador -->
             <button type="button" onclick="abrirModalNovo()" class="flex-shrink-0 h-full px-3 sm:px-4 py-2 bg-indigo-600 border border-transparent hover:bg-indigo-500 text-white font-bold rounded-lg shadow-lg shadow-indigo-900/20 transition-all flex items-center gap-2 text-sm">
                 <i class="fas fa-user-plus"></i> <span class="hidden sm:inline">Novo Colaborador</span>
             </button>
         </div>
     </div>
-</div>
 
+    {{-- ============================================================
+         PAINEL DE FILTROS AVANÇADOS
+         ============================================================ --}}
+    <div id="advancedFiltersPanel" class="{{ $hasFilters ? '' : 'hidden' }} mb-4 bg-slate-800 border border-slate-700 rounded-xl p-4 shadow-lg">
+        <div class="flex items-center justify-between mb-4 border-b border-slate-700 pb-3">
+            <h3 class="text-sm font-bold text-slate-300 uppercase tracking-wider flex items-center gap-2">
+                <i class="fas fa-sliders-h text-indigo-400"></i> Filtros Avançados
+            </h3>
+            <button type="button" onclick="document.getElementById('advancedFiltersPanel').classList.add('hidden')" class="text-slate-400 hover:text-slate-200">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        
+        <form method="GET" action="{{ route('colaboradores.index') }}">
+            @if(request()->has('nome'))
+                <input type="hidden" name="nome" value="{{ request('nome') }}">
+            @endif
 
-<div class="max-w-full xl:max-w-7xl mx-auto p-4 sm:p-6">
+            <div class="space-y-6 mb-5">
+                <div>
+                    <h4 class="text-xs font-bold text-slate-400 border-b border-slate-700 pb-2 mb-3 uppercase tracking-wider flex items-center gap-2">
+                        <i class="fas fa-user-tag text-slate-500"></i> Classificação
+                    </h4>
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Status</label>
+                            <select name="status" class="w-full bg-slate-900 border border-slate-700 text-slate-300 rounded-lg p-2 text-sm focus:ring-indigo-500 outline-none">
+                                <option value="">Todos</option>
+                                <option value="ativo" {{ request('status') == 'ativo' ? 'selected' : '' }}>Ativos</option>
+                                <option value="inativo" {{ request('status') == 'inativo' ? 'selected' : '' }}>Inativos (Demitidos)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Cargo</label>
+                            <select name="cargo" class="w-full bg-slate-900 border border-slate-700 text-slate-300 rounded-lg p-2 text-sm focus:ring-indigo-500 outline-none">
+                                <option value="">Todos</option>
+                                @foreach($cargos as $cargo)
+                                    <option value="{{ $cargo }}" {{ request('cargo') == $cargo ? 'selected' : '' }}>{{ $cargo }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Setor</label>
+                            <select name="setor_id" class="w-full bg-slate-900 border border-slate-700 text-slate-300 rounded-lg p-2 text-sm focus:ring-indigo-500 outline-none">
+                                <option value="">Todos</option>
+                                @foreach($setores as $setor)
+                                    <option value="{{ $setor->id }}" {{ request('setor_id') == $setor->id ? 'selected' : '' }}>{{ $setor->nome }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Nível de Acesso (Perfil)</label>
+                            <select name="role" class="w-full bg-slate-900 border border-slate-700 text-slate-300 rounded-lg p-2 text-sm focus:ring-indigo-500 outline-none">
+                                <option value="">Todos</option>
+                                @foreach($roles as $role)
+                                    <option value="{{ $role->name }}" {{ request('role') == $role->name ? 'selected' : '' }}>{{ $role->name === 'SAC' ? 'ASSISTENTE' : $role->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <h4 class="text-xs font-bold text-slate-400 border-b border-slate-700 pb-2 mb-3 uppercase tracking-wider flex items-center gap-2">
+                        <i class="fas fa-map-marker-alt text-slate-500"></i> Localização e Sistema
+                    </h4>
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Cidade de Trabalho</label>
+                            <select name="cidade_trabalho" class="w-full bg-slate-900 border border-slate-700 text-slate-300 rounded-lg p-2 text-sm focus:ring-indigo-500 outline-none">
+                                <option value="">Todas</option>
+                                @foreach($cidades_trabalho as $cidade)
+                                    <option value="{{ $cidade }}" {{ request('cidade_trabalho') == $cidade ? 'selected' : '' }}>{{ $cidade }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Vínculo de Usuário (SSO)</label>
+                            <select name="filtro_usuario" class="w-full bg-slate-900 border border-slate-700 text-slate-300 rounded-lg p-2 text-sm focus:ring-indigo-500 outline-none">
+                                <option value="">Todos</option>
+                                <option value="com_usuario" {{ request('filtro_usuario') == 'com_usuario' ? 'selected' : '' }}>Com Usuário Vinculado</option>
+                                <option value="sem_usuario" {{ request('filtro_usuario') == 'sem_usuario' ? 'selected' : '' }}>Sem Usuário Vinculado</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Mês de Admissão</label>
+                            <input type="month" name="mes_admissao" value="{{ request('mes_admissao') }}" class="w-full bg-slate-900 border border-slate-700 text-slate-300 rounded-lg p-2 text-sm focus:ring-indigo-500 outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Mês de Demissão</label>
+                            <input type="month" name="mes_demissao" value="{{ request('mes_demissao') }}" class="w-full bg-slate-900 border border-slate-700 text-slate-300 rounded-lg p-2 text-sm focus:ring-indigo-500 outline-none">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex items-center justify-end gap-3 pt-3 border-t border-slate-700">
+                <a href="{{ route('colaboradores.index') }}" class="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white text-sm font-bold rounded-lg transition-colors">
+                    Limpar Filtros
+                </a>
+                <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-bold rounded-lg transition-colors flex items-center gap-2">
+                    <i class="fas fa-filter"></i> Aplicar Filtros
+                </button>
+            </div>
+        </form>
+    </div>
     {{-- ALERTAS DE INTEGRAÇÃO ERP --}}
     @if(isset($usuariosPendentes) && $usuariosPendentes->count() > 0)
         <div class="mb-6 bg-yellow-500/20 border-l-4 border-yellow-500 p-4 rounded-r-lg flex items-center justify-between shadow-sm">
@@ -371,91 +479,7 @@
     </div>
 </div>
 
-{{-- ==========================================
-     MODAL DE FILTROS
-     ========================================== --}}
-<div id="modal-filtros" class="relative z-50 hidden" role="dialog" aria-modal="true">
-    <div class="fixed inset-0 bg-gray-900/80 transition-opacity backdrop-blur-sm"></div>
-    <div class="fixed inset-0 z-50 w-screen overflow-y-auto">
-        <div class="flex min-h-full items-center justify-center p-4">
-            <div class="relative transform overflow-hidden rounded-xl bg-slate-900 border border-slate-700 text-left shadow-2xl w-full max-w-lg fade-in">
-                <div class="bg-slate-800 px-4 py-3 border-b border-slate-700 flex justify-between items-center">
-                    <h3 class="text-lg font-bold text-white flex items-center gap-2">
-                        <i class="fas fa-filter text-indigo-400"></i>
-                        Filtrar Colaboradores
-                    </h3>
-                    <button type="button" onclick="fecharModalFiltros()" class="text-gray-400 hover:text-white text-2xl font-bold transition-colors">&times;</button>
-                </div>
-                <form method="GET" action="{{ route('colaboradores.index') }}" class="p-6" id="form-filtros-dinamicos">
-                    @if(request('nome')) 
-                        <input type="hidden" name="nome" value="{{ request('nome') }}"> 
-                    @endif
-                    <div class="grid grid-cols-1 gap-4">
-                        <div>
-                            <label class="block text-xs font-bold text-slate-400 mb-1 ml-1">Tipo de Filtro</label>
-                            <div class="relative">
-                                <select id="select-tipo-filtro" class="w-full bg-slate-800 border border-slate-600 rounded-lg p-3 text-white text-xs focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none appearance-none cursor-pointer transition-all hover:bg-slate-700">
-                                    <option value="" disabled selected>Selecione o que deseja filtrar...</option>
-                                    <option value="cargo" @if(request('cargo')) selected @endif>Cargo</option>
-                                    <option value="setor_id" @if(request('setor_id')) selected @endif>Setor</option>
-                                    <option value="role" @if(request('role')) selected @endif>Perfil de Acesso</option>
-                                    <option value="status" @if(request('status')) selected @endif>Status</option>
-                                </select>
-                                <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-400">
-                                    <i class="fas fa-chevron-down"></i>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div id="container-valor-filtro" class="hidden">
-                            <label class="block text-xs font-bold text-slate-400 mb-1 ml-1" id="label-valor-filtro">Selecione a opção</label>
-                            
-                            <div class="relative">
-                                <select id="filtro-cargo" name="cargo" disabled class="filtro-input hidden w-full bg-slate-800 border border-slate-600 text-white text-xs rounded-lg p-3 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none appearance-none cursor-pointer transition-all hover:bg-slate-700">
-                                    <option value="">Selecione um Cargo...</option>
-                                    @foreach($cargos as $cargo)
-                                    <option value="{{ $cargo }}" @if(request('cargo') == $cargo) selected @endif>{{ $cargo }}</option>
-                                    @endforeach
-                                </select>
-                                
-                                <select id="filtro-setor_id" name="setor_id" disabled class="filtro-input hidden w-full bg-slate-800 border border-slate-600 text-white text-xs rounded-lg p-3 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none appearance-none cursor-pointer transition-all hover:bg-slate-700">
-                                    <option value="">Selecione um Setor...</option>
-                                    @foreach($setores as $setor)
-                                    <option value="{{ $setor->id }}" @if(request('setor_id') == $setor->id) selected @endif>{{ $setor->nome }}</option>
-                                    @endforeach
-                                </select>
-
-                                <select id="filtro-role" name="role" disabled class="filtro-input hidden w-full bg-slate-800 border border-slate-600 text-white text-xs rounded-lg p-3 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none appearance-none cursor-pointer transition-all hover:bg-slate-700">
-                                    <option value="">Selecione um Perfil...</option>
-                                    @foreach($roles as $role)
-                                    <option value="{{ $role->name }}" @if(request('role') == $role->name) selected @endif>{{ $role->name === 'SAC' ? 'ASSISTENTE' : $role->name }}</option>
-                                    @endforeach
-                                </select>
-
-                                <select id="filtro-status" name="status" disabled class="filtro-input hidden w-full bg-slate-800 border border-slate-600 text-white text-xs rounded-lg p-3 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none appearance-none cursor-pointer transition-all hover:bg-slate-700">
-                                    <option value="ativo" @if(request('status') == 'ativo') selected @endif>Ativo</option>
-                                    <option value="inativo" @if(request('status') == 'inativo') selected @endif>Inativo</option>
-                                </select>
-                                <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-400">
-                                    <i class="fas fa-chevron-down"></i>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="pt-6 flex justify-between gap-3 border-t border-slate-800 mt-6">
-                        <a href="{{ route('colaboradores.index') }}" class="px-4 py-2 bg-slate-700 text-slate-300 font-bold rounded-lg hover:bg-slate-600 transition-colors text-sm border border-slate-600 flex items-center gap-2"> 
-                            <i class="fas fa-eraser"></i> Limpar Filtros 
-                        </a>
-                        <button type="submit" class="px-6 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-lg shadow-lg shadow-indigo-900/20 transition-all text-sm flex items-center gap-2">
-                            <i class="fas fa-check"></i>
-                            Aplicar Filtros
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
-</div>
+ 
 
 {{-- ==========================================
      MODAL NOVO COLABORADOR
@@ -727,15 +751,22 @@
                     <!-- Cargo -->
                     <div class="relative group">
                         <label class="block text-xs font-medium mb-1 text-slate-400">Cargo *</label>
-                        <select name="cargo" disabled required class="w-full bg-slate-900/50 border border-slate-700 text-slate-400 rounded-lg p-3 pr-10 focus:ring-2 focus:ring-indigo-500 outline-none transition-all appearance-none">
-                            <option value="">Selecione</option>
-                            @foreach($cargos as $cargo)
-                                <option value="{{ $cargo }}">{{ $cargo }}</option>
-                            @endforeach
-                        </select>
-                        <button type="button" onclick="desbloquearCampo(this)" class="absolute right-1.5 top-[22px] p-1 text-slate-500 hover:text-indigo-400 transition-colors opacity-50 hover:opacity-100 z-10" title="Editar informação">
-                            <i class="fas fa-pencil-alt text-[10px]"></i>
-                        </button>
+                        <div class="flex items-center gap-2">
+                            <div class="relative flex-1 w-full">
+                                <select name="cargo" id="select-cargo-ficha" disabled required class="w-full bg-slate-900/50 border border-slate-700 text-slate-400 rounded-lg p-3 pr-10 focus:ring-2 focus:ring-indigo-500 outline-none transition-all appearance-none">
+                                    <option value="">Selecione</option>
+                                    @foreach($cargos as $cargo)
+                                        <option value="{{ $cargo }}">{{ $cargo }}</option>
+                                    @endforeach
+                                </select>
+                                <button type="button" onclick="desbloquearCampo(this)" class="absolute right-1.5 top-[2px] p-1 text-slate-500 hover:text-indigo-400 transition-colors opacity-50 hover:opacity-100 z-10" title="Editar informação">
+                                    <i class="fas fa-pencil-alt text-[10px]"></i>
+                                </button>
+                            </div>
+                            <button type="button" onclick="abrirModalNovaOpcao('select-cargo-ficha', 'Cargo')" class="btn-nova-opcao hidden p-3 bg-slate-700 hover:bg-slate-600 text-slate-300 rounded-lg border border-slate-600 transition-colors" title="Cadastrar novo" disabled>
+                                <i class="fas fa-plus"></i>
+                            </button>
+                        </div>
                     </div>
 
                     <!-- Nivel Acesso -->
@@ -902,11 +933,21 @@
         const novoValor = input.value.trim();
         
         if (novoValor && currentSelectIdForNovaOpcao) {
-            const select = document.getElementById(currentSelectIdForNovaOpcao);
+            const selectTarget = document.getElementById(currentSelectIdForNovaOpcao);
             
-            if (select) {
+            if (selectTarget) {
+                // Adiciona e seleciona no select que originou a ação
                 const novaOption = new Option(novoValor, novoValor, true, true);
-                select.add(novaOption);
+                selectTarget.add(novaOption);
+
+                // Replica a nova opção no outro modal de Cargo
+                if (currentSelectIdForNovaOpcao === 'select-cargo-novo') {
+                    const selectEdit = document.getElementById('select-cargo-ficha');
+                    if (selectEdit) selectEdit.add(new Option(novoValor, novoValor, false, false));
+                } else if (currentSelectIdForNovaOpcao === 'select-cargo-ficha') {
+                    const selectNovo = document.getElementById('select-cargo-novo');
+                    if (selectNovo) selectNovo.add(new Option(novoValor, novoValor, false, false));
+                }
 
                 if (currentSelectIdForNovaOpcao === 'edit-valor') {
                     const campoSelect = document.getElementById('edit-campo');
@@ -1270,6 +1311,16 @@
             // Exibir o rodapé com o botão salvar
             document.getElementById('rodape-edicao').classList.remove('hidden');
 
+            // Habilitar botão de nova opção, se houver
+            const containerFlex = btn.closest('.flex');
+            if (containerFlex) {
+                const btnNovaOpcao = containerFlex.querySelector('.btn-nova-opcao');
+                if (btnNovaOpcao) {
+                    btnNovaOpcao.disabled = false;
+                    btnNovaOpcao.classList.remove('hidden');
+                }
+            }
+
             // Verifica quais campos estão desbloqueados atualmente no formulário
             const camposDesbloqueados = Array.from(document.querySelectorAll('#form-ficha input:not([disabled]), #form-ficha select:not([disabled])'))
                                             .map(el => el.name);
@@ -1417,13 +1468,7 @@
         }, 300);
     }
 
-    function abrirModalFiltros() {
-        document.getElementById('modal-filtros').classList.remove('hidden');
-    }
-    
-    function fecharModalFiltros() {
-        document.getElementById('modal-filtros').classList.add('hidden');
-    }
+ 
 
     function abrirModalNovo() {
         document.getElementById('modal-novo-colaborador').classList.remove('hidden');
@@ -1563,45 +1608,7 @@
         });
     }
 
-    // ==========================================
-    // Filtros Dinâmicos
-    // ==========================================
-    const selectTipo = document.getElementById('select-tipo-filtro');
-    const containerValor = document.getElementById('container-valor-filtro');
-    const labelValor = document.getElementById('label-valor-filtro');
-    const inputsFiltro = document.querySelectorAll('.filtro-input');
-
-    if (selectTipo) {
-        selectTipo.addEventListener('change', function() {
-            const tipoSelecionado = this.value;
-            
-            // Esconde e desabilita todos (name disabled para não sujar a URL)
-            inputsFiltro.forEach(input => {
-                input.classList.add('hidden');
-                input.disabled = true;
-                input.required = false;
-            });
-
-            if (tipoSelecionado) {
-                // Mostra e habilita apenas o alvo
-                const inputAlvo = document.getElementById(`filtro-${tipoSelecionado}`);
-                if (inputAlvo) {
-                    inputAlvo.classList.remove('hidden');
-                    inputAlvo.disabled = false;
-                    
-                    labelValor.innerText = `Selecione o ${this.options[this.selectedIndex].text}`;
-                    containerValor.classList.remove('hidden');
-                }
-            } else {
-                containerValor.classList.add('hidden');
-            }
-        });
-        
-        // Trigger inicial caso exista uma seleção prévia persistida (ex: ao voltar à página com filtros ativos na URL)
-        if(selectTipo.value) {
-            selectTipo.dispatchEvent(new Event('change'));
-        }
-    }
+ 
 
     function abrirModalNovoPreenchido(userId, nome, idErp) {
         document.getElementById('modal-pendentes').classList.add('hidden');

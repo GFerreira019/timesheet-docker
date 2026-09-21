@@ -35,6 +35,27 @@ class ColaboradorController extends Controller
                 $query->whereNotNull('data_demissao');
             }
         }
+        if ($request->filled('filtro_usuario')) {
+            if ($request->filtro_usuario === 'com_usuario') {
+                $query->whereHas('user');
+            } elseif ($request->filtro_usuario === 'sem_usuario') {
+                $query->whereDoesntHave('user');
+            }
+        }
+        if ($request->filled('mes_admissao')) {
+            $partes = explode('-', $request->mes_admissao);
+            if (count($partes) === 2) {
+                $query->whereYear('data_admissao', $partes[0])
+                      ->whereMonth('data_admissao', $partes[1]);
+            }
+        }
+        if ($request->filled('mes_demissao')) {
+            $partes = explode('-', $request->mes_demissao);
+            if (count($partes) === 2) {
+                $query->whereYear('data_demissao', $partes[0])
+                      ->whereMonth('data_demissao', $partes[1]);
+            }
+        }
 
         // 1º Ordena por Status (Ativos primeiro)
         $query->orderByRaw("CASE WHEN data_demissao IS NULL THEN 0 ELSE 1 END ASC");
