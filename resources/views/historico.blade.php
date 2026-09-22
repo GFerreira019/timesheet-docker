@@ -41,72 +41,131 @@
     {{-- ============================================================
          TOOLBAR PRINCIPAL (Filtros e Ações)
          ============================================================ --}}
-    <div class="flex w-full items-center justify-between gap-4 mb-6 pb-4 border-b border-slate-700/50">
-        
-        <!-- Esquerda: Filtros -->
-        <div class="flex items-center gap-2">
-            @foreach(['3' => '3 Dias', '7' => '7 Dias', '30' => '30 Dias'] as $p => $label)
-            <a href="?period={{ $p }}"
-               class="hidden sm:flex px-4 py-1.5 rounded-full text-sm font-bold transition flex-shrink-0 
-                      {{ $current_period == $p
-                         ? 'bg-indigo-600 text-white shadow-md'
-                         : 'bg-slate-800 text-slate-400 border border-slate-700 hover:bg-slate-700/50' }}">
-                {{ $label }}
-            </a>
-            @endforeach
+    @php
+        $activeFilters = array_filter(request()->except(['page']), function($value) {
+            return $value !== null && $value !== '';
+        });
+        $hasFilters = count($activeFilters) > 0;
+    @endphp
 
-            <!-- Filtro Customizado (Calendário) -->
-            <div class="relative" id="dropdown-container">
-                <!-- Botão Gatilho -->
-                <button type="button" id="dateFilterBtn" class="px-3 sm:px-4 py-1.5 rounded-full bg-slate-800 text-slate-300 text-sm font-bold hover:bg-slate-700/50 flex justify-center sm:justify-start items-center gap-2 border border-slate-700 transition">
-                    <i class="fas fa-calendar-alt text-indigo-400"></i>
-                    <span class="inline">Período</span>
+    <div class="flex flex-col md:flex-row md:items-center gap-4 justify-between mb-4 w-full">
+    
+        <!-- Bloco da Esquerda (Filtros) -->
+        <div class="flex flex-wrap items-center gap-2 md:gap-4 w-full md:w-auto order-2 md:order-1">
+            @unlessrole('OPERACIONAL')
+                <button type="button" onclick="document.getElementById('advancedFiltersPanel').classList.toggle('hidden')" class="px-4 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-300 hover:text-white hover:bg-slate-700 transition flex items-center gap-2 w-full sm:w-auto justify-center" title="Filtros Avançados">
+                    <i class="fas fa-filter"></i> <span class="font-bold text-sm">Filtros</span>
                 </button>
-
-                <!-- Dropdown do Formulário -->
-                <div id="dateFilterDropdown" class="hidden absolute top-full left-0 mt-2 p-4 bg-slate-800 border border-slate-700 rounded-xl shadow-xl z-50 w-[calc(100vw-3rem)] sm:w-auto sm:min-w-[350px]">
-                    <form action="{{ route('historico.index') }}" method="GET" class="flex flex-col gap-3">
-                        @if(!empty($colaborador_id_val))
-                            <input type="hidden" name="colaborador_id" value="{{ $colaborador_id_val }}">
-                            <div class="bg-indigo-500/10 border border-indigo-500/30 px-3 py-2 rounded-lg mb-2 flex items-center justify-between">
-                                <span class="text-indigo-400 text-xs font-bold"><i class="fas fa-filter mr-1"></i> Filtrando 1 Colaborador (Alerta)</span>
-                                <a href="{{ route('historico.index') }}" class="text-slate-400 hover:text-red-400 text-xs" title="Remover filtro"><i class="fas fa-times"></i></a>
-                            </div>
-                        @endif
-                        <div class="flex flex-col sm:flex-row gap-3">
-                            <div class="flex-1">
-                                <label class="block text-[10px] text-slate-400 uppercase tracking-wider mb-1 font-bold">De</label>
-                                <input type="date" name="start_date" value="{{ $current_period === 'custom' ? $start_date_val : '' }}" required
-                                       class="w-full bg-slate-900 border border-slate-700 text-slate-300 text-sm rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 outline-none">
-                            </div>
-                            <div class="flex-1">
-                                <label class="block text-[10px] text-slate-400 uppercase tracking-wider mb-1 font-bold">Até</label>
-                                <input type="date" name="end_date" value="{{ $current_period === 'custom' ? $end_date_val : '' }}" required
-                                       class="w-full bg-slate-900 border border-slate-700 text-slate-300 text-sm rounded-lg px-3 py-2 focus:ring-2 focus:ring-indigo-500 outline-none">
-                            </div>
-                        </div>
-                        <div class="flex gap-2 mt-1">
-                            <a href="{{ route('historico.index') }}" class="w-1/3 bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded-lg text-sm font-bold transition text-center flex items-center justify-center">
-                                Limpar
-                            </a>
-                            <button type="submit" class="w-2/3 bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg text-sm font-bold transition">
-                                Aplicar Filtro
-                            </button>
-                        </div>
-                    </form>
-                </div>
-            </div>
+                @if($hasFilters)
+                    <a href="{{ route('historico.index') }}" class="px-4 py-2 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400 hover:text-white hover:bg-red-500 transition flex items-center gap-2 text-sm font-bold w-full sm:w-auto justify-center" title="Limpar Filtros">
+                        <i class="fas fa-times"></i> Limpar
+                    </a>
+                @endif
+            @else
+                <a href="{{ route('historico.index', ['dias' => 3]) }}" class="flex-1 sm:flex-none text-center px-3 py-1.5 bg-slate-800 border {{ request('dias', 3) == 3 ? 'border-indigo-500 rounded-xl border-2 text-indigo-400' : 'border-slate-700 text-slate-300' }} rounded-lg hover:bg-slate-700 transition text-sm font-bold">
+                    3 Dias
+                </a>
+                <a href="{{ route('historico.index', ['dias' => 15]) }}" class="flex-1 sm:flex-none text-center px-3 py-1.5 bg-slate-800 border {{ request('dias') == 15 ? 'border-indigo-500 rounded-xl border-2 text-indigo-400' : 'border-slate-700 text-slate-300' }} rounded-lg hover:bg-slate-700 transition text-sm font-bold">
+                    15 Dias
+                </a>
+                <a href="{{ route('historico.index', ['dias' => 30]) }}" class="flex-1 sm:flex-none text-center px-3 py-1.5 bg-slate-800 border {{ request('dias') == 30 ? 'border-indigo-500 rounded-xl border-2 text-indigo-400' : 'border-slate-700 text-slate-300' }} rounded-lg hover:bg-slate-700 transition text-sm font-bold">
+                    30 Dias
+                </a>
+            @endunlessrole
         </div>
 
-        <!-- Direita: Ações -->
-        <div class="flex justify-end gap-4">
-            <a href="{{ route('apontamentos.create') }}" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 px-4 rounded-lg flex items-center justify-center gap-2 transition shadow-lg shadow-indigo-900/20 text-sm whitespace-nowrap">
-                <i class="fas fa-plus"></i>
-                <span class="hidden sm:inline">Novo Registro</span>
+        <!-- Bloco da Direita (Novo Registro e Sino) -->
+        <div class="flex items-center gap-3 w-full md:w-auto justify-end order-1 md:order-2">
+            <a href="{{ route('apontamentos.create') }}" class="justify-center px-4 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-lg shadow-lg shadow-indigo-900/20 transition-all flex items-center gap-2 text-sm">
+                <i class="fas fa-plus"></i> <span class="hidden sm:inline">Novo Registro</span>
             </a>
             <x-notificacoes-bell />
         </div>
+        
     </div>
+
+    {{-- ============================================================
+         PAINEL DE FILTROS AVANÇADOS
+         ============================================================ --}}
+    @unlessrole('OPERACIONAL')
+    <div id="advancedFiltersPanel" class="{{ $hasFilters ? '' : 'hidden' }} mb-6 bg-slate-800 border border-slate-700 rounded-xl p-4 shadow-lg">
+        <div class="flex items-center justify-between mb-4 border-b border-slate-700 pb-3">
+            <h3 class="text-sm font-bold text-slate-300 uppercase tracking-wider flex items-center gap-2">
+                <i class="fas fa-sliders-h text-indigo-400"></i> Filtros de Histórico
+            </h3>
+            <button type="button" onclick="document.getElementById('advancedFiltersPanel').classList.add('hidden')" class="text-slate-400 hover:text-slate-200">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        
+        <form method="GET" action="{{ route('historico.index') }}">
+            <div class="space-y-6 mb-5">
+                <div>
+                    <h4 class="text-xs font-bold text-slate-400 border-b border-slate-700 pb-2 mb-3 uppercase tracking-wider flex items-center gap-2">
+                        <i class="fas fa-filter text-slate-500"></i> Critérios de Busca
+                    </h4>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Data Início</label>
+                            <input type="date" name="start_date" value="{{ request('start_date', $start_date_val) }}" class="w-full bg-slate-900 border border-slate-700 text-slate-300 rounded-lg p-2 text-sm focus:ring-indigo-500 outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Data Fim</label>
+                            <input type="date" name="end_date" value="{{ request('end_date', $end_date_val) }}" class="w-full bg-slate-900 border border-slate-700 text-slate-300 rounded-lg p-2 text-sm focus:ring-indigo-500 outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Colaborador</label>
+                            <x-select2 name="colaborador_id" :options="$colaboradoresOpts" selected="{{ request('colaborador_id') }}" placeholder="Todos" />
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Status</label>
+                            <select name="status" class="w-full bg-slate-900 border border-slate-700 text-slate-300 rounded-lg p-2 text-sm focus:ring-indigo-500 outline-none">
+                                <option value="">Todos</option>
+                                <option value="EM_ANALISE" {{ request('status') == 'EM_ANALISE' ? 'selected' : '' }}>Em Análise</option>
+                                <option value="APROVADO" {{ request('status') == 'APROVADO' ? 'selected' : '' }}>Aprovado</option>
+                                <option value="REJEITADO" {{ request('status') == 'REJEITADO' ? 'selected' : '' }}>Rejeitado</option>
+                                <option value="SOLICITACAO_AJUSTE" {{ request('status') == 'SOLICITACAO_AJUSTE' ? 'selected' : '' }}>Em Ajuste</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <h4 class="text-xs font-bold text-slate-400 border-b border-slate-700 pb-2 mb-3 uppercase tracking-wider flex items-center gap-2">
+                        <i class="fas fa-map-marker-alt text-slate-500"></i> Locais e Recursos
+                    </h4>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Projeto</label>
+                            <x-select2 name="projeto_id" :options="$projetosOpts" selected="{{ request('projeto_id') }}" placeholder="Todos" />
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Cliente</label>
+                            <x-select2 name="codigo_cliente_id" :options="$clientesOpts" selected="{{ request('codigo_cliente_id') }}" placeholder="Todos" />
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Centro de Custo</label>
+                            <x-select2 name="centro_custo_id" :options="$centrosCustoOpts" selected="{{ request('centro_custo_id') }}" placeholder="Todos" />
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Veículo</label>
+                            <x-select2 name="veiculo_id" :options="$veiculosOpts" selected="{{ request('veiculo_id') }}" placeholder="Todos" />
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-end gap-3 pt-3 border-t border-slate-700">
+                <a href="{{ route('historico.index') }}" class="w-full sm:w-auto text-center px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white text-sm font-bold rounded-lg transition-colors">
+                    Limpar Filtros
+                </a>
+                <button type="submit" class="w-full sm:w-auto justify-center px-6 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-bold rounded-lg transition-colors flex items-center gap-2">
+                    <i class="fas fa-search"></i> Pesquisar
+                </button>
+            </div>
+        </form>
+    </div>
+    @endunlessrole
 
     @if($bloqueia_data_antiga ?? false)
     <div class="mb-4 px-4 py-3 bg-amber-500/10 border border-amber-500/30 text-amber-400 rounded-lg text-sm">
@@ -823,5 +882,57 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 });
+
+// Exclusividade Mútua entre Projeto, Cliente e Centro de Custo (Select2)
+@unlessrole('OPERACIONAL')
+$(document).ready(function() {
+    const $projeto = $('select[name="projeto_id"]');
+    const $cliente = $('select[name="codigo_cliente_id"]');
+    const $centroCusto = $('select[name="centro_custo_id"]');
+
+    function enforceExclusivity() {
+        let pVal = $projeto.val();
+        let cVal = $cliente.val();
+        let ccVal = $centroCusto.val();
+
+        // Desliga os listeners temporariamente para evitar loop infinito
+        $projeto.off('change', enforceExclusivity);
+        $cliente.off('change', enforceExclusivity);
+        $centroCusto.off('change', enforceExclusivity);
+
+        if (pVal) {
+            // Se Projeto selecionado, limpa e bloqueia os outros
+            $cliente.val('').prop('disabled', true).trigger('change');
+            $centroCusto.val('').prop('disabled', true).trigger('change');
+        } else if (cVal) {
+            // Se Cliente selecionado, limpa e bloqueia os outros
+            $projeto.val('').prop('disabled', true).trigger('change');
+            $centroCusto.val('').prop('disabled', true).trigger('change');
+        } else if (ccVal) {
+            // Se Centro de Custo selecionado, limpa e bloqueia os outros
+            $projeto.val('').prop('disabled', true).trigger('change');
+            $cliente.val('').prop('disabled', true).trigger('change');
+        } else {
+            // Se todos vazios, libera todos
+            $projeto.prop('disabled', false).trigger('change');
+            $cliente.prop('disabled', false).trigger('change');
+            $centroCusto.prop('disabled', false).trigger('change');
+        }
+
+        // Religa os listeners
+        $projeto.on('change', enforceExclusivity);
+        $cliente.on('change', enforceExclusivity);
+        $centroCusto.on('change', enforceExclusivity);
+    }
+
+    // Vincula o evento change nativo/select2 e executa na inicialização
+    $projeto.on('change', enforceExclusivity);
+    $cliente.on('change', enforceExclusivity);
+    $centroCusto.on('change', enforceExclusivity);
+    
+    // Pequeno delay na inicialização para garantir que o Select2 já renderizou
+    setTimeout(enforceExclusivity, 100);
+});
+@endunlessrole
 </script>
 @endpush

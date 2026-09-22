@@ -35,28 +35,37 @@ class HistoricoController extends Controller
         $ehGestor = AcessoHelper::isGerente($user);
         $podeVerAlertas = $ehOwner || $ehGestor;
 
+        $isOperacional = $user->hasRole('OPERACIONAL');
+
         // ─── Filtros de Data e Outros Parâmetros ───────────────────────────────
-        $period        = $request->query('period');
-        $startDateStr  = $request->query('start_date');
-        $endDateStr    = $request->query('end_date');
-        $colaboradorId = $request->query('colaborador_id');
+        $dias = $request->query('dias');
+        $startDateStr = $request->query('start_date');
+        $endDateStr   = $request->query('end_date');
 
-        $endDate       = now()->toDateString();
-        $startDate     = now()->subDays(2)->toDateString();
-        $currentPeriod = '3';
-
-        if ($period && is_numeric($period)) {
-            $days          = (int) $period;
-            $startDate     = now()->subDays($days - 1)->toDateString();
-            $currentPeriod = $period;
-            $startDateStr  = null;
-            $endDateStr    = null;
-        } elseif ($startDateStr && $endDateStr) {
-            try {
-                $startDate     = Carbon::parse($startDateStr)->toDateString();
-                $endDate       = Carbon::parse($endDateStr)->toDateString();
-                $currentPeriod = 'custom';
-            } catch (\Throwable) {}
+        if ($isOperacional) {
+            if ($dias && in_array($dias, [3, 15, 30])) {
+                $startDateStr = now()->subDays($dias - 1)->toDateString();
+                $endDateStr   = now()->toDateString();
+            } else {
+                if (empty($startDateStr) || empty($endDateStr)) {
+                    $startDateStr = now()->subDays(2)->toDateString();
+                    $endDateStr   = now()->toDateString();
+                } else {
+                    $start = \Carbon\Carbon::parse($startDateStr);
+                    $end = \Carbon\Carbon::parse($endDateStr);
+                    if ($start->diffInDays($end) > 30) {
+                        $startDateStr = (clone $end)->subDays(30)->toDateString();
+                    }
+                }
+            }
+        } else {
+            // Filtro padrão para outros perfis: últimos 3 dias
+            if (empty($startDateStr)) {
+                $startDateStr = now()->subDays(2)->toDateString();
+            }
+            if (empty($endDateStr)) {
+                $endDateStr = now()->toDateString();
+            }
         }
 
         // ─── Query Base ────────────────────────────────────────────────────────
@@ -76,18 +85,30 @@ class HistoricoController extends Controller
         ->orderBy('colaborador_id')
         ->orderByDesc('hora_termino');
 
-        // Se o usuário não definiu um período customizado, não limitamos a data superior (endDate)
-        // Isso evita o 'filtro fantasma' onde o timezone do servidor (UTC) ainda não virou o dia,
-        // mas o apontamento já foi salvo com a data de "amanhã" pelo usuário local.
-        if ($currentPeriod === 'custom') {
-            $query->whereDate('data_apontamento', '>=', $startDate)
-                  ->whereDate('data_apontamento', '<=', $endDate);
-        } else {
-            $query->whereDate('data_apontamento', '>=', $startDate);
-        }
+        // Filtros de Data (Início e Fim)
+        $query->whereDate('data_apontamento', '>=', $startDateStr)
+              ->whereDate('data_apontamento', '<=', $endDateStr);
 
-        if ($colaboradorId) {
-            $query->where('colaborador_id', $colaboradorId);
+        // Filtros combinados (Ignorados para OPERACIONAL)
+        if (!$isOperacional) {
+            $query->when($request->query('colaborador_id'), function ($q, $val) {
+                $q->where('colaborador_id', $val);
+            })
+            ->when($request->query('projeto_id'), function ($q, $val) {
+                $q->where('projeto_id', $val);
+            })
+            ->when($request->query('codigo_cliente_id'), function ($q, $val) {
+                $q->where('codigo_cliente_id', $val);
+            })
+            ->when($request->query('centro_custo_id'), function ($q, $val) {
+                $q->where('centro_custo_id', $val);
+            })
+            ->when($request->query('veiculo_id'), function ($q, $val) {
+                $q->where('veiculo_id', $val);
+            })
+            ->when($request->query('status'), function ($q, $val) {
+                $q->where('status_aprovacao', $val);
+            });
         }
 
         // ─── Filtro de Visibilidade (Row-Level Security) ───────────
@@ -97,7 +118,7 @@ class HistoricoController extends Controller
         $limitDate = now()->subDays(30)->toDateString();
 
         if (!$ehOwner) {
-            if ($startDate < $limitDate) {
+            if ($startDateStr < $limitDate) {
                 $bloqueiaDataAntiga = true;
             }
             $query->where('data_apontamento', '>=', $limitDate);
@@ -257,6 +278,41 @@ class HistoricoController extends Controller
             }
         }
 
+        // ─── Carregamento de Coleções para os Filtros (Preparação para Select2) ───
+        $colaboradoresOptions = [];
+        $projetosOptions = [];
+        $clientesOptions = [];
+        $centrosCustoOptions = [];
+        $veiculosOptions = [];
+
+        if (!$isOperacional) {
+            $colaboradoresOptions = Colaborador::all()->sortBy('nome_completo')->pluck('nome_completo', 'id')->toArray();
+            
+            $projetosRaw = \App\Models\ProjetoOperacional::with('cliente')->where('ativo', true)->get()->sortBy('codigo');
+            foreach ($projetosRaw as $proj) {
+                $label = $proj->codigo . ' - ' . $proj->nome;
+                if (!empty($proj->unidade) && !str_contains($proj->unidade, 'N/A')) {
+                    $label .= ' [' . $proj->unidade . ']';
+                }
+                $projetosOptions[$proj->id] = $label;
+            }
+
+            $clientesRaw = \App\Models\ClienteOperacional::where('ativo', true)->orderBy('nome')->get();
+            foreach ($clientesRaw as $cli) {
+                $clientesOptions[$cli->id] = $cli->codigo . ' - ' . $cli->nome;
+            }
+
+            $centrosCustoRaw = \App\Models\CentroCusto::where('ativo', true)->orderBy('nome')->get();
+            foreach ($centrosCustoRaw as $cc) {
+                $centrosCustoOptions[$cc->id] = $cc->nome;
+            }
+
+            $veiculosRaw = \App\Models\Veiculo::orderBy('placa')->get();
+            foreach ($veiculosRaw as $veic) {
+                $veiculosOptions[$veic->id] = $veic->placa . ' - ' . $veic->descricao;
+            }
+        }
+
         return view('historico', [
             'titulo'              => 'Histórico',
             'apontamentos_lista'  => $historicoLista,
@@ -264,11 +320,14 @@ class HistoricoController extends Controller
             'show_user_column'    => $ehOwner,
             'is_owner'            => $ehOwner,
             'is_gestor'           => $ehGestor,
-            'current_period'      => $currentPeriod,
-            'start_date_val'      => $startDate,
-            'end_date_val'        => $endDate,
+            'start_date_val'      => $startDateStr,
+            'end_date_val'        => $endDateStr,
             'bloqueia_data_antiga'=> $bloqueiaDataAntiga,
-            'colaborador_id_val'  => $colaboradorId,
+            'colaboradoresOpts'   => $colaboradoresOptions,
+            'projetosOpts'        => $projetosOptions,
+            'clientesOpts'        => $clientesOptions,
+            'centrosCustoOpts'    => $centrosCustoOptions,
+            'veiculosOpts'        => $veiculosOptions,
         ]);
     }
 }
