@@ -203,7 +203,7 @@ class ApontamentoController extends Controller
      */
     public function edit(int $id): View|RedirectResponse
     {
-        $apontamento = Apontamento::with(['colaborador', 'projeto', 'auxiliaresExtras'])->findOrFail($id);
+        $apontamento = Apontamento::with(['colaborador', 'projeto', 'auxiliaresExtras', 'diariosObra'])->findOrFail($id);
         $user        = auth()->user();
 
         // Segurança: só o autor ou Owner pode editar (equivalente ao Django)
@@ -263,6 +263,7 @@ class ApontamentoController extends Controller
             'dorme_fora'             => $apontamento->dorme_fora,
             'data_dorme_fora'        => $apontamento->data_dorme_fora ? \Carbon\Carbon::parse($apontamento->data_dorme_fora)->format('Y-m-d') : null,
             'ocorrencias'            => $apontamento->ocorrencias,
+            'texto_diario'           => $apontamento->diariosObra->first()?->texto_diario,
             'latitude'               => $apontamento->latitude,
             'longitude'              => $apontamento->longitude,
         ];
@@ -409,6 +410,8 @@ class ApontamentoController extends Controller
             }
 
             $apontamento->save();
+
+            $this->salvarDiarioObra($apontamento, $dados['texto_diario'] ?? null);
 
             // Auxiliares extras (M2M) — sync recebe o array inteiro de uma vez
             $this->syncAuxiliaresExtras($apontamento, $request);
@@ -562,6 +565,8 @@ class ApontamentoController extends Controller
         $ap->contagem_edicao  = 0;
         $ap->save();
 
+        $this->salvarDiarioObra($ap, $dados['texto_diario'] ?? null);
+
         // Auxiliares extras (M2M) — também no check-in
         $this->syncAuxiliaresExtras($ap, request());
 
@@ -582,6 +587,8 @@ class ApontamentoController extends Controller
         $ap->status_aprovacao = 'EM_ANALISE';
         $ap->contagem_edicao  = 0;
         $ap->save();
+
+        $this->salvarDiarioObra($ap, $dados['texto_diario'] ?? null);
 
         // Auxiliares extras (M2M) — sync recebe o array inteiro de uma vez
         $this->syncAuxiliaresExtras($ap, $request);
@@ -624,7 +631,8 @@ class ApontamentoController extends Controller
                 'tipo'         => !empty($dados['projeto_id']) ? 'P' : 'C',
                 'codigo'       => !empty($dados['projeto_id']) ? $dados['projeto_id'] : $dados['codigo_cliente_id'],
                 'unidade'      => $dados['unidade'] ?? null,
-                'is_principal' => true
+                'is_principal' => true,
+                'texto_diario' => $dados['texto_diario'] ?? null
             ];
         }
 
@@ -635,7 +643,8 @@ class ApontamentoController extends Controller
                     'tipo'         => $item['tipo'],
                     'codigo'       => $item['codigo'], // String(codigo_projeto) ou ID(cliente)
                     'unidade'      => $item['unidade'] ?? null,
-                    'is_principal' => false
+                    'is_principal' => false,
+                    'texto_diario' => $item['texto_diario'] ?? null
                 ];
             }
         }
@@ -730,6 +739,8 @@ class ApontamentoController extends Controller
 
                     $ap->save();
 
+                    $this->salvarDiarioObra($ap, $obra['texto_diario'] ?? null);
+
                     // Auxiliares extras (M2M) — sync recebe o array inteiro de uma vez
                     $this->syncAuxiliaresExtras($ap, $request);
 
@@ -793,6 +804,21 @@ class ApontamentoController extends Controller
         $unidades = $query->distinct()->pluck('unidade')->sort()->values();
 
         return response()->json($unidades);
+    }
+
+    private function salvarDiarioObra(\App\Models\Apontamento $apontamento, ?string $texto): void
+    {
+        if (empty(trim($texto ?? ''))) {
+            $apontamento->diariosObra()->delete();
+            return;
+        }
+
+        $diario = $apontamento->diariosObra()->first();
+        if ($diario) {
+            $diario->update(['texto_diario' => $texto]);
+        } else {
+            $apontamento->diariosObra()->create(['texto_diario' => $texto]);
+        }
     }
 
     /**

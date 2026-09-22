@@ -631,6 +631,34 @@
                               placeholder="Descreva ocorrências relevantes...">{{ old('ocorrencias', $initial_values['ocorrencias'] ?? '') }}</textarea>
                 </div>
 
+                @if(auth()->user()->hasRole('ADMIN') || in_array(auth()->user()->colaborador?->setor_id, [7, 9]))
+                {{-- Diário de Obra Principal (Accordion com AlpineJS) --}}
+                <div class="sm:col-span-2" x-data="{ open: false }">
+                    <button type="button" @click="open = !open" 
+                            class="w-full flex items-center justify-between bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700 rounded-md p-3 text-gray-300 transition-colors cursor-pointer outline-none focus:ring-2 focus:ring-indigo-500/50">
+                        <div class="flex items-center gap-2">
+                            <i class="fas fa-clipboard-list text-indigo-400"></i>
+                            <span class="text-sm font-semibold tracking-wide">DIÁRIO DE OBRA <span class="text-xs text-indigo-400/70 font-normal normal-case ml-1">(Opcional)</span></span>
+                        </div>
+                        <i class="fas fa-chevron-down text-gray-500 transition-transform duration-300" :class="{ 'rotate-180': open }"></i>
+                    </button>
+                    
+                    <div x-show="open" 
+                         x-transition:enter="transition ease-out duration-200"
+                         x-transition:enter-start="opacity-0 -translate-y-2"
+                         x-transition:enter-end="opacity-100 translate-y-0"
+                         x-transition:leave="transition ease-in duration-150"
+                         x-transition:leave-start="opacity-100 translate-y-0"
+                         x-transition:leave-end="opacity-0 -translate-y-2"
+                         class="mt-2"
+                         style="display: none;">
+                        <textarea name="texto_diario" rows="4" class="w-full bg-slate-800 border border-slate-700 rounded-md p-3 text-gray-300 focus:border-indigo-500 focus:ring-indigo-500 outline-none resize-none shadow-inner transition-colors"
+                                  placeholder="Descreva as atividades executadas na obra...">{{ old('texto_diario', $initial_values['texto_diario'] ?? '') }}</textarea>
+                        <p class="text-xs text-slate-500 mt-1 pl-1"><i class="fas fa-info-circle mr-1"></i>Preencha aqui as informações do Diário de Obra vinculadas ao apontamento principal.</p>
+                    </div>
+                </div>
+                @endif
+
                 {{-- Botão Check-in / Check-out --}}
                 <div id="checkin-btn-area"
                      class="{{ $atividade_em_andamento ? 'sm:col-span-2' : 'hidden sm:col-span-2' }}">
@@ -1013,8 +1041,26 @@ function createRateioRow(typeValue = 'P', codigoValue = '', unidadeValue = '') {
     
     colUnidade.append(uniSel, hiddenUni);
 
+    @if(auth()->user()->hasRole('ADMIN') || in_array(auth()->user()->colaborador?->setor_id, [7, 9]))
+    // Linha do Diário de Obra Rateio (Ocupa a largura toda)
+    const colDiario = document.createElement('div');
+    colDiario.className = "col-span-12 order-5 mt-2";
+    const lblDiario = document.createElement('label');
+    lblDiario.className = "form-label mb-1 flex items-center justify-between";
+    lblDiario.innerHTML = '<span>Diário de Obra <span class="font-normal text-indigo-400">(Opcional)</span></span> <i class="fas fa-book text-indigo-400/50"></i>';
+    const txtDiario = document.createElement('textarea');
+    txtDiario.name = `rateio[${i}][texto_diario]`;
+    txtDiario.rows = 2;
+    txtDiario.className = "w-full bg-slate-800/50 border border-slate-700 rounded-md p-3 text-gray-300 focus:border-indigo-500 focus:ring-indigo-500 outline-none resize-none";
+    txtDiario.placeholder = "Descreva as atividades executadas especificamente nesta obra...";
+    colDiario.append(lblDiario, txtDiario);
+
     // Adiciona todos os elementos ao grid (a ordem do append não importa graças às classes order-*)
+    div.append(colTipo, colBtn, colEntidade, colUnidade, colDiario);
+    @else
+    // Adiciona todos os elementos ao grid
     div.append(colTipo, colBtn, colEntidade, colUnidade);
+    @endif
     wrapperObras.appendChild(div);
 
     // Função de carregar opções (Obra ou Cliente)

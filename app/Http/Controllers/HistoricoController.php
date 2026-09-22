@@ -70,6 +70,7 @@ class HistoricoController extends Controller
             'auxiliar',
             'auxiliaresExtras',
             'aprovador',
+            'diariosObra',
         ])
         ->orderByDesc('data_apontamento')
         ->orderBy('colaborador_id')
@@ -232,6 +233,7 @@ class HistoricoController extends Controller
                 'tipo_aprovacao'     => $item->tipo_aprovacao,
                 'aprovador_nome'     => $item->aprovador?->name ?? null,
                 'data_aprovacao'     => $item->data_aprovacao,
+                'texto_diario'       => $item->diariosObra->first()?->texto_diario,
             ];
 
             $historicoLista[] = $rowMain;

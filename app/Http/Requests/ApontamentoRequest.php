@@ -129,9 +129,10 @@ class ApontamentoRequest extends FormRequest
             'obras_extras_list'         => ['nullable'],
 
             // Controle
-            'tipo_acao'   => ['nullable', 'string'],
-            'ocorrencias' => ['nullable', 'string'],
-            'latitude'    => ['nullable', 'numeric', 'between:-90,90'],
+            'tipo_acao'    => ['nullable', 'string'],
+            'ocorrencias'  => ['nullable', 'string'],
+            'texto_diario' => ['nullable', 'string'],
+            'latitude'     => ['nullable', 'numeric', 'between:-90,90'],
             'longitude'   => ['nullable', 'numeric', 'between:-180,180'],
         ];
     }
@@ -830,6 +831,21 @@ class ApontamentoRequest extends FormRequest
                     'colaborador_id'    => $colab->id,
                     'cargo_colaborador' => $colab->cargo
                 ]);
+            }
+            
+            // Validação de Setores para Diário de Obra (Engenharia = 7, Implantação = 9 ou Admin)
+            if (!$user->hasRole('ADMIN') && ($colab && !in_array($colab->setor_id, [7, 9]))) {
+                $this->request->remove('texto_diario');
+                
+                $rateio = $this->input('rateio');
+                if (is_array($rateio)) {
+                    foreach ($rateio as $key => $item) {
+                        if (isset($item['texto_diario'])) {
+                            unset($rateio[$key]['texto_diario']);
+                        }
+                    }
+                    $this->merge(['rateio' => $rateio]);
+                }
             }
         }
     }

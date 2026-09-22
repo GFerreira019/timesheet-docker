@@ -134,13 +134,15 @@
                     <th class="py-3 px-4 text-center text-xs font-bold text-slate-400 uppercase tracking-wider">Info</th>
                     <th class="py-3 px-4 text-center text-xs font-bold text-slate-400 uppercase tracking-wider">Ações</th>
                     <th class="py-3 px-4 text-center text-xs font-bold text-slate-400 uppercase tracking-wider">Status</th>
+                    @if(auth()->user()->hasRole('ADMIN') || in_array(auth()->user()->colaborador?->setor_id, [7, 9]))
                     <th class="py-3 px-4 text-center text-xs font-bold text-slate-400 uppercase tracking-wider">RDO</th>
+                    @endif
                 </tr>
             </thead>
             @if(empty($apontamentos_lista))
             <tbody>
                 <tr>
-                    <td colspan="13" class="py-16 text-center text-slate-500">
+                    <td colspan="{{ (auth()->user()->hasRole('ADMIN') || in_array(auth()->user()->colaborador?->setor_id, [7, 9])) ? 14 : 13 }}" class="py-16 text-center text-slate-500">
                         <i class="fas fa-inbox text-4xl mb-3"></i>
                         <p class="font-medium text-slate-300">Nenhum apontamento encontrado</p>
                         <p class="text-sm mt-1">Tente ampliar o período de busca.</p>
@@ -412,16 +414,18 @@
                             @endif
                         </td>
 
+                        @if(auth()->user()->hasRole('ADMIN') || in_array(auth()->user()->colaborador?->setor_id, [7, 9]))
                         {{-- RDO (Diário de Obra) --}}
                         <td class="py-3 px-4 text-center">
-                            @if(!$item['is_auxiliar'])
-                            <a href="#" title="Diário de Obra (Em breve)" class="inline-block transition-transform hover:scale-110">
+                            @if(!$item['is_auxiliar'] && !empty($item['texto_diario']))
+                            <a href="#" onclick="openModal('Diário de Obra', {{ json_encode($item['texto_diario']) }})" title="Ver Diário de Obra" class="inline-block transition-transform hover:scale-110">
                                 <i class="fas fa-clipboard-list text-emerald-500 hover:text-emerald-400 text-lg"></i>
                             </a>
                             @else
                                 <span class="text-slate-700 text-xs">-</span>
                             @endif
                         </td>
+                        @endif
                     </tr>
                     @if($loop->last)
                         </tbody>
@@ -484,10 +488,12 @@
                     <span class="font-bold text-white text-sm">{{ \Carbon\Carbon::parse($item['data'])->format('d/m/Y') }}</span>
                 </div>
                 <div class="flex items-center gap-3">
-                    @if(!$item['is_auxiliar'])
-                    <a href="#" title="Diário de Obra (Em breve)" class="transition-transform hover:scale-110 flex items-center">
-                        <i class="fas fa-clipboard-list text-emerald-500 hover:text-emerald-400 text-lg"></i>
-                    </a>
+                    @if(auth()->user()->hasRole('ADMIN') || in_array(auth()->user()->colaborador?->setor_id, [7, 9]))
+                        @if(!$item['is_auxiliar'] && !empty($item['texto_diario']))
+                        <a href="#" onclick="openModal('Diário de Obra', {{ json_encode($item['texto_diario']) }})" title="Ver Diário de Obra" class="transition-transform hover:scale-110 flex items-center">
+                            <i class="fas fa-clipboard-list text-emerald-500 hover:text-emerald-400 text-lg cursor-pointer"></i>
+                        </a>
+                        @endif
                     @endif
                     <span class="{{ $s['class'] }}">{{ $s['text'] }}</span>
                 </div>

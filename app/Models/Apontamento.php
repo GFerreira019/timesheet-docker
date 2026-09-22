@@ -213,6 +213,11 @@ class Apontamento extends Model
             ->orderByDesc('numero_edicao');
     }
 
+    public function diariosObra(): HasMany
+    {
+        return $this->hasMany(ApontamentoDiarioObra::class);
+    }
+
     // -------------------------------------------------------------------------
     // Accessors (equivalentes a @property do Django)
     // -------------------------------------------------------------------------
