@@ -153,6 +153,28 @@ class CronometroApiController extends Controller
 
         $agora = now();
         $apontamento->hora_termino = $agora->format('H:i:s');
+
+        // Exceção de atualização: Diário de Obra durante o checkout
+        if ($request->has('texto_diario')) {
+            $setoresPermitidos = [7, 9];
+            $isAdmin = $user && $user->hasRole('ADMIN');
+            $setorColab = $user && $user->colaborador ? $user->colaborador->setor_id : null;
+            
+            if ($isAdmin || in_array($setorColab, $setoresPermitidos)) {
+                $texto = $request->input('texto_diario');
+                if (empty(trim($texto ?? ''))) {
+                    $apontamento->diariosObra()->delete();
+                } else {
+                    $diario = $apontamento->diariosObra()->first();
+                    if ($diario) {
+                        $diario->update(['texto_diario' => $texto]);
+                    } else {
+                        $apontamento->diariosObra()->create(['texto_diario' => $texto]);
+                    }
+                }
+            }
+        }
+
         $apontamento->save();
 
         // Recalcula CLT após check-out (equivalente ao Django)

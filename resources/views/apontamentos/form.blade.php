@@ -634,7 +634,7 @@
                 @if(auth()->user()->hasRole('ADMIN') || in_array(auth()->user()->colaborador?->setor_id, [7, 9]))
                 {{-- Diário de Obra Principal (Accordion com AlpineJS) --}}
                 <div class="sm:col-span-2" x-data="{ open: false }">
-                    <button type="button" @click="open = !open" 
+                    <button type="button" id="btn-accordion-diario" @click="open = !open" 
                             class="w-full flex items-center justify-between bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700 rounded-md p-3 text-gray-300 transition-colors cursor-pointer outline-none focus:ring-2 focus:ring-indigo-500/50">
                         <div class="flex items-center gap-2">
                             <i class="fas fa-clipboard-list text-indigo-400"></i>
@@ -1389,11 +1389,16 @@ if (btnMain) {
 // Confirmação de checkout
 document.getElementById('btn-confirm-checkout')?.addEventListener('click', async function() {
     closeConfirmModal();
+    
+    // Captura o valor do Diário de Obra se estiver preenchido
+    const diarioTextarea = document.querySelector('textarea[name="texto_diario"]');
+    const textoDiario = diarioTextarea ? diarioTextarea.value : null;
+
     try {
         const resp = await fetch(CONFIG.timerStopUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': CONFIG.csrfToken },
-            body: JSON.stringify({})
+            body: JSON.stringify({ texto_diario: textoDiario })
         });
         const data = await resp.json();
         if (data.success) {
@@ -1825,9 +1830,12 @@ function bloquearCamposEmExecucao() {
     
     elementos.forEach(el => {
         // Exceções: NÃO bloquear inputs hidden, o botão principal de check-out, nem os botões do modal de confirmação
+        // Adicionada exceção para o Diário de Obra (textarea e botão do accordion)
         if (
             el.type !== 'hidden' && 
             el.id !== 'btn-action-main' && 
+            el.name !== 'texto_diario' &&
+            el.id !== 'btn-accordion-diario' &&
             !el.closest('#confirm-modal')
         ) {
             el.disabled = true;
