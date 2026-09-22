@@ -55,8 +55,27 @@
                             <p class="text-sm text-slate-200">{{ $obra->tipo_categoria ?? '-' }}</p>
                         </div>
                         <div class="mb-4">
-                            <p class="text-xs text-slate-500 font-semibold mb-1">Setor / Etapa</p>
-                            <p class="text-sm text-slate-200">{{ $obra->setor->nome ?? $obra->projeto_setor ?? '-' }} {{ $obra->projeto_etapa ? ' - ' . $obra->projeto_etapa : '' }}</p>
+                            <p class="text-xs text-slate-500 font-semibold mb-1">Setores Vinculados</p>
+                            <div class="text-sm text-slate-200 space-y-2 mt-2">
+                                @forelse($obra->setores as $setor)
+                                    <div class="bg-slate-800/50 p-2 rounded border border-slate-700/50">
+                                        <div class="font-bold flex items-center justify-between">
+                                            <span>{{ $setor->nome }}</span>
+                                            @if(!$setor->pivot->ativo)
+                                                <span class="text-[10px] bg-red-500/20 text-red-400 px-1.5 py-0.5 rounded">INATIVO</span>
+                                            @else
+                                                <span class="text-[10px] bg-green-500/20 text-green-400 px-1.5 py-0.5 rounded">ATIVO</span>
+                                            @endif
+                                        </div>
+                                        <div class="text-xs text-slate-400 flex justify-between mt-1.5">
+                                            <span><i class="fas fa-building mr-1"></i> {{ $setor->pivot->status ?: 'Sem Status' }}</span>
+                                            <span><i class="far fa-calendar-alt mr-1"></i> {{ $setor->pivot->data_alteracao ? \Carbon\Carbon::parse($setor->pivot->data_alteracao)->format('d/m/Y') : '-' }}</span>
+                                        </div>
+                                    </div>
+                                @empty
+                                    <p class="text-slate-500 italic">Nenhum setor vinculado.</p>
+                                @endforelse
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -99,10 +118,7 @@
                     <div>
                         <h4 class="text-sm font-bold text-indigo-400 uppercase tracking-wider mb-4 border-b border-slate-700 pb-2"><i class="fas fa-calendar-check mr-2"></i> Cronograma</h4>
                         
-                        <div class="mb-4">
-                            <p class="text-xs text-slate-500 font-semibold mb-1">Status do Projeto</p>
-                            <p class="text-sm text-slate-200 font-bold">{{ $obra->projeto_status ?? '-' }}</p>
-                        </div>
+                        <!-- Status do Projeto Removido (agora é por setor) -->
                         
                         <div class="mb-4">
                             <p class="text-xs text-slate-500 font-semibold mb-1">Avanço</p>

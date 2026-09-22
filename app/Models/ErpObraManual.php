@@ -26,7 +26,7 @@ class ErpObraManual extends Model
         'tipo_categoria',
         
         // Novos campos
-        'projeto_unidade', 'projeto_objeto', 'setor_id', 'projeto_etapa', 'projeto_status',
+        'projeto_unidade', 'projeto_objeto', 'projeto_status',
         'cronograma_inicio', 'cronograma_fim', 'projeto_avanco',
         'lider_comercial',
         'target', 'contrato_assinatura', 'termo_entrega',
@@ -117,9 +117,9 @@ class ErpObraManual extends Model
         return $this->hasMany(ControleProjetoHistorico::class, 'projeto_original_id');
     }
 
-    public function setor()
+    public function setores()
     {
-        return $this->belongsTo(Setor::class, 'setor_id');
+        return $this->belongsToMany(Setor::class, 'projeto_setor')->withPivot('status', 'data_alteracao', 'ativo')->withTimestamps();
     }
 
     public function liderComercial()

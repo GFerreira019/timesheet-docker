@@ -33,12 +33,19 @@ class ErpObraManualController extends Controller
         }
 
         // Correspondência Exata / Selects
-        $exactFields = ['tipo_categoria', 'setor_id', 'projeto_etapa', 'projeto_status', 'lider_comercial'];
+        $exactFields = ['tipo_categoria', 'projeto_status', 'lider_comercial'];
         foreach ($exactFields as $field) {
             $query->when($request->filled($field), function ($q) use ($request, $field) {
                 return $q->where($field, $request->query($field));
             });
         }
+
+        // Filtro N:N para Setores
+        $query->when($request->filled('setor_id'), function ($q) use ($request) {
+            return $q->whereHas('setores', function ($q2) use ($request) {
+                $q2->where('setor_id', $request->query('setor_id'));
+            });
+        });
 
         // Booleanos / Checkboxes (Sim/Não)
         $booleanFields = ['status_ativo', 'pedagio', 'ausencia_cronograma', 'ausencia_contrato', 'ausencia_termo'];
@@ -75,7 +82,7 @@ class ErpObraManualController extends Controller
         }
 
         // 1. Paginação carregando apenas relações simples
-        $obras = $query->with(['setor', 'liderComercial'])->paginate(15);
+        $obras = $query->with(['setores', 'liderComercial'])->paginate(15);
         $obras->appends($request->all());
 
         // 2. Custom Eager Loading de Chave Composta (Código + Unidade)
@@ -136,6 +143,7 @@ class ErpObraManualController extends Controller
         try {
             $obra = ErpObraManual::create($request->validated());
             $this->sincronizarGestores($obra, $request);
+            $this->sincronizarSetores($obra, $request);
             \Illuminate\Support\Facades\DB::commit();
             return redirect()->back()->with('success', 'Obra criada com sucesso!');
         } catch (\Exception $e) {
@@ -149,14 +157,76 @@ class ErpObraManualController extends Controller
         \Illuminate\Support\Facades\DB::beginTransaction();
         try {
             $obra = ErpObraManual::findOrFail($id);
-            $obra->update($request->validated());
+            $obra->fill($request->validated());
+
+            $mudancasSetores = $this->sincronizarSetores($obra, $request);
             $this->sincronizarGestores($obra, $request);
+
+            if ($obra->isDirty()) {
+                $obra->save();
+            } elseif ($mudancasSetores) {
+                $obra->touch();
+            }
             \Illuminate\Support\Facades\DB::commit();
             return redirect()->back()->with('success', 'Obra atualizada com sucesso!');
         } catch (\Exception $e) {
             \Illuminate\Support\Facades\DB::rollBack();
             return redirect()->back()->with('error', 'Erro ao atualizar obra: ' . $e->getMessage())->withInput();
         }
+    }
+
+    private function sincronizarSetores(ErpObraManual $obra, Request $request)
+    {
+        $syncData = [];
+        
+        $statusAtuais = $obra->setores()->pluck('projeto_setor.status', 'setores.id');
+        $datasAtuais = $obra->setores()->pluck('projeto_setor.data_alteracao', 'setores.id');
+        $ativosAtuais = $obra->setores()->pluck('projeto_setor.ativo', 'setores.id');
+
+        $idsNaRequisicao = [];
+
+        if ($request->has('setores') && is_array($request->setores)) {
+            foreach ($request->setores as $setor) {
+                if (!empty($setor['id'])) {
+                    $setorId = $setor['id'];
+                    $idsNaRequisicao[] = $setorId;
+                    $novoStatus = $setor['status'] ?? null;
+                    
+                    $dataAlteracao = $setor['data_alteracao'] ?? null;
+                    if (empty($dataAlteracao)) {
+                        $dataAlteracao = $datasAtuais[$setorId] ?? null;
+                    }
+
+                    $ativo = in_array($novoStatus, ['EM ANDAMENTO', 'SEM STATUS', 'SEM TARGET']);
+
+                    $syncData[$setorId] = [
+                        'status' => $novoStatus,
+                        'data_alteracao' => $dataAlteracao,
+                        'ativo' => $ativo
+                    ];
+                }
+            }
+        }
+        
+        $mudancasPivot = $obra->setores()->syncWithoutDetaching($syncData);
+        $mudouAlgumaCoisa = !empty($mudancasPivot['attached']) || !empty($mudancasPivot['updated']);
+
+        // Soft delete lógico para setores removidos na view
+        $idsAusentes = $statusAtuais->keys()->diff($idsNaRequisicao);
+        
+        foreach ($idsAusentes as $idAusente) {
+            // Se ainda estiver ativo, nós o desativamos
+            if (isset($ativosAtuais[$idAusente]) && $ativosAtuais[$idAusente]) {
+                $obra->setores()->updateExistingPivot($idAusente, [
+                    'ativo' => false,
+                    'status' => 'INATIVA',
+                    'data_alteracao' => now()->toDateString()
+                ]);
+                $mudouAlgumaCoisa = true;
+            }
+        }
+        
+        return $mudouAlgumaCoisa;
     }
 
     private function sincronizarGestores(ErpObraManual $obra, ErpObraManualRequest $request)
@@ -225,8 +295,7 @@ class ErpObraManualController extends Controller
             'endereco' => 'Endereço',
             'cidade' => 'Cidade',
             'tipo_categoria' => 'Categoria',
-            'setor_id' => 'Setor Responsável',
-            'projeto_etapa' => 'Etapa do Projeto',
+            'setores_vinculados' => 'Setores Vinculados',
             'cronograma_inicio' => 'Início do Cronograma',
             'cronograma_fim' => 'Fim do Cronograma',
             'target' => 'Data Target',
@@ -299,6 +368,35 @@ class ErpObraManualController extends Controller
                     continue;
                 }
 
+                // Tratamento especial para Setores Vinculados (array)
+                if ($campo === 'setores_vinculados') {
+                    $atualSetores = collect($valorAtualRaw)->map(function($s) use ($setores) {
+                        $nome = $setores[$s['id']] ?? ($s['nome'] ?? 'Desconhecido');
+                        $status = $s['status'] ?? 'Sem status';
+                        $data = !empty($s['data_alteracao']) ? date('d/m/Y', strtotime($s['data_alteracao'])) : 'N/A';
+                        $ativo = isset($s['ativo']) && !$s['ativo'] ? ' [INATIVO]' : '';
+                        return "{$nome}{$ativo} - {$status} (em {$data})";
+                    })->filter()->implode('\n');
+
+                    $antigoSetores = collect($valorAntigoRaw)->map(function($s) use ($setores) {
+                        $nome = $setores[$s['id']] ?? ($s['nome'] ?? 'Desconhecido');
+                        $status = $s['status'] ?? 'Sem status';
+                        $data = !empty($s['data_alteracao']) ? date('d/m/Y', strtotime($s['data_alteracao'])) : 'N/A';
+                        $ativo = isset($s['ativo']) && !$s['ativo'] ? ' [INATIVO]' : '';
+                        return "{$nome}{$ativo} - {$status} (em {$data})";
+                    })->filter()->implode('\n');
+
+                    if ($atualSetores !== $antigoSetores) {
+                        $mudancas[] = [
+                            'campo_raw' => $campo,
+                            'campo_formatado' => $dicionario[$campo] ?? 'Setores',
+                            'de' => $antigoSetores ?: 'Nenhum',
+                            'para' => $atualSetores ?: 'Nenhum'
+                        ];
+                    }
+                    continue;
+                }
+
                 // Normalização para string (para floats, nulls, booleanos, etc)
                 $valorAtual = is_array($valorAtualRaw) ? json_encode($valorAtualRaw) : strval($valorAtualRaw);
                 $valorAntigo = is_array($valorAntigoRaw) ? json_encode($valorAntigoRaw) : strval($valorAntigoRaw);
@@ -312,10 +410,7 @@ class ErpObraManualController extends Controller
                 if ($valorAtual !== $valorAntigo) {
                     
                     // Tradução de FKs (Join manual)
-                    if ($campo === 'setor_id') {
-                        $valorAntigo = $setores[$valorAntigoRaw] ?? $valorAntigo;
-                        $valorAtual = $setores[$valorAtualRaw] ?? $valorAtual;
-                    } elseif ($campo === 'lider_comercial_id') {
+                    if ($campo === 'lider_comercial_id') {
                         $valorAntigo = $colaboradores[$valorAntigoRaw] ?? $valorAntigo;
                         $valorAtual = $colaboradores[$valorAtualRaw] ?? $valorAtual;
                     }
@@ -459,7 +554,7 @@ class ErpObraManualController extends Controller
 
     public function show($id)
     {
-        $obra = ErpObraManual::with(['setor', 'liderComercial', 'projetoOperacional.gestores.user'])->findOrFail($id);
+        $obra = ErpObraManual::with(['setores', 'liderComercial', 'projetoOperacional.gestores.user'])->findOrFail($id);
         return view('erp_obras_manual.show', compact('obra'));
     }
 }

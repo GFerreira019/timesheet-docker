@@ -19,6 +19,32 @@ class ErpObraManualObserver
     public function updated(ErpObraManual $obra)
     {
         $snapshot = $obra->toArray();
+        $snapshot['setores_vinculados'] = $obra->setores->map(function($setor) {
+            return [
+                'id' => $setor->id,
+                'nome' => $setor->nome,
+                'status' => $setor->pivot->status,
+                'data_alteracao' => $setor->pivot->data_alteracao,
+                'ativo' => $setor->pivot->ativo,
+            ];
+        })->toArray();
+
+        if (empty($snapshot['setores_vinculados']) && request()->has('setores')) {
+            $reqSetores = request('setores');
+            $ids = collect($reqSetores)->pluck('id')->filter()->toArray();
+            $nomes = \App\Models\Setor::whereIn('id', $ids)->pluck('nome', 'id');
+            foreach ($reqSetores as $s) {
+                if (!empty($s['id'])) {
+                    $snapshot['setores_vinculados'][] = [
+                        'id' => $s['id'],
+                        'nome' => $nomes[$s['id']] ?? 'Desconhecido',
+                        'status' => $s['status'] ?? null,
+                        'data_alteracao' => $s['data_alteracao'] ?? null,
+                        'ativo' => in_array($s['status'] ?? null, ['EM ANDAMENTO', 'SEM STATUS', 'SEM TARGET']),
+                    ];
+                }
+            }
+        }
 
         $ultimaEdicao = ControleProjetoHistorico::where('projeto_original_id', $obra->id)
             ->orderBy('numero_edicao', 'desc')
@@ -46,9 +72,33 @@ class ErpObraManualObserver
      */
     public function created(ErpObraManual $obra)
     {
+        $snapshot = $obra->toArray();
+        $snapshot['setores_vinculados'] = $obra->setores->map(function($setor) {
+            return [
+                'id' => $setor->id,
+                'nome' => $setor->nome,
+                'status' => $setor->pivot->status,
+            ];
+        })->toArray();
+
+        if (empty($snapshot['setores_vinculados']) && request()->has('setores')) {
+            $reqSetores = request('setores');
+            $ids = collect($reqSetores)->pluck('id')->filter()->toArray();
+            $nomes = \App\Models\Setor::whereIn('id', $ids)->pluck('nome', 'id');
+            foreach ($reqSetores as $s) {
+                if (!empty($s['id'])) {
+                    $snapshot['setores_vinculados'][] = [
+                        'id' => $s['id'],
+                        'nome' => $nomes[$s['id']] ?? 'Desconhecido',
+                        'status' => $s['status'] ?? null,
+                    ];
+                }
+            }
+        }
+
         ControleProjetoHistorico::create([
             'projeto_original_id' => $obra->id,
-            'dados_snapshot' => $obra->toArray(),
+            'dados_snapshot' => $snapshot,
             'editado_por_id' => auth()->id(),
             'numero_edicao' => 1,
             'data_edicao' => now(),

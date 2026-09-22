@@ -61,17 +61,7 @@ class ErpObraManualRequest extends FormRequest
             if (strlen($target) === 7) {
                 $mergeData['target'] = $target . '-01';
             }
-        }
-        
-        // Tratamento da Etapa (se vier como array do multi-select, salva concatenado por ' - ')
-        if ($this->has('projeto_etapa')) {
-            $etapaInput = $this->input('projeto_etapa');
-            if (is_array($etapaInput)) {
-                $etapaFiltrada = array_filter(array_map('trim', $etapaInput));
-                $mergeData['projeto_etapa'] = !empty($etapaFiltrada) ? implode(' - ', $etapaFiltrada) : null;
-            }
-        }
-        
+        }        
         $this->merge($mergeData);
     }
 
@@ -111,13 +101,18 @@ class ErpObraManualRequest extends FormRequest
             // Controle e Cronograma
             'projeto_unidade' => 'nullable|string|max:100',
             'projeto_objeto' => 'nullable|string|max:255',
-            'projeto_etapa' => 'nullable|string|max:255',
             'projeto_status' => 'nullable|string|max:50',
             'projeto_avanco' => 'nullable|numeric|min:0|max:100',
             'ausencia_cronograma' => 'boolean',
             'cronograma_inicio' => 'nullable|date',
             'cronograma_fim' => 'nullable|date',
-            'setor_id' => 'nullable|integer|exists:setores,id',
+            
+            // Setores Múltiplos
+            'setores' => 'nullable|array',
+            'setores.*.id' => 'required|integer|exists:setores,id',
+            'setores.*.status' => 'nullable|string|max:255',
+            'setores.*.data_alteracao' => 'nullable|date',
+            
             'centro_custo' => 'nullable|string|max:255',
             'target' => 'nullable|date',
             'ausencia_contrato' => 'boolean',

@@ -241,27 +241,6 @@
                     </h4>
                     <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                         <div>
-                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Status</label>
-                            <select name="projeto_status" class="w-full bg-slate-900 border border-slate-700 text-slate-300 rounded-lg p-2 text-sm focus:ring-indigo-500 outline-none">
-                                <option value="">Todos</option>
-                                <option value="CANCELADA" {{ request('projeto_status') == 'CANCELADA' ? 'selected' : '' }}>CANCELADA</option>
-                                <option value="CONCLUIDA" {{ request('projeto_status') == 'CONCLUIDA' ? 'selected' : '' }}>CONCLUIDA</option>
-                                <option value="EM ANDAMENTO" {{ request('projeto_status') == 'EM ANDAMENTO' ? 'selected' : '' }}>EM ANDAMENTO</option>
-                                <option value="PENDENCIA DO CLIENTE" {{ request('projeto_status') == 'PENDENCIA DO CLIENTE' ? 'selected' : '' }}>PENDENCIA DO CLIENTE</option>
-                                <option value="PERMUTA" {{ request('projeto_status') == 'PERMUTA' ? 'selected' : '' }}>PERMUTA</option>
-                                <option value="SUSPENSA" {{ request('projeto_status') == 'SUSPENSA' ? 'selected' : '' }}>SUSPENSA</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Etapa</label>
-                            <select name="projeto_etapa" class="w-full bg-slate-900 border border-slate-700 text-slate-300 rounded-lg p-2 text-sm focus:ring-indigo-500 outline-none">
-                                <option value="">Todos</option>
-                                @foreach($etapas as $etapa)
-                                    <option value="{{ $etapa->nome }}" {{ request('projeto_etapa') == $etapa->nome ? 'selected' : '' }}>{{ $etapa->nome }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-                        <div>
                             <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Obra Ativa</label>
                             <select name="status_ativo" class="w-full bg-slate-900 border border-slate-700 text-slate-300 rounded-lg p-2 text-sm focus:ring-indigo-500 outline-none">
                                 <option value="">Todos</option>
@@ -330,7 +309,7 @@
                     {{-- Colunas Iniciais Fixas --}}
                     <th class="py-3 px-4 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">Nome do Projeto</th>
                     <th class="py-3 px-4 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">Unidade</th>
-                    <th class="py-3 px-4 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">Setor</th>
+                    <th class="py-3 px-4 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">Setores</th>
                     
                     {{-- Colunas Dinâmicas via request('view') --}}
                     @if($viewMode === 'gestores')
@@ -385,13 +364,17 @@
                         {{ $obra->projeto_unidade ?? '-' }}
                     </td>
                     
-                    {{-- 3. Setor / Etapa --}}
+                    {{-- 3. Setores --}}
                     <td class="py-3 px-4 text-sm font-semibold uppercase text-slate-300">
-                        {{-- Tenta buscar o nome da relação setor, com fallback para a coluna projeto_setor, e por fim '-' --}}
-                        <div class="font-semibold text-slate-300">{{ $obra->setor->nome ?? $obra->projeto_setor ?? '-' }}</div>
-                        @if($obra->projeto_etapa)
-                            <div class="font-semibold text-xs text-slate-400"><span class="font-semibold text-slate-400 uppercase">em </span> {{ $obra->projeto_etapa }}</div>
-                        @endif
+                        @forelse($obra->setores as $setor)
+                            <div class="font-semibold text-slate-300">{{ $setor->nome }} 
+                                @if($setor->pivot->status)
+                                    <span class="text-xs text-slate-500 lowercase">({{ $setor->pivot->status }})</span>
+                                @endif
+                            </div>
+                        @empty
+                            <div class="font-semibold text-slate-500">-</div>
+                        @endforelse
                     </td>
 
                     {{-- Sessões Dinâmicas do Body --}}
@@ -435,7 +418,6 @@
 
                     @elseif($viewMode === 'cronograma')
                         <td class="py-3 px-4 text-sm text-slate-300 w-48">
-                            <div class="text-xs font-semibold mb-1 text-slate-200">{{ $obra->projeto_status ?? '-' }}</div>
                             <div class="w-full bg-slate-700 font-semibold rounded-full h-1.5 mb-1" title="{{ $obra->projeto_avanco ?? 0 }}%">
                                 <div class="bg-indigo-500 h-1.5 rounded-full transition-all" style="width: {{ $obra->projeto_avanco ?? 0 }}%"></div>
                             </div>
@@ -640,14 +622,17 @@
                             <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Target</label>
                             <input type="month" name="target" class="w-full bg-slate-900 border border-slate-700 text-slate-300 rounded-lg p-2.5 focus:ring-1 focus:ring-indigo-500 outline-none">
                         </div>
-                        <div>
-                            <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Setor</label>
-                            <select id="select-setor_id" name="setor_id" class="w-full bg-slate-900 border border-slate-700 text-slate-300 rounded-lg p-2.5 focus:ring-1 focus:ring-indigo-500 outline-none">
-                                <option value="" data-nome="">Selecione...</option>
-                                @foreach($setores as $setor)
-                                    <option value="{{ $setor->id }}" data-nome="{{ strtoupper($setor->nome) }}">{{ $setor->nome }}</option>
-                                @endforeach
-                            </select>
+                        <!-- Setores Dinâmicos (N:N) -->
+                        <div class="col-span-full border border-slate-700 rounded-lg p-4 bg-slate-900/50 mt-4">
+                            <div class="flex items-center justify-between mb-3">
+                                <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider">Setores Vinculados</label>
+                                <button type="button" onclick="adicionarSetorRow()" class="px-3 py-1 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded flex items-center gap-2 transition">
+                                    <i class="fas fa-plus"></i> Adicionar
+                                </button>
+                            </div>
+                            <div id="setores-container" class="space-y-3">
+                                <!-- JS vai renderizar as linhas aqui -->
+                            </div>
                         </div>
                     </div>
 
@@ -680,45 +665,8 @@
 
                 {{-- ABA: CRONOGRAMA --}}
                 <div id="tab-cronograma" class="tab-content hidden space-y-4">
-                    <!-- Linha 1 -->
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div>
-                            <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Status</label>
-                            <select name="projeto_status" class="w-full bg-slate-900 border border-slate-700 text-slate-300 rounded-lg p-2.5 focus:ring-1 focus:ring-indigo-500 outline-none transition-colors appearance-none cursor-pointer">
-                                <option value="">Selecione...</option>
-                                <option value="CANCELADA">CANCELADA</option>
-                                <option value="CONCLUIDA">CONCLUIDA</option>
-                                <option value="EM ANDAMENTO">EM ANDAMENTO</option>
-                                <option value="PENDENCIA DO CLIENTE">PENDENCIA DO CLIENTE</option>
-                                <option value="PERMUTA">PERMUTA</option>
-                                <option value="SUSPENSA">SUSPENSA</option>
-                            </select>
-                        </div>
-                        <div id="wrapper-etapa" class="hidden">
-                            <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Etapa(s)</label>
-                            <div class="relative" data-multi-select data-summary-label="etapas selecionadas">
-                                <!-- Caixa Principal (Simula o select fechado) -->
-                                <div type="button" onclick="toggleMultiSelect(this)" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 cursor-pointer flex items-center justify-between text-slate-300 hover:border-slate-600 transition">
-                                    <span class="text-sm truncate select-summary">Nenhum selecionado</span>
-                                    <i class="fas fa-chevron-down text-xs text-slate-500 transition-transform duration-200"></i>
-                                </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 
-                                <!-- Caixa de Opções (Tamanho com scroll e opções customizadas) -->
-                                <div class="hidden absolute top-full left-0 right-0 mt-1 bg-slate-900 border border-slate-700 rounded-lg shadow-2xl z-50 p-2 space-y-1 max-h-48 overflow-y-auto options-container" id="select-etapa-options">
-                                    @if(isset($etapas))
-                                        @foreach($etapas as $etapa)
-                                            <label class="flex items-center justify-between px-3 py-1.5 rounded-md cursor-pointer transition-all text-slate-300 hover:bg-slate-800 option-item has-[:checked]:bg-indigo-500/20 has-[:checked]:border has-[:checked]:border-indigo-500/40 has-[:checked]:text-indigo-300 has-[:checked]:[&_.check-icon]:opacity-100" onclick="handleCheckboxClick(event, this)">
-                                                <div class="flex items-center gap-2">
-                                                    <input type="checkbox" name="projeto_etapa[]" value="{{ $etapa->nome }}" class="rounded bg-slate-800 border-slate-600 text-indigo-500 focus:ring-indigo-500 hidden checkbox-input" onchange="updateMultiSelectState(this)">
-                                                    <span class="text-sm font-semibold">{{ $etapa->nome }}</span>
-                                                </div>
-                                                <i class="fas fa-check text-indigo-400 text-xs opacity-0 transition-opacity duration-200 check-icon"></i>
-                                            </label>
-                                        @endforeach
-                                    @endif
-                                </div>
-                            </div>
-                        </div>
                         <div>
                             <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Avanço do Projeto (%)</label>
                             <input type="number" step="0.01" min="0" max="100" oninput="this.value = Math.min(Math.max(this.value, 0), 100)" name="projeto_avanco" class="w-full bg-slate-900 border border-slate-700 text-slate-300 rounded-lg p-2.5 focus:ring-1 focus:ring-indigo-500 outline-none">
@@ -955,11 +903,7 @@
                 if (selLider) selLider.value = valLider;
             }
 
-            // Dispara mudança no select de setor para ajustar visibilidade da Etapa
-            const selSetor = document.getElementById('select-setor_id');
-            if (selSetor) {
-                selSetor.dispatchEvent(new Event('change'));
-            }
+
 
             // Popula os selects múltiplos e únicos de gestores
             const gestores = dados.gestores && Array.isArray(dados.gestores) ? dados.gestores : [];
@@ -1019,14 +963,21 @@
             setSelectSingle('gerente_implantacao', gerImplantacao);
             setSelectSingle('gerente_manutencao', gerManutencao);
 
-            // Popula o select múltiplo de etapas (separadas por " - ")
-            let etapasArray = [];
-            if (dados.projeto_etapa && typeof dados.projeto_etapa === 'string') {
-                etapasArray = dados.projeto_etapa.split(' - ').map(e => e.trim());
-            } else if (Array.isArray(dados.projeto_etapa)) {
-                etapasArray = dados.projeto_etapa;
+            // Popula Setores Dinâmicos N:N
+            const setoresContainer = document.getElementById('setores-container');
+            if (setoresContainer) setoresContainer.innerHTML = '';
+            if (dados.setores && dados.setores.length > 0) {
+                dados.setores.forEach(s => {
+                    let dataAlt = '';
+                    if (s.pivot && s.pivot.data_alteracao) {
+                        // Corta a data no formato YYYY-MM-DD
+                        dataAlt = s.pivot.data_alteracao.split(' ')[0];
+                    }
+                    adicionarSetorRow(s.id, s.pivot ? s.pivot.status : '', dataAlt);
+                });
+            } else {
+                adicionarSetorRow();
             }
-            setSelectMultiple('select-etapa-options', etapasArray);
 
             // Aplica estado visual dos checkboxes de ausência
             document.querySelectorAll('.absence-toggle').forEach(chk => {
@@ -1062,7 +1013,7 @@
             }
 
             // Reset dos selects múltiplos no Novo Projeto
-            ['select-coord-imp', 'select-coord-man', 'select-etapa-options'].forEach(containerId => {
+            ['select-coord-imp', 'select-coord-man'].forEach(containerId => {
                 const container = document.getElementById(containerId);
                 if(container) {
                     container.querySelectorAll('input[type="checkbox"]').forEach(chk => {
@@ -1291,47 +1242,73 @@
         }
     }
 
-    // Regra de Visibilidade da Etapa baseada no Setor (Locação)
-    (function() {
-        const selectSetor = document.getElementById('select-setor_id');
-        const wrapperEtapa = document.getElementById('wrapper-etapa');
-        const containerEtapa = document.getElementById('select-etapa-options');
+    // Lógica para controle dos campos de setor N:N
+    let setorRowIndex = 0;
 
-        function toggleEtapaVisibilidade() {
-            if (!selectSetor) return;
-            const selectedOption = selectSetor.options[selectSetor.selectedIndex];
-            if (!selectedOption) return;
-            
-            const setorNome = selectedOption.getAttribute('data-nome');
-            
-            if (setorNome && setorNome.toUpperCase().includes('LOCA')) { // Verifica se tem LOCACAO no nome
-                wrapperEtapa.classList.remove('hidden');
-            } else {
-                wrapperEtapa.classList.add('hidden');
-                if (containerEtapa) {
-                    containerEtapa.querySelectorAll('input[type="checkbox"]').forEach(chk => {
-                        chk.checked = false;
-                        updateMultiSelectState(chk);
-                    });
-                    updateSummary(containerEtapa);
-                }
+    function adicionarSetorRow(setorId = '', status = '', dataAlteracao = '') {
+        const container = document.getElementById('setores-container');
+        if(!container) return;
+        const template = document.getElementById('template-setor-row').innerHTML;
+        const index = setorRowIndex++;
+        
+        let html = template.replace(/__INDEX__/g, index);
+        container.insertAdjacentHTML('beforeend', html);
+        
+        const rows = container.querySelectorAll('.setor-row');
+        const newRow = rows[rows.length - 1];
+        
+        const selectSetor = newRow.querySelector('.select-setor');
+        const inputStatus = newRow.querySelector('.input-status');
+        const inputDate = newRow.querySelector('.input-data-alteracao');
+        const removeBtn = newRow.querySelector('.remove-setor-btn');
+
+        let originalStatus = '';
+
+        if (setorId) {
+            if (selectSetor) {
+                selectSetor.value = setorId;
+                selectSetor.style.pointerEvents = 'none';
+                selectSetor.classList.add('bg-slate-800');
+            }
+            if (removeBtn) {
+                removeBtn.classList.add('hidden');
             }
         }
 
-        if (selectSetor) {
-            selectSetor.addEventListener('change', toggleEtapaVisibilidade);
-            // Também chama ao carregar a página caso seja um modal de edição sendo populado
-            toggleEtapaVisibilidade();
-            
-            // Observer para quando o modal for aberto e o select preenchido (caso use Livewire/Alpine ou JS para popular)
-            // Uma opção simples é interceptar a abertura do modal:
-            window.addEventListener('modal-opened', toggleEtapaVisibilidade);
-            
-            // MutationObserver para garantir que reavalie se o JS preencher o value depois
-            const observer = new MutationObserver(toggleEtapaVisibilidade);
-            observer.observe(selectSetor, { attributes: true, attributeFilter: ['value'] });
+        if (status) {
+            originalStatus = status;
+            if (inputStatus) inputStatus.value = status;
         }
-    })();
+        if (dataAlteracao) {
+            if (inputDate) inputDate.value = dataAlteracao;
+        }
+
+        if (inputStatus && inputDate) {
+            inputStatus.addEventListener('change', function() {
+                if (this.value !== originalStatus) {
+                    inputDate.value = '';
+                    inputDate.required = true;
+                    inputDate.classList.add('border-indigo-500', 'ring-1', 'ring-indigo-500');
+                } else {
+                    inputDate.value = dataAlteracao;
+                    inputDate.required = false;
+                    inputDate.classList.remove('border-indigo-500', 'ring-1', 'ring-indigo-500');
+                }
+            });
+        }
+    }
+
+    // Expose in window to be accessible from template inline events
+    window.adicionarSetorRow = adicionarSetorRow;
+
+    function removerSetorRow(btn) {
+        const row = btn.closest('.setor-row');
+        if (row) {
+            row.remove();
+        }
+    }
+
+    window.removerSetorRow = removerSetorRow;
 
     // Abre/Fecha o dropdown ao clicar na caixa principal
     function toggleMultiSelect(element) {
@@ -1531,6 +1508,39 @@
         }, 300);
     }
 </script>
+
+<template id="template-setor-row">
+    <div class="flex items-end gap-2 setor-row relative p-3 border border-slate-700/50 rounded bg-slate-800/30">
+        <div class="flex-1">
+            <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Setor</label>
+            <select name="setores[__INDEX__][id]" class="w-full bg-slate-900 border border-slate-700 text-slate-300 rounded-lg p-2 text-sm focus:ring-1 focus:ring-indigo-500 outline-none select-setor" required>
+                <option value="">Selecione...</option>
+                @foreach($setores as $setor)
+                    <option value="{{ $setor->id }}">{{ $setor->nome }}</option>
+                @endforeach
+            </select>
+        </div>
+        <div class="flex-1">
+            <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Status</label>
+            <select name="setores[__INDEX__][status]" class="w-full bg-slate-900 border border-slate-700 text-slate-300 rounded-lg p-2 text-sm focus:ring-1 focus:ring-indigo-500 outline-none input-status" required>
+                <option value="">Selecione...</option>
+                <option value="CANCELADA">CANCELADA</option>
+                <option value="CONCLUIDA">CONCLUIDA</option>
+                <option value="EM ANDAMENTO">EM ANDAMENTO</option>
+                <option value="INATIVA">INATIVA</option>
+                <option value="SEM STATUS">SEM STATUS</option>
+                <option value="SEM TARGET">SEM TARGET</option>
+            </select>
+        </div>
+        <div class="flex-1">
+            <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Data de Status</label>
+            <input type="date" name="setores[__INDEX__][data_alteracao]" class="w-full bg-slate-900 border border-slate-700 text-slate-300 rounded-lg p-2 text-sm focus:ring-1 focus:ring-indigo-500 outline-none input-data-alteracao" required>
+        </div>
+        <button type="button" onclick="removerSetorRow(this)" class="p-2 mb-[1px] bg-red-500/10 hover:bg-red-500/20 text-red-500 rounded-lg transition flex-shrink-0 remove-setor-btn" title="Remover Setor">
+            <i class="fas fa-trash"></i>
+        </button>
+    </div>
+</template>
 
 {{-- ==========================================
      MODAL DE HISTÓRICO DE AUDITORIA
