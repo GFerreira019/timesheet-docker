@@ -113,7 +113,12 @@ class AcessoHelper
      */
     public static function podeFazerRateio(?User $user = null): bool
     {
-        return self::isCoordenador($user) || self::isAdministrativo($user) || self::isOwner($user);
+        return self::isCoordenador($user) 
+            || self::isAdministrativo($user) 
+            || self::isAdmin($user) 
+            || self::isGerencial($user) 
+            || self::isSac($user)
+            || self::isOwner($user);
     }
 
     /**
