@@ -9,7 +9,8 @@ class ColaboradorController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Colaborador::with(['setorRelacionamento', 'setoresVinculados:id', 'setoresGerenciados:id', 'user.roles', 'notificacoes' => fn($q) => $q->where('lida', false)->latest()->limit(10)]);
+        $query = Colaborador::with(['setorRelacionamento', 'setoresVinculados:id', 'setoresGerenciados:id', 'user.roles', 'notificacoes' => fn($q) => $q->where('lida', false)->latest()->limit(10)])
+            ->withCount(['notificacoes' => fn($q) => $q->where('lida', false)]);
 
         if ($request->filled('nome')) {
             $query->where('nome_completo', 'ilike', '%' . $request->nome . '%');
@@ -84,6 +85,7 @@ class ColaboradorController extends Controller
                                 ->get();
 
         $colaboradoresParaVinculo = Colaborador::with(['user', 'setorRelacionamento', 'notificacoes' => fn($q) => $q->where('lida', false)->latest()->limit(10)])
+            ->withCount(['notificacoes' => fn($q) => $q->where('lida', false)])
             ->whereDoesntHave('user')
             ->orderBy('nome_completo')
             ->get();
